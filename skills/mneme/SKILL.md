@@ -27,6 +27,8 @@ Find the wiki bundle in this order; use the first hit:
 
 `config.toml` is simple `key = "value"` lines; parse with stdlib (no PyYAML needed).
 
+> **Skill-relative paths:** paths like `scripts/validate_okf.py` are relative to this skill's own directory (the folder containing this SKILL.md). Run them from there, or resolve the skill path you loaded this file from.
+
 ## OKF v0.1 conformance (hard rules — never violate on write)
 
 1. Every non-reserved `.md` MUST have a `---`-delimited YAML frontmatter block.
@@ -74,4 +76,4 @@ Scaffold a new empty bundle and record it:
 
 ## references (load on demand)
 
-`references/workflow-ingest.md` · `references/workflow-query.md` · `references/workflow-lint.md` · `references/type-vocab.md`. Validator: `scripts/validate_okf.py`. OKF spec: `.research/upstream/OKF-SPEC.md`.
+`references/workflow-ingest.md` · `references/workflow-query.md` · `references/workflow-lint.md` · `references/type-vocab.md`. Validator: `scripts/validate_okf.py` (in this skill's directory). OKF spec: <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>.

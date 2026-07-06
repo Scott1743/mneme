@@ -6,7 +6,7 @@ from okflib import list_concepts, parse_frontmatter, read_concept, validate_bund
 
 SAMPLE = Path(__file__).parent.parent / "sample-bundle"
 FIX = Path(__file__).parent / "fixtures"
-VALIDATOR = Path(__file__).parent.parent / "scripts" / "validate_okf.py"
+VALIDATOR = Path(__file__).parent.parent / "skills" / "mneme" / "scripts" / "validate_okf.py"
 
 
 def test_parse_frontmatter_basic():
