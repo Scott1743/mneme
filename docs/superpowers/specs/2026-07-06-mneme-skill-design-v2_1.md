@@ -3,16 +3,16 @@
 - **Date:** 2026-07-06
 - **Status:** Draft — awaiting user review
 - **Supersedes:** `2026-07-06-mneme-skill-design-v2.md` (v2)
-- **Why:** v2 introduced independent Strands agents (`ingest.py`/`query.py`/`lint.py` + `tools.py`). They are removed: **all write paths flow through the SKILL.md-driven host Claude**, not an independent agent runtime. The L2 (sqlite-vec + fastembed) stays — it solves the context-overflow problem. CLI is thinned to `init` + `reindex` only.
+- **Why:** v2 introduced independent Strands agents (`ingest.py`/`query.py`/`lint.py` + `tools.py`). They are removed: **all write paths flow through the SKILL.md-driven host agent**, not an independent agent runtime. The L2 (sqlite-vec + fastembed) stays — it solves the context-overflow problem. CLI is thinned to `init` + `reindex` only.
 - **Research basis:** gbrain dream cycle (auto-curation on a schedule, no user interaction, `dream-report-<date>.md` audit), Karpathy LLM Wiki, OKF v0.1, Strands SDK (no longer used at runtime; referenced only as design context).
 
 ## 1. 目标与身份
 
 mneme 是一个**轻量化、本地优先**的 LLM wiki，以 **Claude Code skill 为唯一入口**，继承 Karpathy *LLM Wiki* 思想、服从 OKF v0.1。
 
-**核心修订（v2 → v2.1）：** 移除所有独立 agent runtime。Host Claude 在加载 `SKILL.md` 后，按章节引导直接做事——用 `Read`/`Write`/`Edit`/`Bash`/`Glob`/`Grep` 等原生工具调 `okflib`/`indexlib`/`mneme.py`。不再有 Strands `@tool` 装饰器、不再有独立 agent 进程。
+**核心修订（v2 → v2.1）：** 移除所有独立 agent runtime。The host agent (any skill-protocol-conforming LLM runtime) loads `SKILL.md` 后，按章节引导直接做事——用 `Read`/`Write`/`Edit`/`Bash`/`Glob`/`Grep` 等原生工具调 `okflib`/`indexlib`/`mneme.py`。不再有 Strands `@tool` 装饰器、不再有独立 agent 进程。
 
-**轻量化理念：** 嵌入式存储（sqlite-vec）、按需执行（无常驻服务）、CLI 只 2 个子命令（init/reindex）。L2 索引解决 wiki 超出上下文的问题；host Claude 解决"语义判断"问题。
+**轻量化理念：** 嵌入式存储（sqlite-vec）、按需执行（无常驻服务）、CLI 只 2 个子命令（init/reindex）。L2 索引解决 wiki 超出上下文的问题；host agent solves"语义判断"问题。
 
 ## 2. 关键决策
 
@@ -26,7 +26,7 @@ mneme 是一个**轻量化、本地优先**的 LLM wiki，以 **Claude Code skil
 | D6 | embedding 生成 | 本地 fastembed (ONNX) 多语种小模型，默认 `intfloat/multilingual-e5-small` (384-dim)；离线、China 网络安全 |
 | D7 | 引擎 | **宿主 agent**（任何遵循 skill 协议的 LLM agent runtime — Claude Code / Codex CLI / Cursor / 其他 — 加载 mneme skill 后按 SKILL.md 引导做事） |
 | D8 | 链入 | **SKILL.md 是唯一入口**；CLI 只保留 `init` 和 `reindex`（手动/脚本/CI 用） |
-| D9 | dream | 自动定时任务，**host Claude 跑 SKILL.md 的 dream 章节**；全套 git 保险 |
+| D9 | dream | 自动定时任务，**the host agent running the dream chapter of SKILL.md**；全套 git 保险 |
 
 ## 3. 架构（v2.1）
 
@@ -63,12 +63,12 @@ mneme 是一个**轻量化、本地优先**的 LLM wiki，以 **Claude Code skil
 6 个场景章节，每个章节是一段 prose，引导宿主 agent 用原生工具（Read/Write/Edit/Bash/Glob/Grep）做事。宿主 agent 不绑定特定产品——任何遵循 skill 协议的 LLM agent runtime 都适用：
 
 ### 4.1 `init <path>`
-- 引导 host Claude 跑 `Bash: mneme.py init <path> [--config <config>]` 创建 OKF 骨架
+- 引导宿主 agent 调 `Bash: mneme.py init <path> [--config <config>]` 创建 OKF 骨架
 - 验证：`<path>/index.md` 含 `okf_version`，`<path>/log.md` 与 `sources/.gitkeep` 存在
 - 写 `bundle_path = "<path>"` 到 `~/.config/mneme/config.toml`
 
 ### 4.2 `reindex [--config <config>]`
-- 引导 host Claude 跑 `Bash: mneme.py reindex`（全量 reindex，扫所有概念页 → sqlite-vec）
+- 引导宿主 agent 调 `Bash: mneme.py reindex`（全量 reindex，扫所有概念页 → sqlite-vec）
 - 输出：indexed N concepts into `<bundle>/.mneme/index.db`
 
 ### 4.3 `ingest <source path>`
@@ -130,8 +130,8 @@ mneme --help
 
 | 动作 | 用法 |
 |---|---|
-| 合并重复 | `Bash: python` 调用 indexlib 找 `search(... k=20)` 后相似度 ≥ 0.92 的对 → host Claude 决定合并目标 → `Write` 新合并页 + `Edit` redirect 旧链接 |
-| 归档孤儿 | `Bash: python` 调 `okflib.find_orphans` → host Claude 判断（`timestamp > 90d` 且无 log 引用 → 移到 `archive/`）→ `Bash: mv` + `Edit log.md` |
+| 合并重复 | `Bash: python` 调用 indexlib 找 `search(... k=20)` 后相似度 ≥ 0.92 的对 → the host agent picks merge targets → `Write` 新合并页 + `Edit` redirect 旧链接 |
+| 归档孤儿 | `Bash: python` 调 `okflib.find_orphans` → host agent 判断（`timestamp > 90d` 且无 log 引用 → 移到 `archive/`）→ `Bash: mv` + `Edit log.md` |
 | 补交叉链 | 找内容相似但无链接的概念对 → `Edit` 加 `[/concepts/other.md](/concepts/other.md)` |
 | 建 Summary | 同一话题 ≥ 5 个 concepts → `Write` 新 Summary 页 + `Edit index.md` |
 | 重新 reindex | `Bash: mneme.py reindex` |
@@ -166,7 +166,7 @@ git revert HEAD          # 撤销本轮 dream
 git checkout abc1234 -- . # 仅撤销文件改动，保留 commit
 ```
 
-**git 提交**（如是 git 仓库）：`git add -A && git commit -m "dream: <date>"`，建议推到 `dream/<date>` 分支（host Claude 不直接 push，由你 review 后手动 merge）。
+**git 提交**（如是 git 仓库）：`git add -A && git commit -m "dream: <date>"`，建议推到 `dream/<date>` 分支（the host agent never pushes directly，由你 review 后手动 merge）。
 
 ### 6.3 软上限
 
@@ -179,14 +179,14 @@ git checkout abc1234 -- . # 仅撤销文件改动，保留 commit
 
 ```
 skills/mneme/
-├── SKILL.md                # 重写：6 场景章节（init/reindex/ingest/query/lint/dream），引导 host Claude
+├── SKILL.md                # 重写：6 场景章节（init/reindex/ingest/query/lint/dream），引导宿主 agent
 ├── scripts/
 │   ├── okflib.py           # 保留
 │   ├── validate_okf.py     # 保留
 │   ├── indexlib.py         # 保留
 │   └── mneme.py            # 简化：只 init + reindex 两个子命令
 └── references/             # 保留
-    ├── workflow-ingest.md  # 修订：不再描述"调 mneme ingest"，改为"host Claude 走 SKILL.md ingest 章节"
+    ├── workflow-ingest.md  # 修订：不再描述"调 mneme ingest"，改为"the host agent follows SKILL.md ingest chapter"
     ├── workflow-query.md   # 同上
     ├── workflow-lint.md    # 同上
     ├── type-vocab.md
@@ -209,8 +209,8 @@ skills/mneme/
 
 ## 9. 非目标（v2.1）
 
-- ❌ 独立 agent runtime（Strands / LangChain / CrewAI 等）—— 一律走 SKILL.md + host Claude
-- ❌ `@tool` 装饰器 —— host Claude 用原生工具
+- ❌ 独立 agent runtime（Strands / LangChain / CrewAI 等）—— 一律走 SKILL.md + host agent
+- ❌ `@tool` 装饰器 —— the host agent uses native tools
 - ❌ MCP server —— CLI+skill 已覆盖；按需再加
 - ❌ v2 converters（Word/PDF/PPT/Excel/图片/HTML → md/csv）—— 仍 deferred
 - ❌ query 自动回填 —— 提议，不自动写
@@ -222,8 +222,8 @@ skills/mneme/
 - 删除 `tools.py`、`ingest.py`、`query.py`、`lint.py`
 - 删除 `pyproject.toml` 的 `[agents]` extras（保留 `[index]`、`[dev]`、`[all]`）
 - 删除 `tests/test_tools.py`、`tests/test_agents_smoke.py`、`tests/test_cli.py`（v2 版）；新增 `tests/test_cli.py` 测 init+reindex
-- 重写 `SKILL.md`：6 场景，host Claude 直接做事（不调 CLI 中转）
-- 重写 `references/workflow-{ingest,query,lint}.md`：描述 host Claude 怎么用 skill 工具做
+- 重写 `SKILL.md`：6 场景，host agent 直接做事（不调 CLI 中转）
+- 重写 `references/workflow-{ingest,query,lint}.md`：描述 how the host agent uses skill tools
 - `mneme.py` 简化：删 cmd_ingest/query/lint，保留 init+reindex
 - v2 spec、v2 plan 保留为历史（`docs/superpowers/specs/2026-07-06-mneme-skill-design-v2.md`）
 
