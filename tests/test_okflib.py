@@ -1,8 +1,9 @@
 from pathlib import Path
 
-from okflib import list_concepts, parse_frontmatter, read_concept
+from okflib import list_concepts, parse_frontmatter, read_concept, validate_bundle
 
 SAMPLE = Path(__file__).parent.parent / "sample-bundle"
+FIX = Path(__file__).parent / "fixtures"
 
 
 def test_parse_frontmatter_basic():
@@ -41,3 +42,30 @@ def test_read_concept_returns_metadata_and_body():
 
 def test_read_concept_missing_returns_none():
     assert read_concept(SAMPLE, "concepts/nope") is None
+
+
+def test_valid_bundle_passes():
+    report = validate_bundle(SAMPLE)
+    assert report.ok, [(v.path, v.rule, v.detail) for v in report.errors]
+
+
+def test_missing_frontmatter_fails():
+    report = validate_bundle(FIX / "missing_frontmatter")
+    assert not report.ok
+    assert any(v.rule == "no-frontmatter" for v in report.errors)
+
+
+def test_empty_type_fails():
+    report = validate_bundle(FIX / "empty_type")
+    assert not report.ok
+    assert any(v.rule == "empty-type" for v in report.errors)
+
+
+def test_unknown_type_passes():
+    report = validate_bundle(FIX / "unknown_type")
+    assert report.ok
+
+
+def test_extra_keys_pass():
+    report = validate_bundle(FIX / "extra_keys")
+    assert report.ok

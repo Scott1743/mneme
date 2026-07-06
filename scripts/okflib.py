@@ -86,3 +86,37 @@ def read_concept(bundle_path, concept_id: str) -> Optional[Tuple[Dict, str]]:
     if not p.exists():
         return None
     return parse_frontmatter(p.read_text(encoding="utf-8"))
+
+
+def validate_bundle(bundle_path) -> Report:
+    """Check OKF v0.1 §9 hard rules + soft warnings (links/index added in Task 4)."""
+    root = Path(bundle_path)
+    report = Report()
+    if not root.is_dir():
+        report.errors.append(Violation(str(root), "no-bundle", "error", "bundle path is not a directory"))
+        return report
+    for p in sorted(root.rglob("*.md")):
+        rel = p.relative_to(root).as_posix()
+        name = os.path.basename(rel)
+        text = p.read_text(encoding="utf-8")
+        if name in RESERVED:
+            _validate_reserved(rel, name, text, report)
+            continue
+        parsed = parse_frontmatter(text)
+        if parsed is None:
+            report.errors.append(Violation(rel, "no-frontmatter", "error", "missing YAML frontmatter block"))
+            continue
+        meta, _ = parsed
+        t = meta.get("type")
+        if not t or not str(t).strip():
+            report.errors.append(Violation(rel, "empty-type", "error", "frontmatter has no non-empty 'type'"))
+    return report
+
+
+def _validate_reserved(rel, name, text, report):
+    m = _FRONTMATTER_RE.match(text)
+    body = m.group(2) if m else text
+    if name == "index.md" and not body.strip():
+        report.warnings.append(Violation(rel, "bad-reserved", "warning", "index.md has empty body"))
+    if name == "log.md" and not text.strip():
+        report.warnings.append(Violation(rel, "bad-reserved", "warning", "log.md is empty"))
