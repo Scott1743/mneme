@@ -74,6 +74,8 @@ def list_concepts(bundle_path) -> List[str]:
     root = Path(bundle_path)
     ids = []
     for p in sorted(root.rglob("*.md")):
+        if any(part == ".mneme" for part in p.relative_to(root).parts):
+            continue
         rel = p.relative_to(root).as_posix()
         if os.path.basename(rel) in RESERVED:
             continue
@@ -97,6 +99,8 @@ def validate_bundle(bundle_path) -> Report:
         report.errors.append(Violation(str(root), "no-bundle", "error", "bundle path is not a directory"))
         return report
     for p in sorted(root.rglob("*.md")):
+        if any(part == ".mneme" for part in p.relative_to(root).parts):
+            continue
         rel = p.relative_to(root).as_posix()
         name = os.path.basename(rel)
         text = p.read_text(encoding="utf-8")
@@ -128,6 +132,8 @@ def _validate_reserved(rel, name, text, report):
 
 def _check_links(root, report):
     for p in sorted(root.rglob("*.md")):
+        if any(part == ".mneme" for part in p.relative_to(root).parts):
+            continue
         rel = p.relative_to(root).as_posix()
         if os.path.basename(rel) in RESERVED:
             continue
