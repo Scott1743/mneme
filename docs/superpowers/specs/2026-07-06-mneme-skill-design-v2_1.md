@@ -24,7 +24,7 @@ mneme 是一个**轻量化、本地优先**的 LLM wiki，以 **Claude Code skil
 | D4 | 位置持久化 | `~/.config/mneme/config.toml` + 用户级 skill |
 | D5 | L2 索引存储 | sqlite-vec（嵌入式），`<bundle>/.mneme/index.db` |
 | D6 | embedding 生成 | 本地 fastembed (ONNX) 多语种小模型，默认 `intfloat/multilingual-e5-small` (384-dim)；离线、China 网络安全 |
-| D7 | 引擎 | **host Claude**（Claude Code 加载 mneme skill 后按 SKILL.md 引导做事） |
+| D7 | 引擎 | **宿主 agent**（任何遵循 skill 协议的 LLM agent runtime — Claude Code / Codex CLI / Cursor / 其他 — 加载 mneme skill 后按 SKILL.md 引导做事） |
 | D8 | 链入 | **SKILL.md 是唯一入口**；CLI 只保留 `init` 和 `reindex`（手动/脚本/CI 用） |
 | D9 | dream | 自动定时任务，**host Claude 跑 SKILL.md 的 dream 章节**；全套 git 保险 |
 
@@ -32,8 +32,8 @@ mneme 是一个**轻量化、本地优先**的 LLM wiki，以 **Claude Code skil
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Claude Code (host Claude)                                │
-│  ├─ 加载 skills/mneme/SKILL.md → 引导 host Claude 做事  │
+│  宿主 agent（Claude Code / Codex CLI / Cursor / 其他）   │
+│  ├─ 加载 skills/mneme/SKILL.md → 按章节引导做事       │
 │  └─ 用原生工具调：                                       │
 │     ├─ Bash → mneme.py init / mneme.py reindex         │
 │     ├─ Read / Write / Edit → 直接改 .md 文件            │
@@ -56,11 +56,11 @@ mneme 是一个**轻量化、本地优先**的 LLM wiki，以 **Claude Code skil
 └──────────────────────────────────────────────────────────┘
 ```
 
-**没有独立的 agent runtime、Strands `@tool` 装饰器、MCP server、后台 daemon。**
+**没有独立的 agent runtime、Strands `@tool` 装饰器、MCP server、后台 daemon。宿主 agent 即接口——任何遵循 skill 协议的 LLM agent runtime 都能驱动 mneme。**
 
-## 4. SKILL.md 接口（host Claude 加载后看到的引导）
+## 4. SKILL.md 接口（宿主 agent 加载后看到的引导）
 
-6 个场景章节，每个章节是一段 prose，引导 host Claude 用原生工具（Read/Write/Edit/Bash/Glob/Grep）做事：
+6 个场景章节，每个章节是一段 prose，引导宿主 agent 用原生工具（Read/Write/Edit/Bash/Glob/Grep）做事。宿主 agent 不绑定特定产品——任何遵循 skill 协议的 LLM agent runtime 都适用：
 
 ### 4.1 `init <path>`
 - 引导 host Claude 跑 `Bash: mneme.py init <path> [--config <config>]` 创建 OKF 骨架
@@ -72,26 +72,26 @@ mneme 是一个**轻量化、本地优先**的 LLM wiki，以 **Claude Code skil
 - 输出：indexed N concepts into `<bundle>/.mneme/index.db`
 
 ### 4.3 `ingest <source path>`
-- 引导 host Claude：
+- 引导宿主 agent：
   1. `Read <source path>` → 拿全文
-  2. `Bash: python -c "from indexlib import chunk_markdown; ..."` 决定怎么拆概念（host Claude 用自己的判断拆）
+  2. `Bash: python -c "from indexlib import chunk_markdown; ..."` 决定怎么拆概念（宿主 agent 用自己的判断拆）
   3. 对每个概念：`Write` 写 `<bundle>/concepts/<slug>.md`（含 frontmatter: type/title/description/tags/timestamp/resource）
   4. `Edit <bundle>/index.md` 加 `* [Title](path) - description`
   5. `Edit <bundle>/log.md` 追加 `## YYYY-MM-DD ingest | <title>`
   6. `Bash: mneme.py reindex` 重 build L2
 
 ### 4.4 `query <question>`
-- 引导 host Claude：
+- 引导宿主 agent：
   1. 调 `Bash: python -c "from indexlib import search, open_index, default_embed_fn; ..."` 拿 top-k=10
   2. 读相关概念页：`Read <bundle>/concepts/<id>.md`
-  3. host Claude 自己综合答案 + 内联引用（`/concepts/<id>.md` 形式）
-  - **朴素 RAG**：检索 + 拼 prompt + host Claude 综合。**不开独立 agent。**
+  3. 宿主 agent 自己综合答案 + 内联引用（`/concepts/<id>.md` 形式）
+  - **朴素 RAG**：检索 + 拼 prompt + 宿主 agent 综合。**不开独立 agent。**
 
 ### 4.5 `lint`
-- 引导 host Claude：
+- 引导宿主 agent：
   1. `Bash: mneme.py reindex --validate`（或 `validate_okf.py`）
   2. `Bash: python -c "from okflib import find_orphans, list_concepts; ..."` 找孤儿
-  3. host Claude 自己看页内容：矛盾 / 过时 / 缺交叉链
+  3. 宿主 agent 自己看页内容：矛盾 / 过时 / 缺交叉链
   4. 写策展报告（不必直接改文件，由你决定）
 
 ### 4.6 `dream` （定时任务，**全自动**）
@@ -113,11 +113,13 @@ mneme --help
 ### 6.1 触发
 
 ```cron
-# 用户 crontab（举例：每晚 3 点）
-0 3 * * * cd <bundle> && /usr/local/bin/claude --skill mneme "运行 dream 周期"
+# 用户 crontab（举例：每晚 3 点）—— 任何能加载 skill 的 agent runtime 都行
+0 3 * * * cd <bundle> && <agent-runtime> --skill mneme "运行 dream 周期"
 ```
 
-### 6.2 工作流（host Claude 加载 mneme skill 后按 SKILL.md dream 章节执行）
+或宿主 agent 的 scheduler hook / LaunchAgent / systemd timer / 手动 `mneme dream`。
+
+### 6.2 工作流（宿主 agent 加载 mneme skill 后按 SKILL.md dream 章节执行）
 
 **前 guard**：
 
