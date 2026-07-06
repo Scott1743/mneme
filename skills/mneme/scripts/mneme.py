@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""mneme CLI: init / reindex / ingest / query / lint."""
+"""mneme CLI: init / reindex.
+
+The other operations (ingest / query / lint / dream) are SKILL.md-driven
+host-agent workflows — they don't need CLI subcommands. This CLI is for
+manual / scripted use of the two stateful operations only.
+"""
 from __future__ import annotations
 
 import sys
@@ -14,6 +19,9 @@ def _write_config(bundle_path: Path, config_path: Path) -> None:
 
 
 def cmd_init(args) -> int:
+    if not args:
+        print("usage: mneme init <path> [--config <cfg>]", file=sys.stderr)
+        return 2
     bundle = Path(args[0])
     config = Path(args[args.index("--config") + 1]) if "--config" in args else CONFIG_DEFAULT
     bundle.mkdir(parents=True, exist_ok=True)
@@ -29,40 +37,25 @@ def cmd_init(args) -> int:
 
 
 def cmd_reindex(args) -> int:
-    import indexlib
     config = Path(args[args.index("--config") + 1]) if "--config" in args else CONFIG_DEFAULT
-    from tools import resolve_bundle
+    sys.path.insert(0, str(Path(__file__).parent))
+    from tools_helpers import resolve_bundle
     bundle = resolve_bundle(config_path=config)
     if bundle is None:
         print("no bundle found", file=sys.stderr)
         return 1
+    import indexlib
     n = indexlib.reindex_bundle(str(bundle), indexlib.default_embed_fn())
     print(f"indexed {n} concepts into {bundle}/.mneme/index.db")
     return 0
 
 
-def cmd_ingest(args) -> int:
-    from ingest import run as run_ingest
-    return run_ingest(args)
-
-
-def cmd_query(args) -> int:
-    from query import run as run_query
-    return run_query(args)
-
-
-def cmd_lint(args) -> int:
-    from lint import run as run_lint
-    return run_lint(args)
-
-
 def main(argv) -> int:
     if not argv:
-        print("usage: mneme {init|reindex|ingest|query|lint} ...", file=sys.stderr)
+        print("usage: mneme {init|reindex} ...", file=sys.stderr)
         return 2
     cmd, rest = argv[0], argv[1:]
-    return {"init": cmd_init, "reindex": cmd_reindex, "ingest": cmd_ingest,
-            "query": cmd_query, "lint": cmd_lint}.get(
+    return {"init": cmd_init, "reindex": cmd_reindex}.get(
         cmd, lambda a: (print("unknown command", file=sys.stderr), 2)[1]
     )(rest)
 
