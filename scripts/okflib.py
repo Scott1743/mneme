@@ -66,3 +66,23 @@ def parse_frontmatter(text: str) -> Optional[Tuple[Dict, str]]:
         else:
             meta[key] = val
     return meta, body
+
+
+def list_concepts(bundle_path) -> List[str]:
+    """Concept IDs (file path without .md) for all non-reserved .md files."""
+    root = Path(bundle_path)
+    ids = []
+    for p in sorted(root.rglob("*.md")):
+        rel = p.relative_to(root).as_posix()
+        if os.path.basename(rel) in RESERVED:
+            continue
+        ids.append(rel[:-3])
+    return ids
+
+
+def read_concept(bundle_path, concept_id: str) -> Optional[Tuple[Dict, str]]:
+    """Return (metadata, body) for a concept ID, or None if missing."""
+    p = Path(bundle_path) / (concept_id + ".md")
+    if not p.exists():
+        return None
+    return parse_frontmatter(p.read_text(encoding="utf-8"))
