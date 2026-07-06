@@ -143,8 +143,8 @@ mneme/
 
 ## 12. 非目标（v1）
 
-- 不做 URL/web 抓取（中国网络 + 零依赖）。仅本地 .md/.txt。
-- 不做 PDF/图片解析（零依赖；图片非一等公民）。
+- 不做 URL/web 抓取（v1 限制；v2 计划见 §14）。
+- 不做 PDF/图片/Office 解析（v1 限制；v2 计划见 §14）。
 - 不做 embedding/向量 RAG（`index.md` 渐进式展开足够）。
 - 不做程序化 ingest 管道（agent 读源写概念，Karpathy 式）。
 - 不做多 bundle 管理（一次一个）。
@@ -155,3 +155,39 @@ mneme/
 
 - **MCP server**（`mneme-mcp`）：当出现①跨客户端共享 KB 工具、②服务端强制写入合规、③多 agent 规模化 RAG 之任一真实需求时实现；导入 `okflib`，暴露同名工具，工作流不变。
 - **OKF 扩展提案**：采纳 awesome-okf 的 i18n（`lang`+`canonical`）、代码支持、HTML 一等公民三份提案（向后兼容，不动任何 MUST）。
+
+## 14. v2: 多格式 ingest 层（计划，不在 v1 实现）
+
+v1 ingest 只吃本地 .md/.txt。v2 加一个**转换前端**：Word / PDF / PPT / Excel / 图片 / HTML 统一转成 **md**（叙事性）或 **csv**（表格性），再走 v1 ingest 工作流。转换是 ingest 的预处理步骤，**不改变 OKF 合规模型**。
+
+### 架构定位
+
+- 新增 `scripts/converters/`，每格式一个**薄封装**（wrap 现有库，不重写）。
+- ingest 工作流加"归一化"前置步：探测格式 → 跑 converter → 产出 md/csv 到 `sources/` → 走 v1 ingest。
+- 与存储访问层**正交**：converter 只产 md/csv，`okflib`/校验器/3 条合规规则均不变。
+
+### 格式 → 输出 → 封装库
+
+| 源格式 | 输出 | 封装库 | 备注 |
+|---|---|---|---|
+| Word `.docx` | md | `mammoth`（首选，保结构）或 `python-docx` | mammoth 导出 html→md |
+| PDF | md | `pdfplumber` / `pypdf` | 文本 PDF 直接抽；扫描 PDF 走 OCR |
+| PPT `.pptx` | md（每 slide 一节） | `python-pptx` | 标题 + 正文 + 备注 |
+| Excel `.xlsx` | csv（每 sheet）+ md（摘要） | `openpyxl` | 表格→csv，叙述→md |
+| 图片 png/jpg | md（OCR） | `pytesseract`（系统 `tesseract`） | 可选 vision LLM 补版面，先确定性 |
+| HTML / 网页 | md | `trafilatura`（首选）或 `markdownify` | 本地 .html 稳；URL 受网络限 |
+
+### 依赖策略
+
+- v1 核心**保持零依赖**（`okflib` + validator 仅标准库）。
+- v2 converters 是**可选层**，引入第三方库；用 **lazy import + pip extras**（`pip install mneme[converters]`）隔离，基础安装不被拖重。
+- OCR 需系统级 `tesseract` 二进制（非 pip）；文档标注为 v2 系统前置。
+- csv 作为 `sources/` 下归一化数据文件，由概念页 `resource` 引用；不改变 OKF 概念模型。
+
+### 网络约束（HTML/URL）
+
+本机在中国大陆，URL 抓取受 GFW 限。v2 HTML ingest 支持：本地 `.html` 文件（可靠）；URL 抓取走代理，或让用户以 `! <cmd>` 在会话内取页后喂入。`trafilatura` 同时处理已抓取与本地 HTML。
+
+### 与 MCP 预留的关系
+
+converters 与存储访问层正交，不影响 `okflib` 接口。未来 MCP server 若暴露 `ingest`，可在服务端调 converter；工作流散文不变。
