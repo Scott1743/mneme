@@ -9,7 +9,7 @@
 
 mneme 是一个**轻量化、本地优先**的 LLM wiki，以 agent skill 为载体，继承 Karpathy *LLM Wiki* 思想、服从 OKF v0.1。
 
-**轻量化理念（本次明确）**：嵌入式存储（sqlite-vec）、按需执行（无常驻服务）、MCP 可选/本机。能力靠分层提供——轻量承诺只约束 L1 wiki 层，engine 层（L2/L3）按需启用。
+**轻量化理念（本次明确）**：嵌入式存储（sqlite-vec）、按需执行（无常驻服务）、CLI 通用链入（不做 MCP）。能力靠分层提供——轻量承诺只约束 L1 wiki 层，engine 层（L2/L3）按需启用。
 
 ## 2. 关键决策
 
@@ -18,11 +18,11 @@ mneme 是一个**轻量化、本地优先**的 LLM wiki，以 agent skill 为载
 | D1 | wiki 位置 | 外部 bundle + 便携 skill（真 wiki 在仓库外） |
 | D2 | 内容域 | 研究/学习笔记；type: Concept/Reference/Summary/Source |
 | D3 | 分层 | L1 wiki + L2 index + L3 engine + L4 skill |
-| D4 | 位置持久化 | `~/.config/mneme/config.toml` + 用户级 skill；MCP 可选 |
+| D4 | 位置持久化 | `~/.config/mneme/config.toml` + 用户级 skill |
 | D5 | L2 索引 | **sqlite-vec**（嵌入式），向量存 `<bundle>/.mneme/index.db` |
 | D6 | embedding 生成 | **本地 fastembed (ONNX)**，多语种小模型（如 `bge-small-zh-v1.5` / `multilingual-e5-small`），离线、China 网络安全 |
 | D7 | L3 engine | **Strands agent**（ingest/query/lint），按需 invoked、无常驻服务；agent loop 给脚本提供多元化工具，不是为用而用 |
-| D8 | 链入智能体 | **CLI 默认**（通用）+ skill（Claude Code）+ **MCP 可选**（`mneme serve`，本机 stdio） |
+| D8 | 链入智能体 | **CLI 默认**（通用）+ skill（Claude Code）。MCP 不做——CLI+skill 已覆盖 |
 
 ## 3. 分层架构
 
@@ -77,13 +77,12 @@ growth 要有去处。一个 bundle：
 
 **模型 provider**：Strands agent 需一个 LLM 驱动 loop。默认 Anthropic（复用用户的 Claude API key），Ollama 作为离线/本地方案。配置项 `MNEME_MODEL_PROVIDER`。
 
-## 7. 链入智能体（D8）——同一份 engine，三个调用面
+## 7. 链入智能体（D8）——同一份 engine，两个调用面
 
-1. **CLI `mneme`**（默认、通用）：`mneme ingest <src>` / `mneme query <q>` / `mneme lint` / `mneme init <path>` / `mneme serve`。任何 agent/宿主走 bash。**无常驻服务**。← MCP 之外的通用链入法。
+1. **CLI `mneme`**（默认、通用）：`mneme ingest <src>` / `mneme query <q>` / `mneme lint` / `mneme init <path>`。任何 agent/宿主走 bash。**无常驻服务**。
 2. **Skill `SKILL.md`**（Claude Code 原生）：description 触发，内部调 CLI。
-3. **MCP `mneme serve`**（可选、本机 stdio）：要一等工具/跨 agent 时开；按需由宿主拉起，不常驻。暴露 `search`/`get`/`put`/`list`，wrap 同一份 okflib + indexlib。
 
-一套代码，三个调用面。CLI 默认、MCP opt-in。
+一套代码，两个调用面。MCP 不做（CLI+skill 已覆盖）；若未来多 agent 共享需求出现再加（见 §15）。
 
 ## 8. Bundle 解析（Step 0，每次必跑）
 
@@ -124,8 +123,7 @@ mneme/
 │   │   ├── indexlib.py                # L2（新）
 │   │   ├── tools.py                   # L3 共享工具（新）
 │   │   ├── ingest.py / query.py / lint.py  # L3 Strands agent（新）
-│   │   ├── mneme.py                   # CLI 入口（新）
-│   │   └── serve.py                   # 可选 MCP（新）
+│   │   └── mneme.py                   # CLI 入口（新）
 │   └── references/
 │       ├── workflow-{ingest,query,lint}.md  # 修订
 │       ├── type-vocab.md
@@ -134,7 +132,7 @@ mneme/
 ├── sample-bundle/  tests/  .research/  docs/superpowers/
 ```
 
-**依赖隔离**（pip extras，base 保持零运行时依赖）：`mneme[index]`（sqlite-vec+fastembed）、`mneme[agents]`（strands）、`mneme[mcp]`、`mneme[all]`。
+**依赖隔离**（pip extras，base 保持零运行时依赖）：`mneme[index]`（sqlite-vec+fastembed）、`mneme[agents]`（strands）、`mneme[all]`（=index+agents）。
 
 ## 13. 非目标（v1 of v2）
 
@@ -151,5 +149,6 @@ mneme/
 ## 15. 未来
 
 - **v2 converters**（Word/PDF/PPT/Excel/图片/HTML→md/csv）：v1 plan Phase 2，仍 deferred。
+- **MCP server**（`mneme serve`）：CLI+skill 已覆盖链入；若未来要一等工具/跨 agent 共享，再加本机 stdio MCP，wrap 同一份 okflib+indexlib。
 - **OKF 扩展提案**：i18n / 代码支持 / HTML 一等公民（向后兼容）。
-- **远程索引/MCP**：若多机共享需求出现，加 Supabase/pgvector 后端（gbrain Path 1/4 同款），本地优先不变。
+- **远程索引**：若多机共享需求出现，加 Supabase/pgvector 后端（gbrain Path 1/4 同款），本地优先不变。
