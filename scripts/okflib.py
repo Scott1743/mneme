@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Tuple
 
 RESERVED = ("index.md", "log.md")
 _FRONTMATTER_RE = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*\n?(.*)\Z", re.S)
+_LINK_RE = re.compile(r"\]\((/[^\)]+\.md)\)")
 
 
 @dataclass
@@ -110,6 +111,9 @@ def validate_bundle(bundle_path) -> Report:
         t = meta.get("type")
         if not t or not str(t).strip():
             report.errors.append(Violation(rel, "empty-type", "error", "frontmatter has no non-empty 'type'"))
+    _check_links(root, report)
+    if not (root / "index.md").exists():
+        report.warnings.append(Violation("index.md", "missing-index", "warning", "no root index.md"))
     return report
 
 
@@ -120,3 +124,17 @@ def _validate_reserved(rel, name, text, report):
         report.warnings.append(Violation(rel, "bad-reserved", "warning", "index.md has empty body"))
     if name == "log.md" and not text.strip():
         report.warnings.append(Violation(rel, "bad-reserved", "warning", "log.md is empty"))
+
+
+def _check_links(root, report):
+    for p in sorted(root.rglob("*.md")):
+        rel = p.relative_to(root).as_posix()
+        if os.path.basename(rel) in RESERVED:
+            continue
+        text = p.read_text(encoding="utf-8")
+        for m in _LINK_RE.finditer(text):
+            target = m.group(1).lstrip("/")
+            if not (root / target).exists():
+                report.warnings.append(
+                    Violation(rel, "broken-link", "warning", f"link target not found: {m.group(1)}")
+                )

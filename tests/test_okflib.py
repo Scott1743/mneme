@@ -69,3 +69,9 @@ def test_unknown_type_passes():
 def test_extra_keys_pass():
     report = validate_bundle(FIX / "extra_keys")
     assert report.ok
+
+
+def test_broken_link_is_warning_not_error():
+    report = validate_bundle(FIX / "broken_link")
+    assert report.ok  # broken link is a warning, not an error (OKF §9 tolerance)
+    assert any(v.rule == "broken-link" for v in report.warnings)
