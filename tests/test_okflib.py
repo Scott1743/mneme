@@ -94,3 +94,15 @@ def test_cli_invalid_bundle_exit_one():
     r = _run(FIX / "missing_frontmatter")
     assert r.returncode == 1
     assert "no-frontmatter" in r.stdout
+
+
+def test_list_concepts_skips_mneme_dir(tmp_path):
+    import os
+    bundle = tmp_path / "b"
+    (bundle / "concepts").mkdir(parents=True)
+    (bundle / "concepts" / "ok.md").write_text("---\ntype: Concept\n---\nbody\n")
+    (bundle / ".mneme").mkdir()
+    (bundle / ".mneme" / "index.db").write_text("not md")
+    ids = list_concepts(bundle)
+    assert "concepts/ok" in ids
+    assert not any(".mneme" in i for i in ids)

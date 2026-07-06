@@ -3,6 +3,8 @@ type: Reference
 title: mneme lint workflow
 description: Curate the wiki for conformance and quality.
 ---
+> The `mneme lint` CLI runs the validator + curation agent. This doc is the agent's spec. See `wiki-structure.md` + `index-design.md`.
+
 # lint workflow
 
 - **Hard errors** (from validator, must fix): `no-frontmatter`, `empty-type`, `no-bundle`.

@@ -43,6 +43,10 @@ Do NOT reject unknown `type` values, extra frontmatter keys, or broken links —
 
 ## ingest <source path>
 
+Run `mneme ingest <source>` — it spawns a Strands agent that performs the v1 ingest workflow end-to-end (source → concept pages → cross-links → index/log → validator). Requires a model provider: set `MNEME_MODEL_PROVIDER` (default `anthropic`) plus the provider's API key (e.g. `ANTHROPIC_API_KEY`). The CLI embeds pages per `wiki-structure.md` and chunks/indexes them per `index-design.md`.
+
+Fallback (no CLI / manual run): follow the v1 prose below and `references/workflow-ingest.md` + `references/wiki-structure.md`. Run `python3 scripts/validate_okf.py <bundle>` to verify.
+
 1. Resolve bundle (Step 0). If absent and user wants, run `init`.
 2. Read the source (.md/.txt only in v1). Copy to `sources/<slug>.md` (immutable raw layer).
 3. Read the source; optionally discuss key points with the user.
@@ -54,6 +58,10 @@ Do NOT reject unknown `type` values, extra frontmatter keys, or broken links —
 
 ## query <question>
 
+Run `mneme query <question>` — searches the L2 index (sqlite-vec + fastembed) and synthesizes a cited answer from top-k chunks. The agent reads `wiki-structure.md` + `index-design.md` to ground its retrieval and citation format.
+
+Fallback (no index / manual run): follow the v1 prose below and `references/workflow-query.md`. Progressive disclosure: read `index.md` first, drill into relevant pages, cite every non-trivial claim.
+
 1. Resolve bundle.
 2. Read `index.md` first (progressive disclosure) to locate relevant pages.
 3. Read those pages.
@@ -61,6 +69,10 @@ Do NOT reject unknown `type` values, extra frontmatter keys, or broken links —
 5. If the answer is broadly useful and no page covers it, OFFER to backfill as a new concept page (do not auto-write in v1).
 
 ## lint
+
+Run `mneme lint` — runs the OKF validator plus a Strands curation agent that proposes fixes for contradictions, orphans, missing cross-links, etc. Agent consults `wiki-structure.md` + `index-design.md` for the bundle layout + index semantics.
+
+Fallback (no CLI / manual run): `python3 scripts/validate_okf.py <bundle>` for ERRORs/WARNings, then curate per `references/workflow-lint.md`.
 
 1. Resolve bundle.
 2. Run `python3 scripts/validate_okf.py <bundle>`. Report ERRORs (must fix) and WARNings.
@@ -76,4 +88,4 @@ Scaffold a new empty bundle and record it:
 
 ## references (load on demand)
 
-`references/workflow-ingest.md` · `references/workflow-query.md` · `references/workflow-lint.md` · `references/type-vocab.md`. Validator: `scripts/validate_okf.py` (in this skill's directory). OKF spec: <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>.
+`references/workflow-ingest.md` · `references/workflow-query.md` · `references/workflow-lint.md` · `references/type-vocab.md` · `references/wiki-structure.md` · `references/index-design.md`. Validator: `scripts/validate_okf.py` (in this skill's directory). OKF spec: <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>.
