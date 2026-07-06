@@ -1,0 +1,23 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Python (for the future OKF validator / scripts)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.python-version
+
+# Node (if any tooling is added later)
+node_modules/
+
+# OKF generated artifacts
+# viz.html is a generated single-file viewer; keep bundles, ignore generated viz
+wiki/**/viz.html
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
