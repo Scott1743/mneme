@@ -99,14 +99,28 @@ mneme/                              # 仓库根
 │       ├── SKILL.md                #   载体：ingest / query / lint / init
 │       ├── scripts/
 │       │   ├── okflib.py           #   零依赖 OKF 库（MCP 预留接口）
-│       │   └── validate_okf.py     #   okflib 的 CLI 前端
-│       └── references/             #   工作流详述 + type 词表
+│       │   ├── validate_okf.py     #   okflib 的 CLI 前端（lint）
+│       │   ├── indexlib.py         #   L2 sqlite-vec + fastembed 索引库
+│       │   ├── tools.py            #   Strands 工具集合（okf/index/bundle）
+│       │   ├── ingest.py           #   `mneme ingest` 子命令
+│       │   ├── query.py            #   `mneme query` 子命令
+│       │   ├── lint.py             #   `mneme lint` 子命令
+│       │   └── mneme.py            #   CLI 入口（Click 风格）
+│       └── references/             #   工作流详述 + type 词表 + 结构/索引规范
+│           ├── workflow-ingest.md
+│           ├── workflow-query.md
+│           ├── workflow-lint.md
+│           ├── type-vocab.md
+│           ├── wiki-structure.md   #   bundle 目录结构 + 策展规则
+│           └── index-design.md     #   L2 sqlite-vec 索引 schema + 检索
 ├── sample-bundle/                  # 工程层：合规示范 / 测试夹具（非真 wiki）
 ├── tests/                          # 工程层：okflib TDD 测试 + fixtures/
 ├── .research/                      # 工程层：立项研究档案（upstream/ verbatim MIT 副本）
 └── docs/                           # 工程层：specs + plans
     └── superpowers/
 ```
+
+`scripts/` 内的 L2 索引、Strands 工具与 CLI 入口是 v2 新增（详见 `docs/superpowers/specs/2026-07-06-mneme-skill-design-v2.md`）；wiki 仍走**外部 bundle 模型**——`sample-bundle/` 只是测试夹具，真 wiki 路径由 `~/.config/mneme/config.toml` 的 `bundle_path` 指定。
 
 安装时符号链接 `~/.claude/skills/mneme -> <repo>/skills/mneme`，只把 skill 本体暴露给 agent，工程文件不进上下文。真 wiki bundle 在仓库外，路径由 `~/.config/mneme/config.toml` 的 `bundle_path` 指定（见 spec §5）。
 
