@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from indexlib import open_index, ensure_schema, chunk_markdown
 
 
@@ -74,4 +76,18 @@ def test_search_returns_chunk_for_exact_text(tmp_path):
     assert len(results) == 1
     assert results[0]["concept_id"] == "c1"
     assert "Attention" in results[0]["text"]
+    conn.close()
+
+
+from indexlib import reindex_bundle
+
+SAMPLE = Path(__file__).parent.parent / "sample-bundle"
+
+
+def test_reindex_bundle_indexes_concepts(tmp_path):
+    db = tmp_path / "index.db"
+    n = reindex_bundle(SAMPLE, _E, db_path=db)
+    assert n >= 2  # sample-bundle has 2 concepts
+    conn = open_index(db); ensure_schema(conn)
+    assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] >= 2
     conn.close()

@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import struct
 import sqlite3
+from pathlib import Path
 from typing import Callable, List, Dict
 
 EmbedFn = Callable[[List[str]], List[List[float]]]
@@ -115,3 +116,38 @@ def search(conn, query: str, k: int, embed_fn: EmbedFn) -> List[Dict]:
         if r:
             out.append({"concept_id": r[0], "path": r[1], "title": r[2], "type": r[3], "text": r[4], "distance": dist})
     return out
+
+
+def default_embed_fn(model: str = "intfloat/multilingual-e5-small") -> EmbedFn:
+    """Production embed_fn: wraps fastembed. Requires `pip install fastembed`."""
+    from fastembed import TextEmbedding
+
+    embedder = TextEmbedding(model_name=model)
+
+    def fn(texts: List[str]) -> List[List[float]]:
+        return [list(v) for v in embedder.embed(list(texts))]
+
+    return fn
+
+
+def reindex_bundle(bundle_path, embed_fn: EmbedFn, db_path=None) -> int:
+    import okflib  # sibling module in scripts/
+
+    root = Path(bundle_path)
+    db_path = db_path or (root / ".mneme" / "index.db")
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = open_index(db_path)
+    ensure_schema(conn)
+    n = 0
+    for cid in okflib.list_concepts(bundle_path):
+        parsed = okflib.read_concept(bundle_path, cid)
+        if not parsed:
+            continue
+        meta, body = parsed
+        upsert_concept(
+            conn, cid, f"{cid}.md", meta.get("title", cid), meta.get("type", ""),
+            body, str(meta.get("tags", [])), meta.get("timestamp", ""), embed_fn,
+        )
+        n += 1
+    conn.close()
+    return n
