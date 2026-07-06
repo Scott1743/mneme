@@ -25,3 +25,4 @@ wiki/**/viz.html
 
 # superpowers SDD scratch (progress ledger, scripts)
 .superpowers/
+*.mneme/
