@@ -98,3 +98,20 @@ def remove_concept(conn, concept_id) -> None:
         conn.execute("DELETE FROM vec_chunks WHERE chunk_id=?", (cid,))
     conn.execute("DELETE FROM chunks WHERE concept_id=?", (concept_id,))
     conn.commit()
+
+
+def search(conn, query: str, k: int, embed_fn: EmbedFn) -> List[Dict]:
+    qvec = embed_fn([query])[0]
+    _ensure_vec_table(conn, len(qvec))
+    rows = conn.execute(
+        "SELECT chunk_id, distance FROM vec_chunks WHERE embedding MATCH ? AND k = ? ORDER BY distance",
+        (_vec_blob(qvec), k),
+    ).fetchall()
+    out = []
+    for chunk_id, dist in rows:
+        r = conn.execute(
+            "SELECT concept_id,path,title,type,text FROM chunks WHERE chunk_id=?", (chunk_id,)
+        ).fetchone()
+        if r:
+            out.append({"concept_id": r[0], "path": r[1], "title": r[2], "type": r[3], "text": r[4], "distance": dist})
+    return out

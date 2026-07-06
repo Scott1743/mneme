@@ -61,3 +61,17 @@ def test_remove_concept_clears(tmp_path):
     assert conn.execute("SELECT COUNT(*) FROM chunks WHERE concept_id='c1'").fetchone()[0] == 0
     assert conn.execute("SELECT COUNT(*) FROM vec_chunks").fetchone()[0] == 0
     conn.close()
+
+
+from indexlib import search
+
+
+def test_search_returns_chunk_for_exact_text(tmp_path):
+    conn = open_index(tmp_path / "index.db"); ensure_schema(conn)
+    body = "# Transformers\nAttention is all you need."
+    upsert_concept(conn, "c1", "c1.md", "T", "Concept", body, "[]", "", _E)
+    results = search(conn, "Attention is all you need.", 1, _E)
+    assert len(results) == 1
+    assert results[0]["concept_id"] == "c1"
+    assert "Attention" in results[0]["text"]
+    conn.close()
