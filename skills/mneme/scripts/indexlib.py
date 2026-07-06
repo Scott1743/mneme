@@ -5,6 +5,7 @@ on a specific embedding provider — that's the point.
 """
 from __future__ import annotations
 
+import hashlib
 import struct
 import sqlite3
 from typing import Callable, List, Dict
@@ -14,6 +15,7 @@ EmbedFn = Callable[[List[str]], List[List[float]]]
 
 def open_index(db_path) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path))
+    conn.enable_load_extension(True)
     conn.execute("PRAGMA foreign_keys=ON")
     try:
         import sqlite_vec
@@ -61,3 +63,38 @@ def chunk_markdown(text: str) -> List[str]:
     if cur:
         parts.append("\n".join(cur).strip())
     return [p for p in parts if p]
+
+
+def _hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def upsert_concept(conn, concept_id, path, title, type, body, tags, timestamp, embed_fn: EmbedFn) -> int:
+    old_ids = [r[0] for r in conn.execute("SELECT chunk_id FROM chunks WHERE concept_id=?", (concept_id,))]
+    for cid in old_ids:
+        conn.execute("DELETE FROM vec_chunks WHERE chunk_id=?", (cid,))
+    conn.execute("DELETE FROM chunks WHERE concept_id=?", (concept_id,))
+    chunks = chunk_markdown(body)
+    if not chunks:
+        conn.commit()
+        return 0
+    vectors = embed_fn(chunks)
+    dim = len(vectors[0])
+    _ensure_vec_table(conn, dim)
+    for idx, (chunk, vec) in enumerate(zip(chunks, vectors)):
+        cur = conn.execute(
+            "INSERT INTO chunks(concept_id,path,title,type,chunk_idx,text,tags,timestamp,hash) "
+            "VALUES(?,?,?,?,?,?,?,?,?)",
+            (concept_id, path, title, type, idx, chunk, tags, timestamp, _hash(chunk)),
+        )
+        conn.execute("INSERT INTO vec_chunks(chunk_id, embedding) VALUES (?, ?)", (cur.lastrowid, _vec_blob(vec)))
+    conn.commit()
+    return len(chunks)
+
+
+def remove_concept(conn, concept_id) -> None:
+    old_ids = [r[0] for r in conn.execute("SELECT chunk_id FROM chunks WHERE concept_id=?", (concept_id,))]
+    for cid in old_ids:
+        conn.execute("DELETE FROM vec_chunks WHERE chunk_id=?", (cid,))
+    conn.execute("DELETE FROM chunks WHERE concept_id=?", (concept_id,))
+    conn.commit()
