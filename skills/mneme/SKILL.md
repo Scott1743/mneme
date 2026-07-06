@@ -72,7 +72,7 @@ Distill a source (paper/article/note) into OKF concept pages:
 3. For each page:
    - `Write <bundle>/concepts/<slug>.md` with frontmatter (`type`/`title`/`description`/`tags`/`timestamp`/`resource`) + body.
    - Cross-link related pages with absolute bundle-relative paths (`/concepts/other.md`).
-4. `Edit <bundle>/index.md` — add `* [Title](path) - description` under the right section (use `update_index_md`-style logic if a section already exists; otherwise append under `# Concepts`).
+4. `Edit <bundle>/index.md` — find or create the section heading: if `## <section>` (e.g. `## Concepts`, `## References`, `## Summaries`) already exists, append `* [Title](path) - description` under it; otherwise append a new `## <section>` heading followed by the entry. Use the page's frontmatter `type` to pick the section.
 5. `Edit <bundle>/log.md` — append `## YYYY-MM-DD ingest | <source title>` + one-line note.
 6. `Bash: python3 skills/mneme/scripts/mneme.py reindex` (or directly `python3 -c "import sys,indexlib; sys.path.insert(0,'skills/mneme/scripts'); ...; indexlib.reindex_bundle(bundle, indexlib.default_embed_fn())"`).
 7. **Fallback:** if `fastembed` cannot download the model, retry with the **fake embed_fn** pattern from `tests/test_indexlib.py` (hash-based, no model). Only acceptable for tests — surface to the user that production reindex needs `pip install 'mneme[index]'`.
@@ -111,7 +111,7 @@ Auto-curate + maintain quality. **No user interaction** — this is a scheduled 
 2. If git: `Bash: git add -A && git commit -m "pre-dream $(date +%Y-%m-%dT%H:%M)" --allow-empty` (capture the commit SHA into a variable for the report).
 3. Resolve the bundle (Step 0).
 
-**Core loop (cap: `max_dream_changes_per_run=20` — soft env var; default 20):**
+**Core loop (cap: `MNEME_MAX_DREAM_CHANGES_PER_RUN` env var, default 20 — soft cap, the host agent decides):**
 
 | Action | Implementation |
 |---|---|
@@ -127,6 +127,7 @@ Auto-curate + maintain quality. **No user interaction** — this is a scheduled 
 1. `Bash: python3 skills/mneme/scripts/validate_okf.py <bundle>` — must be 0 ERROR. If ERRORs, abort the commit and write a critical section to the report.
 2. `Bash: git add -A && git commit -m "dream: $(date +%Y-%m-%d) [skip ci]" --author="mneme dream <dream@localhost>"` — commit the changes.
 3. Capture the new commit SHA.
+4. **Optional branch suggestion:** if the user has configured a base branch (e.g. via `MNEME_DREAM_BRANCH` env var), check it out from the dream commit and push: `git checkout -b dream/$(date +%Y-%m-%d) HEAD` — the user reviews and merges manually. This is suggested by the spec (§6.2) but not required.
 
 **Report:** `Write <bundle>/dream-report-<date>.md`:
 
