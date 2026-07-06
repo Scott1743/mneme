@@ -22,3 +22,6 @@ wiki/**/viz.html
 .idea/
 .vscode/
 *.swp
+
+# superpowers SDD scratch (progress ledger, scripts)
+.superpowers/
