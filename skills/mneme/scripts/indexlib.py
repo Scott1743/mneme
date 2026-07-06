@@ -48,3 +48,16 @@ def _ensure_vec_table(conn: sqlite3.Connection, dim: int) -> None:
 
 def _vec_blob(vec: List[float]) -> bytes:
     return struct.pack(f"{len(vec)}f", *vec)
+
+
+def chunk_markdown(text: str) -> List[str]:
+    parts, cur = [], []
+    for line in text.splitlines():
+        if line.startswith("#") and cur:
+            parts.append("\n".join(cur).strip())
+            cur = [line]
+        else:
+            cur.append(line)
+    if cur:
+        parts.append("\n".join(cur).strip())
+    return [p for p in parts if p]
