@@ -1,9 +1,12 @@
+import subprocess
+import sys
 from pathlib import Path
 
 from okflib import list_concepts, parse_frontmatter, read_concept, validate_bundle
 
 SAMPLE = Path(__file__).parent.parent / "sample-bundle"
 FIX = Path(__file__).parent / "fixtures"
+VALIDATOR = Path(__file__).parent.parent / "scripts" / "validate_okf.py"
 
 
 def test_parse_frontmatter_basic():
@@ -75,3 +78,19 @@ def test_broken_link_is_warning_not_error():
     report = validate_bundle(FIX / "broken_link")
     assert report.ok  # broken link is a warning, not an error (OKF §9 tolerance)
     assert any(v.rule == "broken-link" for v in report.warnings)
+
+
+def _run(bundle):
+    return subprocess.run([sys.executable, str(VALIDATOR), str(bundle)], capture_output=True, text=True)
+
+
+def test_cli_valid_bundle_exit_zero():
+    r = _run(SAMPLE)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "0 error(s)" in r.stdout
+
+
+def test_cli_invalid_bundle_exit_one():
+    r = _run(FIX / "missing_frontmatter")
+    assert r.returncode == 1
+    assert "no-frontmatter" in r.stdout

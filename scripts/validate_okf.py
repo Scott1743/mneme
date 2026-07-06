@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""OKF v0.1 conformance validator CLI. Zero-dependency (stdlib)."""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from okflib import validate_bundle
+
+
+def main(argv):
+    if len(argv) != 2:
+        print("usage: validate_okf.py <bundle_path>", file=sys.stderr)
+        return 2
+    report = validate_bundle(argv[1])
+    for v in report.errors:
+        print(f"ERROR  {v.path}: [{v.rule}] {v.detail}")
+    for v in report.warnings:
+        print(f"WARN   {v.path}: [{v.rule}] {v.detail}")
+    print(f"\n{len(report.errors)} error(s), {len(report.warnings)} warning(s)")
+    return 1 if report.errors else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
