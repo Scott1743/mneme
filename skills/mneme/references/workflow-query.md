@@ -1,13 +1,15 @@
 ---
 type: Reference
-title: mneme query workflow
-description: How to answer questions from the wiki with citations.
+title: mneme query workflow (host-agent)
+description: Detailed checklist for the query scenario in SKILL.md.
 ---
-> The `mneme query <question>` CLI searches the L2 index and synthesizes a cited answer. This doc is the agent's spec. See `wiki-structure.md` + `index-design.md`.
+# query workflow (host-agent)
 
-# query workflow
+The query scenario in SKILL.md is naive RAG: embed → KNN → top-k → read → synthesize with citations.
 
-- **Progressive disclosure**: always read `index.md` first; do not load the whole bundle. Drill only into pages the index suggests are relevant.
-- **Cite**: every non-trivial claim links the concept page it came from (`/concepts/<id>.md`). If the page has a `# Citations` section, surface those external links too.
-- **Honesty about gaps**: if the wiki lacks coverage, say so — do not fabricate. Suggest an ingest.
-- **Backfill**: if your synthesized answer is broadly useful and no page covers it, OFFER to create a `Summary` or `Concept` page capturing it (ask first; v1 does not auto-write).
+1. **Embed** the question (fastembed, default `intfloat/multilingual-e5-small` 384-dim).
+2. **KNN** via sqlite-vec `indexlib.search(conn, query, k=10, embed_fn=...)`.
+3. **Read** each top chunk's full concept page.
+4. **Synthesize** an answer with **inline citations** as bundle-relative links: `[/concepts/foo.md]([/concepts/foo.md)`.
+5. **Honest gaps**: if the wiki lacks coverage, say so and recommend `ingest`.
+6. **Backfill offer**: if your synthesized answer is broadly useful and no page covers it, OFFER to write it as a new `Summary` page (ask first; do not auto-write).
