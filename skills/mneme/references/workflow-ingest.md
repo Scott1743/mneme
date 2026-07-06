@@ -3,6 +3,8 @@ type: Reference
 title: mneme ingest workflow
 description: Detailed rules for ingesting a source into the wiki.
 ---
+> The `mneme ingest <src>` CLI runs a Strands agent that performs these steps. This doc is the agent's spec (and a checklist for manual review). Place pages per `wiki-structure.md`.
+
 # ingest workflow
 
 - **Slug**: derive from source filename, lowercase, spaces→hyphens. `My Note.md` → `sources/my-note.md`.

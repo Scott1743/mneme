@@ -3,6 +3,8 @@ type: Reference
 title: mneme query workflow
 description: How to answer questions from the wiki with citations.
 ---
+> The `mneme query <question>` CLI searches the L2 index and synthesizes a cited answer. This doc is the agent's spec. See `wiki-structure.md` + `index-design.md`.
+
 # query workflow
 
 - **Progressive disclosure**: always read `index.md` first; do not load the whole bundle. Drill only into pages the index suggests are relevant.
