@@ -6,8 +6,9 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest"]
+validate = ["PyYAML>=6.0"]
 index = ["sqlite-vec", "fastembed"]
-all = ["sqlite-vec", "fastembed"]
+all = ["sqlite-vec", "fastembed", "PyYAML>=6.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -7,6 +7,49 @@ with one caveat: **1.0.0 is a release-contract gate, not a feature gate.**
 Versions below 1.0.0 may carry partial behavior; consult `docs/superpowers/`
 for in-flight specs and plans.
 
+## [Unreleased] — 0.3.0 in progress
+
+PR2 lands the Phase 1 OKF v0.1 conformance layer on top of 0.2.1rc1:
+
+### Phase 1 conformance (the validator now keeps its promises)
+
+- **PyYAML verify path** in `okflib._strict_meta()`. Base installs stay
+  zero-dep; `pip install 'mneme[validate]'` enables strict YAML
+  verification. Without it the validator reports a
+  `strict-validation-disabled` warning so callers can see they are in
+  fallback mode.
+- **Type-field rule table**:
+  - missing `type` → `empty-type` error
+  - empty/whitespace `type` → `empty-type` error
+  - non-scalar `type` (list / int / bool / null) → `type-not-scalar`
+    error (was silently coerced to a non-empty string before)
+  - unknown `type` (anything outside `Concept` / `Reference` /
+    `Summary` / `Source`) → `unknown-type` warning
+- **Reserved-file rules (SPEC §6 and §7)**:
+  - nested `index.md` with any frontmatter → `nested-index-frontmatter`
+    error
+  - root `index.md` may declare only `okf_version`; any other key
+    → `root-index-extra-key` error
+  - root `index.md` missing `okf_version` → `missing-okf-version`
+    warning (recommended but not required)
+  - `log.md` heading without a `YYYY-MM-DD` date prefix →
+    `log-heading-format` error
+  - `log.md` entries not in newest-first order →
+    `log-not-newest-first` error
+  - missing `log.md` → `missing-log` warning (optional per SPEC §7)
+- **Timestamp soft tolerance (SPEC §4.1 line 131 + §9 line 354)**:
+  - missing `timestamp` → `missing-timestamp` warning
+  - empty `timestamp` → `empty-timestamp` warning
+  - non-ISO-8601 `timestamp` → `bad-timestamp-format` warning
+- **Tolerance for unknown frontmatter keys** (`unknown-key` warning) and
+  for one bad file not hiding valid concepts elsewhere
+  (`test_isolation_invalid_file_does_not_hide_valid_concepts`).
+
+### Tests
+
+40 OKF conformance tests in `tests/test_okflib.py` (16 → 40). 72 total
+tests pass.
+
 ## [0.2.1rc1] — 2026-07-12 — freeze dangerous behavior
 
 This is a **freeze pre-release**, not a feature release. It explicitly
