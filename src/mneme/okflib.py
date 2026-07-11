@@ -472,13 +472,19 @@ def validate_bundle(bundle_path) -> Report:
         )
 
     for p in sorted(root.rglob("*.md")):
-        if any(part == ".mneme" for part in p.relative_to(root).parts):
+        parts = p.relative_to(root).parts
+        if any(part == ".mneme" for part in parts):
             continue
         rel = p.relative_to(root).as_posix()
         name = os.path.basename(rel)
         text = p.read_text(encoding="utf-8")
         if name in RESERVED:
             _validate_reserved(rel, name, text, report)
+            continue
+        # Raw sources under sources/ are immutable inputs. They MUST NOT
+        # have OKF frontmatter (they predate distillation) and the
+        # validator must not flag them as concept violations.
+        if "sources" in parts:
             continue
         _validate_concept(rel, text, report)
 

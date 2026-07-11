@@ -1,6 +1,6 @@
 [project]
 name = "mneme"
-version = "0.3.0.1"
+version = "0.4.0"
 requires-python = ">=3.10"
 dependencies = [
     "tomli_w>=0.4",

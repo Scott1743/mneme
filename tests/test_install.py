@@ -107,11 +107,16 @@ def test_wheel_install_provides_entry_point():
     by the `[project.scripts]` entry point, not by `python3 scripts/...`.
     """
     wheel = _require_wheel()
-    ep_text = (
-        zipfile.ZipFile(wheel)
-        .read("mneme-0.2.1rc1.dist-info/entry_points.txt")
-        .decode("utf-8")
-    )
+    # The dist-info filename includes the version; find it dynamically.
+    with zipfile.ZipFile(wheel) as zf:
+        ep_names = [
+            n for n in zf.namelist() if n.endswith("entry_points.txt")
+        ]
+        assert ep_names, (
+            f"wheel {wheel.name} has no entry_points.txt; "
+            f"contents: {zf.namelist()[:10]}"
+        )
+        ep_text = zf.read(ep_names[0]).decode("utf-8")
     assert "mneme = mneme.cli:main" in ep_text
 
 

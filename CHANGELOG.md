@@ -7,6 +7,80 @@ with one caveat: **1.0.0 is a release-contract gate, not a feature gate.**
 Versions below 1.0.0 may carry partial behavior; consult `docs/superpowers/`
 for in-flight specs and plans.
 
+## [0.4.0] — 2026-07-12 — Phase 3 end-to-end harness complete
+
+Closes the v0.4.0 milestone (Phase 3 of the readiness-assessment
+version path). The two pillars this release lands on top of v0.3.0.1:
+
+### Phase 3 — end-to-end harness complete
+
+The host agent drives the user's wiki through three CLI commands
+(init / search / lint). v0.4.0 locks in each one behind a scriptable
+test so a regression in the CLI surface — not just in the library —
+is caught at commit time.
+
+- **`tests/test_e2e_ingest.py`** + **`tests/fixtures/e2e_ingest/source.md`**:
+  scripts the SKILL.md §"Scenario: ingest" flow end-to-end in
+  tmp_path: copy raw source → decompose → write concept pages →
+  prepend log entry → reindex → search finds each concept.
+- **`tests/test_e2e_lint.py`** + **`tests/fixtures/e2e_lint/{clean,dirty}_bundle/`**:
+  a curated violation map across every PR2 rule (one concept file
+  per rule plus illegal extra root-index keys plus out-of-order log
+  entries). Pins the rule set, the violation severity, and the
+  sources/ raw-input carve-out.
+- **`tests/test_e2e_query.py`** + **`tests/fixtures/e2e_query/`**:
+  asserts the `mneme search` shell — exit code, JSON-array shape,
+  stable hit schema, no-duplicate-concept_ids in top-k, hit path
+  resolves to a real Markdown file. Retrieval *quality* (recall@5 /
+  MRR@10 over a labeled corpus) stays Phase 4 / v0.5.0 scope.
+
+### Bug discovered + fixed by the ingest harness
+
+- **`okflib.validate_bundle`** was walking every `.md` file under
+  the bundle and treating `sources/*.md` as concept pages, so every
+  lint reported
+  `ERROR  sources/source.md: [no-frontmatter] missing YAML frontmatter
+  block`. Raw sources MUST NOT carry OKF frontmatter (they predate
+  distillation). Validator now skips `sources/` exactly the way it
+  skips `.mneme/`.
+- **`tests/test_install.py::test_wheel_install_provides_entry_point`**
+  was hardcoded to look for
+  `mneme-0.2.1rc1.dist-info/entry_points.txt`. The wheel version
+  rolled on, the test silently broke. Now dynamically finds any
+  `*entry_points.txt` inside the wheel.
+
+### Release-gate hardened
+
+- **`tests/test_entrypoint.py`** — fresh-venv `mneme --help` smoke
+  catches the v0.3.0 entry-point argv bug class permanently. Four
+  cases: console script help, `python3 -m mneme` help, end-to-end
+  `init → lint`, wheel records entry points.
+- **`tests/test_version.py`** — added `0.3.0.1` to the freeze-marker
+  set; `0.4.0` lands as a new release but the freeze marker
+  semantics carry forward.
+- **`docs/superpowers/plans/2026-07-12-mneme-0.3.0-implementation.md`
+  §5.1** — points the release-gate contract at `test_entrypoint.py`
+  (not just `test_install.py`).
+
+### Housekeeping
+
+- `dist/` cleaned: only the latest wheel ships. Older / buggy wheels
+  removed so `pip install dist/mneme-0.*.whl` always lands on the
+  intended version.
+- `dev/` `mneme.egg-info/` was already covered by `*.egg-info/` in
+  `.gitignore`; nothing to do (verified, not changed).
+
+### Not yet done
+
+- Phase 4 — real 141-document dogfood and retrieval benchmark. The
+  fixtures in `tests/fixtures/e2e_query/` and `e2e_lint/` are
+  synthetic. Phase 4 builds a labeled benchmark over the
+  `/Users/scott1743/Desktop/佳都/飞书文档库/` corpus.
+- Phase 5 — `find_orphans` + dream safety.
+- Phase 6 — release-gate CI matrix + resource budgets.
+
+## [0.3.0.1] — 2026-07-12 — hotfix: console entry point missing argv
+
 ## [0.3.0.1] — 2026-07-12 — hotfix: console entry point missing argv
 
 The v0.3.0 wheel installed cleanly but invoking the `mneme` console
