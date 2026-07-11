@@ -1,6 +1,6 @@
 ---
 name: mneme
-description: "Maintain a local, OKF-conformant LLM knowledge wiki of research/learning notes. Use when the user wants to ingest a source into their wiki, query the wiki, lint it for OKF conformance, run a scheduled maintenance cycle (dream), or initialize a new wiki. Triggers: 'mneme', 'my wiki', 'ingest this', 'query my notes', 'lint the wiki', 'dream', 'knowledge base', '查 wiki', '摄入笔记', '知识库'."
+description: "Maintain and search a local, OKF-conformant LLM knowledge wiki of research/learning notes. Use when the user wants to ingest a source, search or query the wiki, lint it, run dream maintenance, reindex it, or initialize a wiki. Triggers: 'mneme', 'my wiki', 'search my wiki', 'ingest this', 'query my notes', 'lint the wiki', 'dream', 'knowledge base', '查 wiki', '搜索知识库', '摄入笔记', '知识库'."
 allowed-tools:
   - Read
   - Write
@@ -13,9 +13,9 @@ allowed-tools:
 
 # mneme — lightweight LLM wiki
 
-You drive all mneme operations through native tools (Read/Write/Edit/Bash/Glob/Grep) plus a thin CLI (`mneme init` / `mneme reindex`). **Never** call any independent agent SDK or `@tool` framework — your native tools ARE the agent runtime.
+You drive all mneme operations through native tools (Read/Write/Edit/Bash/Glob/Grep) plus a thin CLI (`mneme init` / `mneme reindex` / `mneme search`). **Never** call any independent agent SDK or `@tool` framework — your native tools ARE the agent runtime.
 
-mneme keeps an external OKF v0.1 wiki of research/learning notes. The skill has 6 scenarios; pick the one matching the user's intent.
+mneme keeps an external OKF v0.1 wiki of research/learning notes. The skill has 7 scenarios; pick the one matching the user's intent.
 
 ## Step 0: resolve the bundle (EVERY scenario)
 
@@ -63,6 +63,16 @@ Rebuild the L2 sqlite-vec index from scratch:
 
 After every `ingest` or `dream` that adds/removes/merges pages, run `reindex`.
 
+## Scenario: search <query>
+
+Return ranked L2 retrieval hits without synthesizing an answer or modifying the bundle:
+
+1. `Bash: python3 skills/mneme/scripts/mneme.py search "<query>" --json [--type <type>] [-k <limit>]`
+2. Present the matching titles, bundle-relative paths, types, and snippets.
+3. Do not auto-reindex. If the index is absent or incompatible, report the CLI remedy (`mneme reindex`).
+
+Pass the query as a shell argument, never splice it into Python source. Search snippets are navigation aids; the Markdown concept pages remain authoritative.
+
 ## Scenario: ingest <source path>
 
 Distill a source (paper/article/note) into OKF concept pages:
@@ -83,9 +93,9 @@ See `references/workflow-ingest.md` for the detailed checklist.
 
 Naive RAG: embed → KNN → top-k → read pages → synthesize answer with citations:
 
-1. `Bash: python3 -c "import sys; sys.path.insert(0,'skills/mneme/scripts'); import indexlib; c = indexlib.open_index('<bundle>/.mneme/index.db'); print(indexlib.search(c, '<question>', k=10, embed_fn=indexlib.default_embed_fn()))"`
+1. `Bash: python3 skills/mneme/scripts/mneme.py search "<question>" --json -k 10`
 2. For each top chunk, `Read <bundle>/<chunk.path>` (use `concept_id` from the search result to derive path: `concepts/foo` → `concepts/foo.md`).
-3. Synthesize an answer with **inline citations** as bundle-relative markdown links: `[/concepts/foo.md]([/concepts/foo.md)`.
+3. Synthesize an answer with **inline citations** as bundle-relative markdown links: `[Foo](/concepts/foo.md)`.
 4. If the answer is broadly useful and no page covers it, OFFER (do not auto-write) to backfill it as a new `Summary` page.
 5. Honest about gaps: if the wiki lacks coverage, say so and suggest an `ingest`.
 

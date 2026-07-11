@@ -1,6 +1,6 @@
 ---
 name: mneme
-description: "维护一个本地的、符合 OKF 规范的 LLM 知识 wiki。适用于用户想将论文/文章/笔记摄入 wiki、查询 wiki、检查 OKF 合规性，或初始化一个新的 wiki。触发词：'mneme'、'my wiki'、'ingest this'、'query my notes'、'lint the wiki'、'knowledge base'、'查 wiki'、'摄入笔记'、'知识库'。"
+description: "维护和搜索本地、符合 OKF 的 LLM 知识 wiki。适用于摄入资料、搜索或查询 wiki、检查合规性、重建索引、执行 dream 维护或初始化 wiki。触发词：mneme、my wiki、search my wiki、ingest this、query my notes、lint the wiki、dream、knowledge base、查 wiki、搜索知识库、摄入笔记、知识库。"
 allowed-tools:
   - Read
   - Write
@@ -13,67 +13,106 @@ allowed-tools:
 
 # mneme - 轻量级 LLM wiki
 
-mneme 用于维护一个外部的 OKF v0.1 wiki，承载研究/学习笔记。你是它严格自律的维护者（schema 层）。共有三条工作流：**ingest**、**query**、**lint**（以及 **init**）。
+使用原生工具（Read/Write/Edit/Bash/Glob/Grep）和薄 CLI（`mneme init` / `mneme reindex` / `mneme search`）驱动所有操作。不得调用独立 agent SDK 或 `@tool` 框架；宿主 agent 自身就是运行时。
 
-## 第 0 步：解析 bundle（每次操作都必须执行）
+mneme 维护一个外部 OKF v0.1 研究/学习 wiki。共有 7 个场景，按用户意图选择。
 
-按以下顺序查找 wiki bundle；命中第一个就使用它：
-1. `~/.config/mneme/config.toml` 中的 `bundle_path` 键。
+## 第 0 步：解析 bundle（每个场景都必须执行）
+
+依次使用第一个命中项：
+
+1. `~/.config/mneme/config.toml` 中的 `bundle_path`。
 2. `MNEME_BUNDLE` 环境变量。
-3. 用户在本次请求中显式给出的路径。
-4. 自动发现：从当前工作目录向上遍历，寻找根目录下的 `index.md`，其 frontmatter 中必须包含 `okf_version`。
-5. 如果存在 `./wiki`，则使用它。
-6. 若仍未找到，则询问用户提供路径，或建议执行 `init`。
+3. 用户显式给出的路径。
+4. 从 cwd 向上查找根 `index.md`，且其 frontmatter 含 `okf_version`。
+5. 已存在的 `./wiki`。
+6. 都没有则询问路径，或提出执行 `init`。
 
-`config.toml` 采用简单的 `key = "value"` 行格式；用标准库解析即可（不需要 PyYAML）。
+辅助命令：
 
-> **相对 Skill 的路径：** 像 `scripts/validate_okf.py` 这样的路径，相对于当前 skill 自身所在目录（即包含此 `SKILL.md` 的文件夹）。运行时请从该目录执行，或基于你加载本文件时的路径解析 skill 目录。
+```bash
+python3 -c "import sys; sys.path.insert(0,'./skills/mneme/scripts'); from tools_helpers import resolve_bundle; print(resolve_bundle())"
+```
 
-## OKF v0.1 合规性（硬性规则，写入时绝不可违反）
+`scripts/...` 和 `references/...` 均相对于本 skill 所在目录。
 
-1. 每个非保留的 `.md` 文件都必须包含一个由 `---` 分隔的 YAML frontmatter 块。
-2. 每个 frontmatter 都必须包含非空的 `type`。
-3. 保留文件 `index.md`（目录索引；除根 `okf_version` 外不应有 frontmatter）和 `log.md`（按日期前缀组织的时间线）必须遵循各自的结构。
+## OKF v0.1 合规硬约束
 
-不要因为以下情况而拒绝写入：未知的 `type` 值、额外的 frontmatter 键、或损坏的链接——这些只应作为 warning。
+1. 每个非保留 `.md` 必须有 `---` 分隔的 YAML frontmatter。
+2. 每个 frontmatter 必须包含非空 `type`。
+3. 保留文件 `index.md`（除根 `okf_version` 外无 frontmatter）和 `log.md`（日期前缀时间线）遵循规范结构。
 
-## type 词汇表（推荐使用，非注册制）
+未知 `type`、额外 frontmatter 键和断链只能告警，不得拒绝 bundle。
 
-`Concept`（概念/主题）· `Reference`（提炼后的外部来源）· `Summary`（综合总结）· `Source`（位于 `sources/` 下的原始文档）
+推荐但不注册的 type：`Concept`、`Reference`、`Summary`、`Source`。
 
-## ingest <source path>
+## 场景：init <path>
 
-1. 解析 bundle（第 0 步）。如果不存在且用户愿意，则执行 `init`。
-2. 读取源文件（v1 仅支持 `.md`/`.txt`）。复制到 `sources/<slug>.md`（不可变的原始层）。
-3. 读取源内容；如有需要，可以与用户讨论其中的关键点。
-4. 在合适的子目录下写入 concept 页面，每个页面都带有如下 frontmatter：`type`、`title`、`description`、`tags`、`timestamp`（ISO 8601）、`resource`（源文件路径）。
-5. 更新相关的已有页面并添加交叉链接（使用 bundle 相对的绝对路径，如 `/dir/concept.md`）。
-6. 更新 `index.md`：在合适的章节下新增 `* [Title](path) - description`。
-7. 追加到 `log.md`：`## YYYY-MM-DD ingest | <title>`，再附上一行简要说明。
-8. 运行 `python3 scripts/validate_okf.py <bundle>`。在 ingest 完成前，必须修复所有 ERROR。
+1. 运行 `python3 skills/mneme/scripts/mneme.py init <path> [--config <cfg>]`。
+2. 验证根 `index.md` 含 `okf_version: "0.1"`，并存在 `log.md` 和 `sources/.gitkeep`。
+3. 告知用户 bundle 路径已可被第 0 步发现。
 
-## query <question>
+## 场景：reindex [--config <cfg>]
 
-1. 解析 bundle。
-2. 先读取 `index.md`（渐进式披露），定位相关页面。
-3. 读取这些页面。
-4. 给出综合答案，并附带引用（bundle 相对链接，以及页面中已有的外部引用）。
-5. 如果答案具有较强的通用价值，且当前没有页面覆盖该主题，则**主动提出**补写为新的 concept 页面（v1 中不要自动写入）。
+1. 运行 `python3 skills/mneme/scripts/mneme.py reindex [--config <cfg>]`。
+2. 确认输出中的 concept、chunk、skipped 数量和 `.mneme/index.db` 路径。
 
-## lint
+每次 ingest 或 dream 新增、删除、移动、合并页面后都必须 reindex。
 
-1. 解析 bundle。
-2. 运行 `python3 scripts/validate_okf.py <bundle>`。报告 ERROR（必须修复）与 WARNing。
-3. 对 warning 做整理和策展：识别相互矛盾的内容、陈旧断言、孤儿页面、缺失的交叉链接、以及尚无页面的重要概念。提出修复建议；只有获得用户批准后才执行修改。
+## 场景：search <query>
 
-## init <path>
+只返回排序后的 L2 命中，不综合答案、不修改 bundle：
 
-脚手架化创建一个新的空 bundle，并记录路径：
-- `<path>/index.md`：包含 `okf_version: "0.1"` frontmatter，以及空的 `# Concepts` 正文。
-- `<path>/log.md`：包含 `# Directory Update Log` 标题。
-- `<path>/sources/.gitkeep`
-- 将 `bundle_path = "<path>"` 写入 `~/.config/mneme/config.toml`（如果需要则创建 `~/.config/mneme/`）。
+1. 运行 `python3 skills/mneme/scripts/mneme.py search "<query>" --json [--type <type>] [-k <limit>]`。
+2. 展示标题、bundle-relative 路径、type 和 snippet。
+3. 不自动 reindex；索引缺失或不兼容时，按 CLI 提示建议运行 `mneme reindex`。
 
-## 参考资料（按需加载）
+查询内容必须作为 shell 参数传递，禁止拼进 Python 源码。snippet 只用于导航，Markdown 概念页才是事实来源。
 
-`references/workflow-ingest.md` · `references/workflow-query.md` · `references/workflow-lint.md` · `references/type-vocab.md`。校验器：`scripts/validate_okf.py`（位于本 skill 目录）。OKF 规范：<https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>。
+## 场景：ingest <source path>
+
+1. 读取完整源资料。
+2. 按“一页一个原子概念”拆分，单一来源可产生 1-15 个页面。
+3. 为每页写 `<bundle>/concepts/<slug>.md`，frontmatter 包含 `type/title/description/tags/timestamp/resource`，并用绝对 bundle-relative 链接交叉引用相关页。
+4. 更新 `index.md` 对应章节，条目格式为 `* [Title](path) - description`。
+5. 在 `log.md` 追加 `## YYYY-MM-DD ingest | <source title>` 和简短说明。
+6. 运行 `mneme reindex`，再运行 `validate_okf.py`；完成前修复所有 ERROR。
+
+若 fastembed 模型不可用，应明确提示安装 `mneme[index]`，不得用测试 fake embedding 生成生产索引。
+
+详见 `references/workflow-ingest.md`。
+
+## 场景：query <question>
+
+1. 运行 `python3 skills/mneme/scripts/mneme.py search "<question>" --json -k 10`。
+2. 读取每个命中对应的完整 Markdown 概念页。
+3. 综合答案，并以内联绝对 bundle-relative 链接引用页面。
+4. 若答案具有长期价值且无页面覆盖，只提出新增 `Summary`，不要自动写入。
+5. wiki 覆盖不足时如实说明，并建议 ingest。
+
+详见 `references/workflow-query.md`。
+
+## 场景：lint
+
+1. 运行 `python3 skills/mneme/scripts/validate_okf.py <bundle>`，区分 ERROR 与 WARNING。
+2. 用 `okflib.find_orphans` 找孤儿页。
+3. 抽样阅读页面，识别矛盾、过时论断和缺失交叉引用。
+4. 写 `<bundle>/lint-report-<date>.md`，只报告，不自动修改内容。
+
+详见 `references/workflow-lint.md`。
+
+## 场景：dream（定时、全自动）
+
+1. 若 bundle 是 git 仓库，先提交 pre-dream 快照；否则记录警告并继续。
+2. 每轮最多执行 `MNEME_MAX_DREAM_CHANGES_PER_RUN` 项改动，默认 20。
+3. 可合并高置信重复页、归档 90 天以上且无引用的孤儿页、补交叉链接、为至少 5 个相关概念建立 Summary。
+4. 所有候选写入 `.mneme/dream-pending/`，确认整轮成功后再移动到正式位置。
+5. 运行 reindex 和 OKF validator；有 ERROR 则不提交本轮内容。
+6. 若有 git，提交 `dream: YYYY-MM-DD [skip ci]`；不自动 push。
+7. 写 `dream-report-<date>.md`，列出改动、校验、commit SHA 和 revert 方法。
+
+## 参考资料
+
+`scripts/validate_okf.py` · `references/workflow-ingest.md` · `references/workflow-query.md` · `references/workflow-lint.md` · `references/type-vocab.md` · `references/wiki-structure.md` · `references/index-design.md`。
+
+OKF 规范：<https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>。

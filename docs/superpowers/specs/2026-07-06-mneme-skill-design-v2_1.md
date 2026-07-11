@@ -1,5 +1,7 @@
 # Mneme Skill — Design Spec v2.1
 
+> **Historical note (2026-07-11):** v2.2 keeps the host-agent architecture but supersedes this document's CLI/retrieval decision by adding a deterministic, read-only `mneme search` command. See `2026-07-11-mneme-search-design-v2_2.md`.
+
 - **Date:** 2026-07-06
 - **Status:** Draft — awaiting user review
 - **Supersedes:** `2026-07-06-mneme-skill-design-v2.md` (v2)
