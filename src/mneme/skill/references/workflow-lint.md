@@ -7,7 +7,7 @@ description: Detailed checklist for the lint scenario in SKILL.md.
 
 The lint scenario in SKILL.md curates without auto-modifying. This doc is the detailed checklist.
 
-1. **Validate**: `Bash: mneme lint <bundle>` — must be 0 ERROR.
+1. **Validate**: `Bash: python3 skills/mneme/scripts/validate_okf.py <bundle>` — must be 0 ERROR.
 2. **Find orphans**: `Bash: python3 -c "import sys; sys.path.insert(0,'skills/mneme/scripts'); import okflib; print(okflib.find_orphans('<bundle>'))"`.
 3. **Sample review**: read a handful of pages; look for:
    - Stale `timestamp` with no log reference

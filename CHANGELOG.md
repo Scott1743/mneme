@@ -7,11 +7,60 @@ with one caveat: **1.0.0 is a release-contract gate, not a feature gate.**
 Versions below 1.0.0 may carry partial behavior; consult `docs/superpowers/`
 for in-flight specs and plans.
 
-## [Unreleased] — 0.3.0 in progress
+## [0.3.0] — 2026-07-12 — Phase 2 install/path + dogfood-ready
 
-PR2 lands the Phase 1 OKF v0.1 conformance layer on top of 0.2.1rc1:
+This release closes out the v0.3.0 milestone:
 
-### Phase 1 conformance (the validator now keeps its promises)
+- **Real Python package.** Implementation lifted from
+  `skills/mneme/scripts/` into `src/mneme/` as a true package; the
+  legacy `skills/mneme/scripts/` is a symlink for the dev install
+  path. `pip install -e .[dev]` or `pip install mneme==0.3.0`
+  builds the same layout.
+- **`mneme` console command.** `[project.scripts]` exposes
+  `mneme = mneme.cli:main`. From a clean venv:
+  ```
+  $ pip install mneme==0.3.0
+  $ mneme --help
+  usage: mneme [-h] {init,reindex,search,lint} ...
+  ```
+- **SKILL assets inside the wheel.** `mneme/skill/SKILL.md`,
+  `mneme/skill/SKILL cn.md`, and `mneme/skill/references/*` are
+  packaged via `[tool.setuptools.package-data]`. Agent invocations
+  now reference `mneme <cmd>` rather than repository-relative
+  `python3 skills/mneme/scripts/...` paths.
+- **TOML config via stdlib + tomli_w.** `mneme.config.read_config`
+  uses `tomllib` on Python 3.11+ (falls back to `tomli` via the
+  `toml10` extras on 3.10); `write_config` uses `tomli_w`. The
+  hand-rolled `splitlines + split('=', 1)` parser is gone. Round-
+  trip preserves embedded quotes, backslashes, and non-ASCII
+  characters; tests cover each case.
+- **No more `dist/` manual copy.** `python -m build --wheel` is the
+  single source of truth. The pre-existing `dist/mneme-0.2.0/` is
+  removed.
+
+### Validation under v0.3.0
+
+`mneme lint <bundle>` runs the full PR2 rule table (Phase 1 conformance)
+in a single subcommand and surfaces the orphan analysis with a
+deterministic "find_orphans not yet implemented" message until that
+primitive lands in a future release.
+
+### Step back
+
+This is **not** 1.0.0. v0.3.0 is a real install/QA milestone, but the
+`1.0` release gate still requires:
+
+- 141-document dogfooding with a labeled retrieval benchmark (Phase 4)
+- `find_orphans` + safety-tested dream (Phase 5)
+- resource budgets, dependency pinning, and CI across Python
+  3.10–3.13 (Phase 6)
+
+See `docs/superpowers/reports/2026-07-12-mneme-1.0-readiness-assessment.md`
+for the full list.
+
+### Phase 1 conformance under v0.3.0
+
+The OKF v0.1 rule table lands in v0.3.0 (rolled forward from 0.2.1rc1):
 
 - **PyYAML verify path** in `okflib._strict_meta()`. Base installs stay
   zero-dep; `pip install 'mneme[validate]'` enables strict YAML
@@ -45,10 +94,8 @@ PR2 lands the Phase 1 OKF v0.1 conformance layer on top of 0.2.1rc1:
   for one bad file not hiding valid concepts elsewhere
   (`test_isolation_invalid_file_does_not_hide_valid_concepts`).
 
-### Tests
-
-40 OKF conformance tests in `tests/test_okflib.py` (16 → 40). 72 total
-tests pass.
+40 OKF conformance tests in `tests/test_okflib.py` (16 → 40). 91 total
+tests pass at v0.3.0 (was 72 after PR2; +19 for install/path coverage).
 
 ## [0.2.1rc1] — 2026-07-12 — freeze dangerous behavior
 

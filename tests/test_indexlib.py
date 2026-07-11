@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from indexlib import (
+from mneme.indexlib import (
     CorruptIndexError,
     Embedder,
     IndexNotFoundError,
@@ -167,7 +167,7 @@ def test_search_bundle_empty_index_returns_no_hits_without_embedding(tmp_path, m
     def fail():
         raise AssertionError("empty indexes must not construct an embedder")
 
-    monkeypatch.setattr("indexlib.default_embed_fn", fail)
+    monkeypatch.setattr("mneme.indexlib.default_embed_fn", fail)
     assert search_bundle(tmp_path, "anything") == []
 
 

@@ -1,5 +1,5 @@
 from pathlib import Path
-from tools_helpers import resolve_bundle, slug_from_path
+from mneme.tools_helpers import resolve_bundle, slug_from_path
 
 
 def test_resolve_bundle_from_config(tmp_path):

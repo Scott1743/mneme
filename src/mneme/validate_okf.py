@@ -5,8 +5,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-from okflib import Report, validate_bundle
+if __name__ == "__main__":
+    # Allow `python3 src/mneme/validate_okf.py <bundle>` to run as a
+    # standalone script in dev. Inside the package, use `mneme lint
+    # <bundle>` instead.
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from mneme.okflib import Report, validate_bundle
 
 
 def print_report(report: Report) -> int:

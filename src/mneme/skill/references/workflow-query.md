@@ -7,7 +7,7 @@ description: Detailed checklist for the query scenario in SKILL.md.
 
 The query scenario in SKILL.md is naive RAG: CLI search → top-k → read → synthesize with citations.
 
-1. **Search** with `mneme search "<question>" --json -k 10`. Pass the question as an argv value, never as generated Python source.
+1. **Search** with `python3 scripts/mneme.py search "<question>" --json -k 10`. Pass the question as an argv value, never as generated Python source.
 2. **KNN** is performed by the derived sqlite-vec index using fastembed (default `BAAI/bge-small-zh-v1.5`).
 3. **Read** each top chunk's full concept page.
 4. **Synthesize** an answer with **inline citations** as bundle-relative links: `[/concepts/foo.md]([/concepts/foo.md)`.

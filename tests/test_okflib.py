@@ -2,11 +2,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from okflib import list_concepts, parse_frontmatter, read_concept, validate_bundle
+from mneme.okflib import list_concepts, parse_frontmatter, read_concept, validate_bundle
 
 SAMPLE = Path(__file__).parent.parent / "sample-bundle"
 FIX = Path(__file__).parent / "fixtures"
-VALIDATOR = Path(__file__).parent.parent / "skills" / "mneme" / "scripts" / "validate_okf.py"
+VALIDATOR = Path(__file__).parent.parent / "src" / "mneme" / "validate_okf.py"
 
 
 def test_parse_frontmatter_basic():
