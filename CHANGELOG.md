@@ -7,6 +7,23 @@ with one caveat: **1.0.0 is a release-contract gate, not a feature gate.**
 Versions below 1.0.0 may carry partial behavior; consult `docs/superpowers/`
 for in-flight specs and plans.
 
+## [0.3.0.1] — 2026-07-12 — hotfix: console entry point missing argv
+
+The v0.3.0 wheel installed cleanly but invoking the `mneme` console
+script crashed with `TypeError: main() missing 1 required positional
+argument: 'argv'` because setuptools' generated entry-point stub calls
+`main()` without arguments, while the implementation declared
+`def main(argv)`. Same crash for `python3 -m mneme`.
+
+`mneme.cli.main` now defaults `argv=None` and reads from `sys.argv[1:]`
+when the entry-point stub invokes it without args; existing tests that
+pass an explicit argv list keep working unchanged.
+
+If you installed `mneme==0.3.0` and saw the crash, upgrade:
+```
+pip install --upgrade mneme==0.3.0.1
+```
+
 ## [0.3.0] — 2026-07-12 — Phase 2 install/path + dogfood-ready
 
 This release closes out the v0.3.0 milestone:

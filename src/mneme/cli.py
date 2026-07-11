@@ -159,7 +159,18 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv) -> int:
+def main(argv=None) -> int:
+    """CLI entry point.
+
+    Accepts an optional ``argv`` list so callers can drive it from Python
+    (tests, embedding hosts). When invoked as a console script via the
+    ``[project.scripts]`` entry point, setuptools generates a stub that
+    calls ``main()`` with no arguments — ``argv=None`` resolves that case
+    to ``sys.argv[1:]``.
+    """
+    import sys
+    if argv is None:
+        argv = sys.argv[1:]
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
