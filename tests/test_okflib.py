@@ -138,22 +138,22 @@ def test_yaml_malformed_rejected_when_yaml_available(fixture_name):
     """§4.1: the validator must reject YAML that PyYAML rejects. The
     hand-rolled parser at okflib.parse_frontmatter accepts all three of
     these as malformed-but-recoverable. With PyYAML installed, this test
-    passes; without it (zero-dep runtime), this test is conditional."""
-    yaml = pytest.importorskip("yaml")
+    passes; without it, the importorskip line below marks the test as
+    skipped so we don't claim coverage we can't exercise.
+    """
+    pytest.importorskip("yaml")
     d = FIX / "yaml_malformed"
     report = validate_bundle(d)
-    # Only require rejection when PyYAML can parse the file's frontmatter
-    # otherwise. PyYAML may not exist; in that case the test signals via
-    # importorskip — but each fixture is multi-file so we filter by name.
-    target = (d / f"{fixture_name}.md").read_text(encoding="utf-8")
-    parsed = yaml.safe_load(_strip_frontmatter(target))
-    assert parsed is not None or True  # warm the linter
-    # The validator should produce an error tied to one of the files in
-    # the yaml_malformed dir.
-    yaml_errors = [e for e in _errors(report) if "yaml_malformed" in e[0]]
+    # Each parametrized case targets a specific file inside the fixture;
+    # `validate_bundle(d)` walks files directly under d, so `rel` is the
+    # basename only — match on rule + filename.
+    yaml_errors = [
+        e for e in _errors(report)
+        if e[1] == "malformed-yaml" and f"{fixture_name}.md" in e[0]
+    ]
     assert yaml_errors, (
-        f"validate_bundle did not flag malformed YAML in {fixture_name}: "
-        f"got {report.errors}"
+        f"validate_bundle did not flag malformed YAML in {fixture_name}.md: "
+        f"got {_errors(report)}"
     )
 
 
