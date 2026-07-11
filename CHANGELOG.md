@@ -7,6 +7,72 @@ with one caveat: **1.0.0 is a release-contract gate, not a feature gate.**
 Versions below 1.0.0 may carry partial behavior; consult `docs/superpowers/`
 for in-flight specs and plans.
 
+## [Unreleased] — 0.4.0 in progress
+
+Heading toward the v0.4.0 release per the readiness-assessment version
+path (Phase 3: end-to-end ingest/query/lint harness). The current
+release-gate work lands first.
+
+### Release gate hardened after v0.3.0.1
+
+- **`tests/test_entrypoint.py`** — fresh-venv `mneme --help` smoke
+  that caught the v0.3.0 → v0.3.0.1 bug in the first place. Now
+  permanent. Four cases: console script help, `python3 -m mneme`
+  help, end-to-end `init → lint`, wheel records entry points.
+- **`tests/test_version.py`** — added `0.3.0.1` to the freeze-marker
+  set so the post-release hotfix doesn't trip its own PR1 gate.
+- **`docs/superpowers/plans/2026-07-12-mneme-0.3.0-implementation.md`
+  §5.1** — points the release-gate contract at `test_entrypoint.py`
+  (not just `test_install.py`) so this regression class can't slip
+  through again.
+
+### Phase 3 — end-to-end ingest harness (chunk 1/2 landed)
+
+- **`tests/test_e2e_ingest.py`** + **`tests/fixtures/e2e_ingest/source.md`**:
+  scripts the SKILL.md §"Scenario: ingest" flow in tmp_path:
+
+  0. copy the raw source to `<bundle>/sources/<basename>`
+  1-3. read, decompose, write concept pages (decomposition is
+     pre-baked from a small fixture source so the LLM step stays
+     deterministic in test)
+  4. update `<bundle>/index.md` under `## Concepts`
+  5. **prepend** (not append) the entry to `<bundle>/log.md` — the
+     fix from v0.2.1rc1's freeze is exercised end-to-end here
+  6. reindex with a deterministic embedder
+  7. search each concept slug and assert the top hit is its page
+
+  All 6 cases pass on the current main.
+
+### Bug discovered + fixed by the ingest harness
+
+- **`okflib.validate_bundle`** was walking every `.md` file under
+  the bundle and treating `sources/*.md` as concept pages. Result:
+  every lint reported
+  `ERROR  sources/source.md: [no-frontmatter] missing YAML frontmatter
+  block`. Raw sources MUST NOT carry OKF frontmatter (they predate
+  distillation). Validator now skips `sources/` exactly the way it
+  skips `.mneme/`. `test_e2e_ingest.py::test_e2e_lint_clean_after_ingest`
+  locks in the carve-out.
+- **`tests/test_install.py::test_wheel_install_provides_entry_point`**
+  was hardcoded to look for
+  `mneme-0.2.1rc1.dist-info/entry_points.txt`. Once the wheel version
+  moved on, the test silently broke. Now dynamically finds any
+  `*entry_points.txt` inside the wheel.
+
+### Housekeeping
+
+- `dist/` cleaned: only `mneme-0.3.0.1-py3-none-any.whl` ships
+  now. The pre-hotfix `0.2.1rc1` and the buggy `0.3.0` wheels are
+  removed from disk so accidental `pip install dist/mneme-0.3.0-*.whl`
+  can't happen.
+
+### Still pending for v0.4.0
+
+- E2E query harness (search → read → synthesize with citations)
+- E2E lint harness (fixture bundle with intentional violations
+  covering every PR2 rule)
+- Host-agent simulator per spec §6 PR3 exit criteria
+
 ## [0.3.0.1] — 2026-07-12 — hotfix: console entry point missing argv
 
 The v0.3.0 wheel installed cleanly but invoking the `mneme` console
