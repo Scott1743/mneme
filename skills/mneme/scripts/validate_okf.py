@@ -6,20 +6,25 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from okflib import validate_bundle
+from okflib import Report, validate_bundle
 
 
-def main(argv):
-    if len(argv) != 2:
-        print("usage: validate_okf.py <bundle_path>", file=sys.stderr)
-        return 2
-    report = validate_bundle(argv[1])
+def print_report(report: Report) -> int:
+    """Print a validation report to stdout. Returns the would-be process
+    exit code: 0 if no errors, 1 if any errors were found."""
     for v in report.errors:
         print(f"ERROR  {v.path}: [{v.rule}] {v.detail}")
     for v in report.warnings:
         print(f"WARN   {v.path}: [{v.rule}] {v.detail}")
     print(f"\n{len(report.errors)} error(s), {len(report.warnings)} warning(s)")
     return 1 if report.errors else 0
+
+
+def main(argv):
+    if len(argv) != 2:
+        print("usage: validate_okf.py <bundle_path>", file=sys.stderr)
+        return 2
+    return print_report(validate_bundle(argv[1]))
 
 
 if __name__ == "__main__":
