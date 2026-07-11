@@ -1,6 +1,6 @@
 ---
 name: mneme
-description: "Maintain and search a local, OKF-conformant LLM knowledge wiki of research/learning notes. Use when the user wants to ingest a source, search or query the wiki, lint it, run dream maintenance, reindex it, or initialize a wiki. Triggers: 'mneme', 'my wiki', 'search my wiki', 'ingest this', 'query my notes', 'lint the wiki', 'dream', 'knowledge base', '查 wiki', '搜索知识库', '摄入笔记', '知识库'."
+description: "Maintain and search a local, OKF-conformant LLM knowledge wiki of research/learning notes. Use when the user wants to ingest a source, search or query the wiki, lint it, reindex it, or initialize a wiki. Triggers: 'mneme', 'my wiki', 'search my wiki', 'ingest this', 'query my notes', 'lint the wiki', 'knowledge base', '查 wiki', '搜索知识库', '摄入笔记', '知识库'. Dream (scheduled auto-curation) is intentionally absent from v0.3.0 — see CHANGELOG for the freeze context."
 allowed-tools:
   - Read
   - Write
@@ -112,58 +112,7 @@ Curate + report (do **not** auto-modify):
 
 See `references/workflow-lint.md`.
 
-## Scenario: dream (scheduled, fully automatic)
-
-Auto-curate + maintain quality. **No user interaction** — this is a scheduled task.
-
-**Pre-guard:**
-1. `Bash: git rev-parse --git-dir 2>/dev/null || echo NOGIT`. If not a git repo, log a warning and skip git ops (still run curation + report).
-2. If git: `Bash: git add -A && git commit -m "pre-dream $(date +%Y-%m-%dT%H:%M)" --allow-empty` (capture the commit SHA into a variable for the report).
-3. Resolve the bundle (Step 0).
-
-**Core loop (cap: `MNEME_MAX_DREAM_CHANGES_PER_RUN` env var, default 20 — soft cap, the host agent decides):**
-
-| Action | Implementation |
-|---|---|
-| Merge duplicates | `Bash: python3 -c "import sys; sys.path.insert(0,'skills/mneme/scripts'); ..."` calling `indexlib.search(... k=20)` then grouping pairs with cosine distance ≤ 0.08 (i.e. similarity ≥ 0.92). Pick the merge target per pair. |
-| Archive orphans | Call `okflib.find_orphans`. For each orphan with `timestamp` ≥ 90 days ago and zero log references: move to `archive/YYYY/`. |
-| Add cross-links | For each orphan or low-link page, find the most-similar linked page via `indexlib.search`; add `[/concepts/X.md](/concepts/X.md)` to its body. |
-| Build Summary | For each topic with ≥ 5 concepts, `Write` a new `<bundle>/summaries/<topic>.md` (type: Summary) with synthesized overview + links. |
-| Reindex | `Bash: python3 skills/mneme/scripts/mneme.py reindex` (after all writes). |
-
-**Atomic write protocol:** write every new/modified file to `<bundle>/.mneme/dream-pending/` first, then `Bash: cp` (or `git mv`) into place. If anything fails, the pending dir is the audit trail; the bundle stays unchanged.
-
-**Post-guard:**
-1. `Bash: python3 skills/mneme/scripts/validate_okf.py <bundle>` — must be 0 ERROR. If ERRORs, abort the commit and write a critical section to the report.
-2. `Bash: git add -A && git commit -m "dream: $(date +%Y-%m-%d) [skip ci]" --author="mneme dream <dream@localhost>"` — commit the changes.
-3. Capture the new commit SHA.
-4. **Optional branch suggestion:** if the user has configured a base branch (e.g. via `MNEME_DREAM_BRANCH` env var), check it out from the dream commit and push: `git checkout -b dream/$(date +%Y-%m-%d) HEAD` — the user reviews and merges manually. This is suggested by the spec (§6.2) but not required.
-
-**Report:** `Write <bundle>/dream-report-<date>.md`:
-
-```markdown
-# dream report — YYYY-MM-DD
-
-## Summary
-- Changes: N (cap was 20)
-- pre-dream SHA: <sha>
-- post-dream SHA: <sha>
-
-## Changes
-1. [merge] concepts/foo.md + concepts/bar.md → concepts/foo.md (similarity 0.94)
-2. [archive] concepts/old.md → archive/2025/old.md (timestamp 245d, no log refs)
-3. [link] concepts/x.md ↔ concepts/y.md
-4. ...
-
-## Validation
-- validate: 0 ERROR / N WARN
-- reindex: <bundle>/.mneme/index.db (M concepts)
-
-## Revert
-git revert <post-dream-SHA>
-```
-
-**If git is unavailable:** skip the commit step; the report still gets written; warn the user that there's no easy rollback.
+> **dream (scheduled, fully automatic)** is **intentionally absent** from this skill in v0.3.0. The dream workflow's similarity math referenced a non-existent `find_orphans()` primitive, ran `git add -A` before resolving the bundle, and could auto-commit unrelated user changes. Re-introduction requires: (a) Phase 5 retrieval benchmark passing, (b) `find_orphans` + similarity-safe workflow under test, (c) dry-run preview mode + a dedicated safety TDD suite. See `CHANGELOG.md` 0.2.1 entry.
 
 ## references (load on demand)
 
