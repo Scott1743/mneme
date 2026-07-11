@@ -17,5 +17,5 @@ PYPROJECT = ROOT / "pyproject.toml"
 # - `0.3.0.1` is the console-entry-point hotfix (PEP 440 post-release).
 # - `0.4.0` is the v0.4.0 release (Phase 3 end-to-end harness).
 # - `0.3.0.dev<N>` / `0.4.0.dev<N>` cover PEP 440 dev releases.
-ACCEPTABLE = {"0.2.1rc1", "0.3.0", "0.3.0.1", "0.4.0"}
-ACCEPTABLE_PREFIX = ("0.3.0.dev", "0.4.0.dev")
+ACCEPTABLE = {"0.2.1rc1", "0.3.0", "0.3.0.1", "0.4.0", "0.5.0"}
+ACCEPTABLE_PREFIX = ("0.3.0.dev", "0.4.0.dev", "0.5.0.dev")
