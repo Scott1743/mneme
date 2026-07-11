@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from indexlib import (
+from mneme.indexlib import (
     CorruptIndexError,
     Embedder,
     IndexNotFoundError,

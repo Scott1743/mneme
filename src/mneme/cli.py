@@ -58,7 +58,7 @@ def cmd_reindex(args: argparse.Namespace) -> int:
         print("no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init", file=sys.stderr)
         return 1
     try:
-        import indexlib
+        from . import indexlib
 
         result = indexlib.reindex_bundle(str(bundle), indexlib.default_embed_fn())
     except Exception as exc:
@@ -82,7 +82,7 @@ def cmd_search(args: argparse.Namespace) -> int:
         print("no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init", file=sys.stderr)
         return 1
     try:
-        import indexlib
+        from . import indexlib
 
         hits = indexlib.search_bundle(
             bundle,
@@ -121,8 +121,7 @@ def cmd_lint(args: argparse.Namespace) -> int:
     if not bundle.is_dir():
         print(f"bundle path is not a directory: {bundle}", file=sys.stderr)
         return 1
-    sys.path.insert(0, str(Path(__file__).parent))
-    from validate_okf import print_report, validate_bundle
+    from .validate_okf import print_report, validate_bundle
     rc = print_report(validate_bundle(bundle))
     print(
         "find_orphans not yet implemented (see CHANGELOG.md 0.2.1 entry)",
@@ -168,7 +167,3 @@ def main(argv) -> int:
     except SystemExit as exc:
         return int(exc.code)
     return args.handler(args)
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))

@@ -3,7 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import indexlib
+from mneme import indexlib
 import mneme
 from test_indexlib import _E, write_concept
 
@@ -25,7 +25,7 @@ def test_end_to_end_init_reindex_search_validate(tmp_path, monkeypatch, capsys):
     assert (bundle / hits[0]["path"]).is_file()
     assert all(hit["concept_id"] != "archive/old-cats" for hit in hits)
 
-    validator = Path(__file__).parent.parent / "skills" / "mneme" / "scripts" / "validate_okf.py"
+    validator = Path(__file__).parent.parent / "src" / "mneme" / "validate_okf.py"
     result = subprocess.run(
         [sys.executable, str(validator), str(bundle)], capture_output=True, text=True
     )
