@@ -104,6 +104,33 @@ def cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+# Lint handler exit codes:
+#   1 = generic failure (bundle missing, etc.)
+#   3 = validation passed but a downstream primitive (find_orphans) is
+#       unimplemented in v0.3.0 freeze; the gap is reported deterministically
+#       rather than masked as AttributeError. Distinct from argparse's 2.
+LINT_GUARD_RC = 3
+
+
+def cmd_lint(args: argparse.Namespace) -> int:
+    """Curate + report. v0.3.0 freeze wires OKF validation; orphan detection
+    is the next primitive in the pipeline and stays unimplemented until PR2.
+    Reports the gap explicitly instead of letting it surface as AttributeError.
+    """
+    bundle = Path(args.path)
+    if not bundle.is_dir():
+        print(f"bundle path is not a directory: {bundle}", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(Path(__file__).parent))
+    from validate_okf import print_report, validate_bundle
+    rc = print_report(validate_bundle(bundle))
+    print(
+        "find_orphans not yet implemented (see CHANGELOG.md 0.2.1 entry)",
+        file=sys.stderr,
+    )
+    return LINT_GUARD_RC if rc == 0 else rc
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mneme")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -124,6 +151,13 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--config", default=str(CONFIG_DEFAULT))
     search_parser.add_argument("--json", action="store_true")
     search_parser.set_defaults(handler=cmd_search)
+
+    lint_parser = subparsers.add_parser(
+        "lint", help="curate + report (OKF validation + orphan analysis)"
+    )
+    lint_parser.add_argument("path")
+    lint_parser.add_argument("--config", default=str(CONFIG_DEFAULT))
+    lint_parser.set_defaults(handler=cmd_lint)
     return parser
 
 

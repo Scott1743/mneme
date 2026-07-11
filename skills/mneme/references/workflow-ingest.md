@@ -7,6 +7,7 @@ description: Detailed checklist for the ingest scenario in SKILL.md.
 
 The ingest scenario in SKILL.md guides the host agent through these steps. This doc is the detailed checklist — read it before doing a non-trivial ingest.
 
+0. **Preserve the raw source.** Before reading for distillation, copy the original file unchanged into `<bundle>/sources/<basename>`. The OKF v0.1 source-of-truth contract requires the raw source to remain on disk alongside the distilled concept pages. If the destination already exists with different content, abort and ask the user — do not overwrite.
 1. **Read** the source file end-to-end.
 2. **Decompose** into concept pages:
    - One page per atomic idea (one source can yield 1–15 pages).
@@ -26,8 +27,8 @@ The ingest scenario in SKILL.md guides the host agent through these steps. This 
    ```
 4. **Cross-link** related pages with `/concepts/<slug>.md`.
 5. **Edit `<bundle>/index.md`** — add `* [Title](path) - description` under `# Concepts`.
-6. **Edit `<bundle>/log.md`** — append `## YYYY-MM-DD ingest | <source title>` + one-line note.
+6. **Edit `<bundle>/log.md>`** — **prepend** (insert at top) `## YYYY-MM-DD ingest | <source title>` + one-line note. The OKF v0.1 log contract requires newest-first.
 7. **Reindex**: `Bash: python3 skills/mneme/scripts/mneme.py reindex`.
 8. **Validate**: `Bash: python3 skills/mneme/scripts/validate_okf.py <bundle>` — must be 0 ERROR.
 
-If `fastembed` model download fails, see `references/index-design.md` §Embedding for the fake-embed-fn fallback (tests only).
+If `fastembed` model download fails, surface the error to the user and tell them to install `pip install 'mneme[index]'`. There is no production fallback — see `SKILL.md` ingest step 7.

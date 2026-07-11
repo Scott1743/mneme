@@ -111,3 +111,38 @@ def test_usage_errors_return_2():
     assert mneme.main(["search"]) == 2
     assert mneme.main(["search", "   "]) == 2
     assert mneme.main(["search", "x", "-k", "0"]) == 2
+
+
+def test_cli_no_dream_subcommand():
+    """Phase 0 freeze §3.1: the dream workflow is removed in v0.3.0. Calling
+    `mneme dream <bundle>` must surface argparse's 'invalid choice' usage
+    error (exit code 2). A passing test here means dream is NOT registered.
+    """
+    assert mneme.main(["dream", "wiki"]) == 2
+
+
+def test_cli_lint_fails_with_clear_message_when_orphans_unimplemented(tmp_path, capsys):
+    """Phase 0 freeze §3.3: `mneme lint` must (a) exist as a registered
+    subcommand AND (b) report a deterministic message when the find_orphans
+    primitive is not implemented yet. A plain argparse 'invalid choice'
+    error (exit code 2) is not sufficient — it just means we forgot to wire
+    the subcommand.
+    """
+    bundle = tmp_path / "wiki"
+    bundle.mkdir()
+    (bundle / "index.md").write_text('---\nokf_version: "0.1"\n---\n\n# Test\n')
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "a.md").write_text(
+        '---\ntype: Concept\ntitle: A\n---\n\nbody\n'
+    )
+    rc = mneme.main(["lint", str(bundle)])
+    captured = capsys.readouterr()
+    assert rc != 0
+    assert rc != 2, (
+        "argparse rejected 'lint' as 'invalid choice' — subcommand is not "
+        "registered. PR1 must register the lint handler first."
+    )
+    assert "find_orphans not yet implemented" in captured.err, (
+        f"lint handler ran but did not emit the unimplemented guard. "
+        f"stderr was: {captured.err!r}"
+    )

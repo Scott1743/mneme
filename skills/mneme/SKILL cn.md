@@ -1,6 +1,6 @@
 ---
 name: mneme
-description: "维护和搜索本地、符合 OKF 的 LLM 知识 wiki。适用于摄入资料、搜索或查询 wiki、检查合规性、重建索引、执行 dream 维护或初始化 wiki。触发词：mneme、my wiki、search my wiki、ingest this、query my notes、lint the wiki、dream、knowledge base、查 wiki、搜索知识库、摄入笔记、知识库。"
+description: "维护和搜索本地、符合 OKF 的 LLM 知识 wiki。适用于摄入资料、搜索或查询 wiki、检查合规性、重建索引或初始化 wiki。触发词：mneme、my wiki、search my wiki、ingest this、query my notes、lint the wiki、knowledge base、查 wiki、搜索知识库、摄入笔记、知识库。Dream（定时自动维护）在 v0.3.0 中**主动移除**，原因见 CHANGELOG 0.2.1 条目。"
 allowed-tools:
   - Read
   - Write
@@ -71,14 +71,17 @@ python3 -c "import sys; sys.path.insert(0,'./skills/mneme/scripts'); from tools_
 
 ## 场景：ingest <source path>
 
+将来源（论文/文章/笔记）蒸馏成 OKF 概念页：
+
+0. **保留原始来源（不可变素材）。** 蒸馏前先复制原始文件到 `<bundle>/sources/<basename>`，让原始内容成为 OKF v0.1 的 source-of-truth。若目标已存在且内容不同，应中止并询问用户，禁止覆盖。
 1. 读取完整源资料。
 2. 按“一页一个原子概念”拆分，单一来源可产生 1-15 个页面。
 3. 为每页写 `<bundle>/concepts/<slug>.md`，frontmatter 包含 `type/title/description/tags/timestamp/resource`，并用绝对 bundle-relative 链接交叉引用相关页。
 4. 更新 `index.md` 对应章节，条目格式为 `* [Title](path) - description`。
-5. 在 `log.md` 追加 `## YYYY-MM-DD ingest | <source title>` 和简短说明。
+5. 在 `log.md` **顶部**插入（prepend）`## YYYY-MM-DD ingest | <source title>` 和简短说明。OKF v0.1 约定 log 必须 newest-first。
 6. 运行 `mneme reindex`，再运行 `validate_okf.py`；完成前修复所有 ERROR。
 
-若 fastembed 模型不可用，应明确提示安装 `mneme[index]`，不得用测试 fake embedding 生成生产索引。
+若 fastembed 模型不可用，应明确提示安装 `mneme[index]`，**不得**用任何替代函数生成生产索引（测试夹具内部另有安排，但绝不出现在给 agent 的指令中）。
 
 详见 `references/workflow-ingest.md`。
 
@@ -101,15 +104,7 @@ python3 -c "import sys; sys.path.insert(0,'./skills/mneme/scripts'); from tools_
 
 详见 `references/workflow-lint.md`。
 
-## 场景：dream（定时、全自动）
-
-1. 若 bundle 是 git 仓库，先提交 pre-dream 快照；否则记录警告并继续。
-2. 每轮最多执行 `MNEME_MAX_DREAM_CHANGES_PER_RUN` 项改动，默认 20。
-3. 可合并高置信重复页、归档 90 天以上且无引用的孤儿页、补交叉链接、为至少 5 个相关概念建立 Summary。
-4. 所有候选写入 `.mneme/dream-pending/`，确认整轮成功后再移动到正式位置。
-5. 运行 reindex 和 OKF validator；有 ERROR 则不提交本轮内容。
-6. 若有 git，提交 `dream: YYYY-MM-DD [skip ci]`；不自动 push。
-7. 写 `dream-report-<date>.md`，列出改动、校验、commit SHA 和 revert 方法。
+> **dream（定时、全自动）** 在 v0.3.0 中**主动移除**：原实现调用了不存在的 `find_orphans()`、在解析 bundle 前执行 `git add -A`、可能错误提交无关内容。重新引入需通过：(a) Phase 5 retrieval benchmark；(b) `find_orphans` + 相似度安全 workflow 测试；(c) dry-run preview 模式 + 独立安全 TDD。详见 `CHANGELOG.md` 0.2.1 条目。
 
 ## 参考资料
 
