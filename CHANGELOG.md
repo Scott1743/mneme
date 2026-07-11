@@ -7,6 +7,57 @@ with one caveat: **1.0.0 is a release-contract gate, not a feature gate.**
 Versions below 1.0.0 may carry partial behavior; consult `docs/superpowers/`
 for in-flight specs and plans.
 
+## [0.5.0] — 2026-07-12 — Phase 4 dogfood on the Feishu 141-doc corpus
+
+The first v0.5.0 release. v0.5.0 is the **dogfood milestone** that
+the readiness assessment defines as "real 141-document dogfood and
+retrieval benchmark". This release ships the bootstrap tooling, the
+labeled benchmark, and a clean pass against both.
+
+### Phase 4 — dogfood on real data
+
+- **`scripts/bootstrap_dogfood.py`** reads a directory of `.md`
+  source files and scaffolds a fully-formed OKF bundle — init,
+  sources/, concepts/ (one type=Source per source), index.md
+  listing every concept under `## Sources`, and log.md with one
+  **prepended** ingest event per source. Idempotent and
+  parameterless.
+- **`tests/test_retrieval_bench.py`** runs the bootstrap +
+  reindex in a tmp_path fixture, then queries a hand-picked
+  5-query labeled set. Returns:
+  ```
+  Recall@1: 0.600
+  Recall@3: 1.000
+  Recall@5: 1.000
+  MRR:      0.800
+  ```
+- Both readiness-provisional gates
+  (`Recall@5 ≥ 0.85`, `MRR ≥ 0.70`) are met against the user's
+  actual corpus at `/Users/scott1743/Desktop/佳都/飞书文档库/`.
+- Full results, ranked expectations, and caveats:
+  `docs/superpowers/reports/2026-07-12-mneme-0.5.0-bench-results.md`.
+
+### Bug discovered during dogfood
+
+- **YAML block-scalar hazard**: bootstrap's first generation
+  emitted descriptions whose first line started with `>` (folded)
+  or `|` (literal); PyYAML interpreted those as block-scalar
+  markers and rejected the rest as malformed. Fix: the
+  description is now always emitted as an explicit
+  double-quoted scalar, with `\\` and `\"` escapes, AND leading
+  YAML-significant characters stripped from the source line
+  before quoting. After the fix, `mneme lint` on the 142-source
+  bundle reports 0 errors / 0 warnings.
+
+### Not yet done
+
+- **Phase 5** — `find_orphans` + safety-tested dream workflow.
+  The `mneme lint` command still emits the
+  "find_orphans not yet implemented" guard.
+- **Phase 6** — release-gate CI matrix (Python 3.10–3.13 ×
+  Linux/macOS), dependency pinning for sqlite-vec / fastembed,
+  resource budgets.
+
 ## [0.4.0] — 2026-07-12 — Phase 3 end-to-end harness complete
 
 Closes the v0.4.0 milestone (Phase 3 of the readiness-assessment
