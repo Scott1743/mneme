@@ -85,7 +85,7 @@ Distill a source (paper/article/note) into OKF concept pages:
 4. `Edit <bundle>/index.md` — find or create the section heading: if `## <section>` (e.g. `## Concepts`, `## References`, `## Summaries`) already exists, append `* [Title](path) - description` under it; otherwise append a new `## <section>` heading followed by the entry. Use the page's frontmatter `type` to pick the section.
 5. `Edit <bundle>/log.md` — append `## YYYY-MM-DD ingest | <source title>` + one-line note.
 6. `Bash: python3 skills/mneme/scripts/mneme.py reindex` (or directly `python3 -c "import sys,indexlib; sys.path.insert(0,'skills/mneme/scripts'); ...; indexlib.reindex_bundle(bundle, indexlib.default_embed_fn())"`).
-7. **Fallback:** if `fastembed` cannot download the model, retry with the **fake embed_fn** pattern from `tests/test_indexlib.py` (hash-based, no model). Only acceptable for tests — surface to the user that production reindex needs `pip install 'mneme[index]'`.
+7. **On model load failure:** do **not** retry with any substitute function. Surface the failure to the user with the exact error and tell them to install the embedding extras: `pip install 'mneme[index]'`. Production reindex has no substitute.
 
 See `references/workflow-ingest.md` for the detailed checklist.
 

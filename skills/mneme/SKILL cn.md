@@ -78,7 +78,7 @@ python3 -c "import sys; sys.path.insert(0,'./skills/mneme/scripts'); from tools_
 5. 在 `log.md` 追加 `## YYYY-MM-DD ingest | <source title>` 和简短说明。
 6. 运行 `mneme reindex`，再运行 `validate_okf.py`；完成前修复所有 ERROR。
 
-若 fastembed 模型不可用，应明确提示安装 `mneme[index]`，不得用测试 fake embedding 生成生产索引。
+若 fastembed 模型不可用，应明确提示安装 `mneme[index]`，**不得**用任何替代函数生成生产索引（测试夹具内部另有安排，但绝不出现在给 agent 的指令中）。
 
 详见 `references/workflow-ingest.md`。
 
