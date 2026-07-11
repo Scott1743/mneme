@@ -26,6 +26,10 @@ wiki/**/viz.html
 # superpowers SDD scratch (progress ledger, scripts)
 .superpowers/
 
+# Generated release packages
+dist/
+build/
+
 # Derived L2 index dirs (sqlite-vec + fastembed); '*.mneme/' matches
 # '.mneme/' at any depth (gitignore '*' can match empty path segments).
 *.mneme/
