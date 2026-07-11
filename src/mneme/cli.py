@@ -24,14 +24,13 @@ def _query(value: str) -> str:
 
 
 def _write_config(bundle_path: Path, config_path: Path) -> None:
+    from .config import write_config
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(f'bundle_path = "{bundle_path}"\n', encoding="utf-8")
+    write_config(config_path, {"bundle_path": str(bundle_path)})
 
 
 def _resolve_bundle(config: Path):
-    sys.path.insert(0, str(Path(__file__).parent))
-    from tools_helpers import resolve_bundle
-
+    from .tools_helpers import resolve_bundle
     return resolve_bundle(config_path=config)
 
 

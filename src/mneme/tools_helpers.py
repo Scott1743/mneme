@@ -1,9 +1,4 @@
-"""Plain helper functions used by mneme.py. No Strands @tool decorators.
-
-(Old tools.py mixed these plain helpers with @tool-decorated wrappers.
-The @tool wrappers were removed when independent agents were deleted in v2.1;
-the helpers are still needed by mneme.py CLI dispatch.)
-"""
+"""Plain helper functions used by the CLI dispatch and the host agent."""
 from __future__ import annotations
 
 import os
@@ -17,20 +12,33 @@ def slug_from_path(path) -> str:
 
 
 def resolve_bundle(config_path=None):
+    """Walk the resolution chain documented in SKILL.md Step 0:
+
+      1. `~/.config/mneme/config.toml` `bundle_path` (via mneme.config
+         so the TOML reader can handle quotes / backslashes / non-ASCII)
+      2. `MNEME_BUNDLE` env var
+      3. Auto-discover: walk up from cwd for a root `index.md` whose
+         frontmatter declares `okf_version`
+      4. `./wiki` if it exists
+    """
     if config_path is None:
         config_path = Path.home() / ".config" / "mneme" / "config.toml"
     config_path = Path(config_path)
     if config_path.exists():
-        for line in config_path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line.startswith("bundle_path"):
-                val = line.split("=", 1)[1].strip().strip('"').strip("'")
-                if val:
-                    return Path(val)
+        try:
+            from .config import read_config
+            data = read_config(config_path)
+            val = data.get("bundle_path")
+            if val:
+                return Path(val)
+        except (OSError, ImportError):
+            # Missing file -> fall through; import failure is the
+            # user's problem to address via `pip install mneme[validate]`.
+            pass
     env = os.environ.get("MNEME_BUNDLE")
     if env:
         return Path(env)
-    import okflib
+    from . import okflib
     cwd = Path.cwd()
     for d in [cwd, *cwd.parents]:
         idx = d / "index.md"
