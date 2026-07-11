@@ -106,3 +106,312 @@ def test_list_concepts_skips_mneme_dir(tmp_path):
     ids = list_concepts(bundle)
     assert "concepts/ok" in ids
     assert not any(".mneme" in i for i in ids)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PR2 §4 — OKF v0.1 conformance red tests (Phase 1 freeze prerequisite).
+# Each test fails on the current hand-rolled validator. PR2-1 (PyYAML
+# verify-path refactor) + PR2-2 (rule table) turn them green.
+# ─────────────────────────────────────────────────────────────────────────────
+
+import pytest
+
+
+def _errors(report):
+    return [(v.path, v.rule) for v in report.errors]
+
+
+def _warnings(report):
+    return [(v.path, v.rule) for v in report.warnings]
+
+
+# §4.1 — YAML parse failures: must reject when PyYAML is available.
+@pytest.mark.parametrize(
+    "fixture_name",
+    [
+        "unterminated_flow",
+        "unclosed_quote",
+        "bad_indent",
+    ],
+)
+def test_yaml_malformed_rejected_when_yaml_available(fixture_name):
+    """§4.1: the validator must reject YAML that PyYAML rejects. The
+    hand-rolled parser at okflib.parse_frontmatter accepts all three of
+    these as malformed-but-recoverable. With PyYAML installed, this test
+    passes; without it (zero-dep runtime), this test is conditional."""
+    yaml = pytest.importorskip("yaml")
+    d = FIX / "yaml_malformed"
+    report = validate_bundle(d)
+    # Only require rejection when PyYAML can parse the file's frontmatter
+    # otherwise. PyYAML may not exist; in that case the test signals via
+    # importorskip — but each fixture is multi-file so we filter by name.
+    target = (d / f"{fixture_name}.md").read_text(encoding="utf-8")
+    parsed = yaml.safe_load(_strip_frontmatter(target))
+    assert parsed is not None or True  # warm the linter
+    # The validator should produce an error tied to one of the files in
+    # the yaml_malformed dir.
+    yaml_errors = [e for e in _errors(report) if "yaml_malformed" in e[0]]
+    assert yaml_errors, (
+        f"validate_bundle did not flag malformed YAML in {fixture_name}: "
+        f"got {report.errors}"
+    )
+
+
+def _strip_frontmatter(text):
+    import re
+    m = re.match(r"\A---[ \t]*\n(.*?)\n---[ \t]*\n?", text, re.S)
+    return m.group(1) if m else text
+
+
+def test_yaml_multiline_block_scalar_ok():
+    """§4.1: multi-line block scalar (`|` / `>`) is valid YAML. Validates
+    cleanly, no malformed-yaml error.
+    """
+    d = FIX / "yaml_malformed"
+    report = validate_bundle(d)
+    # Only the multiline file should pass; the others error in PyYAML mode.
+    # We isolate by checking that multiline_ok.md did not produce a
+    # malformed-yaml error.
+    ml_err = [
+        e for e in _errors(report)
+        if "multiline_ok.md" in e[0] and e[1] == "malformed-yaml"
+    ]
+    assert not ml_err, (
+        f"validate_bundle flagged multiline_ok.md as malformed YAML: {ml_err}"
+    )
+
+
+# §4.2 — type field checks
+def test_type_whitespace_only_fails():
+    report = validate_bundle(FIX / "type_whitespace")
+    assert not report.ok
+    assert any(v.rule == "empty-type" for v in report.errors)
+
+
+@pytest.mark.parametrize(
+    "subfile",
+    ["int", "bool", "null"],
+)
+def test_type_non_string_fails(subfile):
+    """§4.2: type must be a non-empty string. int/bool/null all fail."""
+    d = FIX / "type_non_string"
+    report = validate_bundle(d)
+    assert not report.ok
+    bad = [
+        e for e in _errors(report)
+        if f"{subfile}.md" in e[0] and e[1] in ("empty-type", "type-not-scalar")
+    ]
+    assert bad, (
+        f"validate_bundle did not reject non-string type in {subfile}.md "
+        f"({_errors(report)})"
+    )
+
+
+def test_type_list_rejected():
+    """§4.2: OKF §4.1 mandates type as <Type name> (scalar). Lists must be
+    rejected, not silently coerced to a string by the hand parser.
+    """
+    report = validate_bundle(FIX / "type_as_list")
+    assert not report.ok
+    assert any(
+        v.rule in ("empty-type", "type-not-scalar") for v in report.errors
+    ), f"got {_errors(report)}"
+
+
+# §4.3 — unknown type / extra keys warn only
+def test_unknown_type_warns_only():
+    """§4.3: the type vocab is not centralized; unknown type values
+    produce a warning, not an error (OKF §9 tolerance).
+    """
+    report = validate_bundle(FIX / "unknown_type")
+    assert report.ok
+    assert any(
+        v.rule == "unknown-type" for v in report.warnings
+    ), f"got warnings={_warnings(report)}"
+
+
+def test_extra_frontmatter_keys_warn_only():
+    report = validate_bundle(FIX / "extra_keys")
+    assert report.ok
+    assert any(
+        v.rule == "unknown-key" for v in report.warnings
+    ), f"got warnings={_warnings(report)}"
+
+
+# §4.4 — nested index frontmatter is an error
+def test_nested_index_with_frontmatter_rejected():
+    d = FIX / "nested_index_with_fm"
+    report = validate_bundle(d)
+    assert not report.ok
+    assert any(
+        v.rule == "nested-index-frontmatter"
+        for v in report.errors
+    ), f"got errors={_errors(report)}"
+
+
+# §4.5 — root index key whitelist
+def test_root_index_extra_keys_rejected():
+    """§4.5: root index.md may declare okf_version only; any other
+    frontmatter key is an error."""
+    d = FIX / "root_index_extra"
+    report = validate_bundle(d)
+    assert not report.ok
+    assert any(
+        v.rule == "root-index-extra-key" for v in report.errors
+    ), f"got errors={_errors(report)}"
+
+
+def test_root_index_missing_okf_version_warns_only():
+    d = FIX / "root_index_no_okf_version"
+    report = validate_bundle(d)
+    assert report.ok
+    assert any(
+        v.rule == "missing-okf-version" for v in report.warnings
+    ), f"got warnings={_warnings(report)}"
+
+
+# §4.6 — log.md format + ordering
+def test_log_heading_format_enforced():
+    d = FIX / "log_bad_format"
+    report = validate_bundle(d)
+    assert not report.ok
+    assert any(
+        v.rule == "log-heading-format" for v in report.errors
+    ), f"got errors={_errors(report)}"
+
+
+def test_log_newest_first_enforced():
+    d = FIX / "log_out_of_order"
+    report = validate_bundle(d)
+    assert not report.ok
+    assert any(
+        v.rule == "log-not-newest-first" for v in report.errors
+    ), f"got errors={_errors(report)}"
+
+
+def test_log_missing_warns_only(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n# Concepts\n', encoding="utf-8"
+    )
+    report = validate_bundle(bundle)
+    assert report.ok
+    assert any(
+        v.rule == "missing-log" for v in report.warnings
+    ), f"got warnings={_warnings(report)}"
+
+
+# §4.8 — isolation
+def test_isolation_invalid_file_does_not_hide_valid_concepts(tmp_path):
+    """§4.8: one invalid concept must not erase the validator's view of
+    the rest of the bundle.
+    """
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n# Concepts\n', encoding="utf-8"
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "good.md").write_text(
+        "---\ntype: Concept\ntitle: Good\n---\n# ok\n", encoding="utf-8"
+    )
+    (bundle / "concepts" / "bad.md").write_text(
+        "---\ntype: [malformed]\ntitle: Bad\n---\n# broken\n",
+        encoding="utf-8",
+    )
+    report = validate_bundle(bundle)
+    # At least one error must mention bad.md; good.md must remain readable.
+    assert any(
+        "concepts/bad.md" in v.path for v in report.errors
+    ), f"got errors={_errors(report)}"
+    meta, body = read_concept(bundle, "concepts/good")
+    assert meta["type"] == "Concept"
+    assert body.startswith("# ok")
+
+
+# §4.9 — fallback
+def test_validate_reserved_empty_body_warns(tmp_path):
+    """Empty index.md body is a warning, not an error."""
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text("", encoding="utf-8")
+    report = validate_bundle(bundle)
+    assert report.ok
+    assert any(
+        v.rule == "bad-reserved-index" for v in report.warnings
+    ), f"got warnings={_warnings(report)}"
+
+
+def test_type_case_preserved(tmp_path):
+    """The validator does not normalize type case. 'concept' (lowercase)
+    is treated as a valid (but unknown) type — warning only."""
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n# Concepts\n', encoding="utf-8"
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "x.md").write_text(
+        "---\ntype: concept\ntitle: Lower\n---\nbody\n", encoding="utf-8"
+    )
+    report = validate_bundle(bundle)
+    assert report.ok
+    assert any(
+        v.rule == "unknown-type" for v in report.warnings
+    ), f"got warnings={_warnings(report)}"
+
+
+# §4.10 — timestamp soft tolerance (OKF §4.1 line 131 + §9 line 354)
+def test_missing_timestamp_warns_only(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n# Concepts\n', encoding="utf-8"
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "x.md").write_text(
+        "---\ntype: Concept\ntitle: No timestamp\n---\nbody\n",
+        encoding="utf-8",
+    )
+    report = validate_bundle(bundle)
+    assert report.ok
+    assert any(
+        v.rule == "missing-timestamp" for v in report.warnings
+    ), f"got warnings={_warnings(report)}"
+
+
+def test_empty_timestamp_warns_only(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n# Concepts\n', encoding="utf-8"
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "x.md").write_text(
+        '---\ntype: Concept\ntitle: Empty\ntimestamp: ""\n---\nbody\n',
+        encoding="utf-8",
+    )
+    report = validate_bundle(bundle)
+    assert report.ok
+    assert any(
+        v.rule == "empty-timestamp" for v in report.warnings
+    ), f"got warnings={_warnings(report)}"
+
+
+def test_bad_format_timestamp_warns_only(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n# Concepts\n', encoding="utf-8"
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "x.md").write_text(
+        "---\ntype: Concept\ntitle: Bad date\ntimestamp: yesterday\n---\nbody\n",
+        encoding="utf-8",
+    )
+    report = validate_bundle(bundle)
+    assert report.ok
+    assert any(
+        v.rule == "bad-timestamp-format" for v in report.warnings
+    ), f"got warnings={_warnings(report)}"

@@ -1,0 +1,3 @@
+# Some Heading Without Date Prefix
+
+Content...
