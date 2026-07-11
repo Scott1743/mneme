@@ -13,6 +13,7 @@ WORKFLOW_INGEST = SKILL_DIR / "references" / "workflow-ingest.md"
 
 INGEST_HEADINGS = (
     "## Scenario: ingest",
+    "## 场景：ingest",
     "## 场景：摄入",
     "## 摄入",
 )
@@ -92,29 +93,39 @@ def test_skill_md_log_entries_prepended():
     """§3.7: log.md must be prepended (newest-first per OKF §6). SKILL*.md
     ingest scenario + workflow-ingest.md must direct the host agent to insert
     the new entry at the top, not append at the bottom.
+
+    The check is line-scope: any line that mentions log.md must NOT use
+    "append" against it; at least one log.md-mentioning line must use
+    "prepend" / "顶部" / "insert at top".
     """
     for path in (SKILL_MD, SKILL_CN):
         text = path.read_text(encoding="utf-8")
         section = _ingest_section(text)
         assert section, f"{path.name}: could not locate ingest scenario heading"
-        sl = section.lower()
-        bad = ("append" in sl and "log.md" in sl) or (
-            "append" in section and "log.md" in section
+        log_lines = [ln for ln in section.splitlines() if "log.md" in ln.lower()]
+        assert log_lines, (
+            f"{path.name}: ingest scenario does not mention 'log.md' at all"
         )
+        bad = [ln for ln in log_lines if "append" in ln.lower()]
         assert not bad, (
-            f"{path.name}: ingest scenario says to append, not prepend. "
-            f"Replace 'append' with 'prepend' (or '顶部插入') in the log step."
+            f"{path.name}: log.md step uses 'append' (must use 'prepend'): {bad!r}"
         )
-        ok = "prepend" in sl or "顶部" in section or "insert at top" in sl
+        ok = [
+            ln for ln in log_lines
+            if "prepend" in ln.lower() or "顶部" in ln or "insert at top" in ln.lower()
+        ]
         assert ok, (
-            f"{path.name}: ingest scenario lacks a 'prepend' / '顶部' "
-            f"directive for the log.md edit step."
+            f"{path.name}: no log.md line uses 'prepend' / '顶部' / 'insert at top'"
         )
 
-    text = WORKFLOW_INGEST.read_text(encoding="utf-8").lower()
-    bad = "append" in text and "log.md" in text
+    text = WORKFLOW_INGEST.read_text(encoding="utf-8")
+    log_lines = [ln for ln in text.splitlines() if "log.md" in ln.lower()]
+    bad = [ln for ln in log_lines if "append" in ln.lower()]
     assert not bad, (
-        "workflow-ingest.md step says to append log.md. Replace with prepend."
+        f"workflow-ingest.md log.md step uses 'append': {bad!r}"
     )
-    ok = "prepend" in text or "顶部" in WORKFLOW_INGEST.read_text(encoding="utf-8")
-    assert ok, "workflow-ingest.md lacks a prepend directive for log.md."
+    ok = [
+        ln for ln in log_lines
+        if "prepend" in ln.lower() or "顶部" in ln or "insert at top" in ln.lower()
+    ]
+    assert ok, "workflow-ingest.md log.md step lacks 'prepend' / '顶部'."
