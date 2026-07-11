@@ -2,13 +2,29 @@
 name = "mneme"
 version = "0.2.1rc1"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "tomli_w>=0.4",
+]
 
 [project.optional-dependencies]
 dev = ["pytest"]
 validate = ["PyYAML>=6.0"]
 index = ["sqlite-vec", "fastembed"]
+toml10 = ["tomli>=2.0"]
 all = ["sqlite-vec", "fastembed", "PyYAML>=6.0"]
+
+[project.scripts]
+mneme = "mneme.cli:main"
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+mneme = ["skill/SKILL*.md", "skill/references/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

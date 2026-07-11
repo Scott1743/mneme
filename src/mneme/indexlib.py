@@ -306,7 +306,7 @@ def default_embed_fn(model: str = DEFAULT_MODEL) -> Embedder:
 
 
 def iter_indexable_concepts(bundle_path) -> Iterable[str]:
-    import okflib
+    from . import okflib
 
     for concept_id in okflib.list_concepts(bundle_path):
         if concept_id == "archive" or concept_id.startswith("archive/"):
@@ -315,7 +315,7 @@ def iter_indexable_concepts(bundle_path) -> Iterable[str]:
 
 
 def _root_okf_version(root: Path) -> str:
-    import okflib
+    from . import okflib
 
     index = root / "index.md"
     if not index.exists():
@@ -336,7 +336,7 @@ def reindex_bundle(
     embed_fn: EmbedFn | Embedder,
     db_path=None,
 ) -> ReindexResult:
-    import okflib
+    from . import okflib
 
     root = Path(bundle_path)
     live_path = Path(db_path) if db_path is not None else root / ".mneme" / "index.db"
