@@ -77,13 +77,14 @@ Pass the query as a shell argument, never splice it into Python source. Search s
 
 Distill a source (paper/article/note) into OKF concept pages:
 
+0. **Preserve the raw source (immutable artifact).** Before reading the source for distillation, copy the original file unchanged into `<bundle>/sources/<basename>` so the raw input is preserved as the OKF v0.1 source-of-truth alongside the distilled concept pages. If the destination already exists with different content, abort and ask the user — do not overwrite.
 1. `Read <source path>` to get the full text.
 2. Decide how to decompose into concept pages (one page per atomic idea; one source may yield 1–15 pages).
 3. For each page:
    - `Write <bundle>/concepts/<slug>.md` with frontmatter (`type`/`title`/`description`/`tags`/`timestamp`/`resource`) + body.
    - Cross-link related pages with absolute bundle-relative paths (`/concepts/other.md`).
 4. `Edit <bundle>/index.md` — find or create the section heading: if `## <section>` (e.g. `## Concepts`, `## References`, `## Summaries`) already exists, append `* [Title](path) - description` under it; otherwise append a new `## <section>` heading followed by the entry. Use the page's frontmatter `type` to pick the section.
-5. `Edit <bundle>/log.md` — append `## YYYY-MM-DD ingest | <source title>` + one-line note.
+5. `Edit <bundle>/log.md` — **prepend** (insert at top) `## YYYY-MM-DD ingest | <source title>` + one-line note. The OKF v0.1 log contract requires newest-first.
 6. `Bash: python3 skills/mneme/scripts/mneme.py reindex` (or directly `python3 -c "import sys,indexlib; sys.path.insert(0,'skills/mneme/scripts'); ...; indexlib.reindex_bundle(bundle, indexlib.default_embed_fn())"`).
 7. **On model load failure:** do **not** retry with any substitute function. Surface the failure to the user with the exact error and tell them to install the embedding extras: `pip install 'mneme[index]'`. Production reindex has no substitute.
 

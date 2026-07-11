@@ -71,11 +71,14 @@ python3 -c "import sys; sys.path.insert(0,'./skills/mneme/scripts'); from tools_
 
 ## 场景：ingest <source path>
 
+将来源（论文/文章/笔记）蒸馏成 OKF 概念页：
+
+0. **保留原始来源（不可变素材）。** 蒸馏前先复制原始文件到 `<bundle>/sources/<basename>`，让原始内容成为 OKF v0.1 的 source-of-truth。若目标已存在且内容不同，应中止并询问用户，禁止覆盖。
 1. 读取完整源资料。
 2. 按“一页一个原子概念”拆分，单一来源可产生 1-15 个页面。
 3. 为每页写 `<bundle>/concepts/<slug>.md`，frontmatter 包含 `type/title/description/tags/timestamp/resource`，并用绝对 bundle-relative 链接交叉引用相关页。
 4. 更新 `index.md` 对应章节，条目格式为 `* [Title](path) - description`。
-5. 在 `log.md` 追加 `## YYYY-MM-DD ingest | <source title>` 和简短说明。
+5. 在 `log.md` **顶部**插入（prepend）`## YYYY-MM-DD ingest | <source title>` 和简短说明。OKF v0.1 约定 log 必须 newest-first。
 6. 运行 `mneme reindex`，再运行 `validate_okf.py`；完成前修复所有 ERROR。
 
 若 fastembed 模型不可用，应明确提示安装 `mneme[index]`，**不得**用任何替代函数生成生产索引（测试夹具内部另有安排，但绝不出现在给 agent 的指令中）。
