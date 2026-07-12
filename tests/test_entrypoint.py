@@ -39,7 +39,19 @@ def _require_wheel() -> Path:
             "no wheel built; run `python -m build --wheel` first "
             "(test_install.py covers on-demand builds)"
         )
-    return WHEEL_GLOB[0]
+    # Pick the LATEST wheel by version; alphabetical [0] silently picks
+    # `mneme-0.5.0` over `mneme-0.6.1` and runs stale code in fresh venvs.
+    import re
+    def _vkey(name: str):
+        m = re.match(r"^mneme-(.+?)-py3-none-any\.whl$", name)
+        if not m:
+            return ()
+        out = []
+        for p in m.group(1).split("."):
+            d = re.match(r"^(\d+)", p)
+            out.append(int(d.group(1)) if d else 0)
+        return tuple(out)
+    return max(WHEEL_GLOB, key=lambda p: _vkey(p.name))
 
 
 def _fresh_venv() -> Path:
@@ -133,11 +145,15 @@ def test_init_then_lint_in_fresh_venv(tmp_path):
             [str(env / "bin" / "mneme"), "lint", str(bundle)],
             capture_output=True, text=True,
         )
-        assert rc_lint.returncode != 0, (
-            "fresh-empty-bundle lint should return non-zero "
-            "(find_orphans guard fires)"
+        # v0.6.1: find_orphans runs as part of lint. Empty bundle
+        # has no concepts, so no orphans fire; lint exits 3 (signal)
+        # with an empty orphan section in stderr.
+        assert rc_lint.returncode == 3, (
+            f"fresh-empty-bundle lint should exit 3; "
+            f"got {rc_lint.returncode}"
         )
-        assert "find_orphans not yet implemented" in rc_lint.stderr
+        assert "orphan concept pages (0)" in rc_lint.stderr
+        assert "find_orphans not yet implemented" not in rc_lint.stderr
         assert "0 error(s)" in rc_lint.stdout
     finally:
         shutil.rmtree(env, ignore_errors=True)

@@ -9,6 +9,7 @@ import hashlib
 import os
 import sqlite3
 import struct
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -290,19 +291,46 @@ def search(
 
 
 def default_embed_fn(model: str = DEFAULT_MODEL) -> Embedder:
-    """Return the production fastembed provider."""
+    """Return the production fastembed provider.
+
+    The model cache is pinned to a stable location under the user's
+    home directory (``~/.cache/mneme/models/`` on POSIX,
+    ``~/Library/Caches/mneme/models/`` on macOS) so a reboot or temp
+    cleanup does not trigger a re-download of the ~91MB BGE model.
+    The readiness assessment flagged the previous behavior — letting
+    fastembed default to an OS temporary cache — as avoidable L2
+    overhead.
+    """
     try:
         from fastembed import TextEmbedding
     except ImportError as exc:
         raise FastEmbedUnavailableError(
             "fastembed is required for semantic indexing/search; install mneme[index]"
         ) from exc
-    embedder = TextEmbedding(model_name=model)
+    cache_dir = _model_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    embedder = TextEmbedding(model_name=model, cache_dir=str(cache_dir))
 
     def fn(texts: List[str]) -> List[List[float]]:
         return [list(vector) for vector in embedder.embed(list(texts))]
 
     return Embedder(fn, model_name=model)
+
+
+def _model_cache_dir() -> Path:
+    """Return the stable on-disk cache directory for fastembed models.
+
+    Uses ``~/.cache/mneme/models/`` on POSIX and
+    ``~/Library/Caches/mneme/models/`` on macOS so the cache survives
+    OS temp cleanup. Honors ``MNEME_MODEL_CACHE`` for users who want
+    to relocate it (e.g. a shared NAS or a tmpfs for tests).
+    """
+    override = os.environ.get("MNEME_MODEL_CACHE")
+    if override:
+        return Path(override).expanduser()
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Caches" / "mneme" / "models"
+    return Path.home() / ".cache" / "mneme" / "models"
 
 
 def iter_indexable_concepts(bundle_path) -> Iterable[str]:

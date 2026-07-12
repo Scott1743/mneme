@@ -7,6 +7,133 @@ with one caveat: **1.0.0 is a release-contract gate, not a feature gate.**
 Versions below 1.0.0 may carry partial behavior; consult `docs/superpowers/`
 for in-flight specs and plans.
 
+## [1.0.0] — 2026-07-12 — release-gate closure
+
+Closes the readiness-assessment release gate
+(`docs/superpowers/reports/2026-07-12-mneme-1.0-readiness-assessment.md`).
+1.0.0 is **not** "feature complete"; it is "the contract is
+verifiable from a clean install." The product scope is unchanged
+from v0.6.1 — `init` + `reindex` + `search` + `lint` + the
+documented ingest / query workflows, with dream intentionally
+excluded. What changed is that every P0/P1 finding in the
+assessment is now either resolved or guarded by a test.
+
+### Release-gate items closed by this version
+
+- **All P0/P1 findings resolved or removed from the contract.**
+  Validator certifies YAML via PyYAML (since 0.3.0). Lint calls
+  `find_orphans` for real (since 0.6.1). Dream is removed and
+  gated by an explicit resurrection clause. Ingest prepends to
+  `log.md` and copies the raw source (since 0.2.1rc1).
+- **Install-to-query works from the release artifact in a clean
+  environment.** Fixed two install-test bugs that the v0.6.x
+  freeze window left behind:
+  - `WHEEL_GLOB[0]` picked the alphabetically-first wheel in
+    `dist/`, so a fresh venv install ran stale v0.5.0 code when
+    v0.6.1 was the intended release. Test helpers now pick the
+    highest-version wheel.
+  - Four `test_e2e_ingest` tests called `mneme init` without
+    `--config`, leaking into the user's `~/.config/mneme/config.toml`
+    and failing on macOS TCC-protected home directories. All e2e
+    tests now isolate config to a tmp path.
+- **`__version__` drift fixed.** `src/mneme/__init__.py` was pinned
+  to `"0.3.0"` while `pyproject.toml` rolled forward through
+  0.4.0 → 0.5.0 → 0.6.0 → 0.6.1. `mneme.__version__` now reads
+  `"1.0.0"` and `test_version.py` asserts the two sources agree
+  at every commit.
+- **Resource budgets documented and tested.**
+  `tests/test_release_budget.py` pins: source skill artifact
+  < 250 KB; L1 Markdown reading stays zero-third-party-dep
+  (sqlite-vec / fastembed / PyYAML absent at import time);
+  FastEmbed model cache pinned to `~/Library/Caches/mneme/models/`
+  (macOS) or `~/.cache/mneme/models/` (POSIX), overridable via
+  `MNEME_MODEL_CACHE`, so OS temp cleanup no longer evicts the
+  ~91 MB BGE model; every runtime dependency declares an upper
+  bound.
+- **Dependency versions pinned.** `sqlite-vec>=0.1.9,<0.2`,
+  `fastembed>=0.8.0,<0.9`, `PyYAML>=6.0,<7`, `tomli_w>=1.0,<2`,
+  `tomli>=2.0,<3`. Pre-v1 upstream changes can no longer flip
+  behavior on a clean install without a Mneme code change.
+- **SKILL language-variant drift detection.**
+  `tests/test_skill_drift.py` asserts EN and ZH `SKILL*.md`
+  advertise the same scenario set (`init` / `reindex` / `search` /
+  `ingest` / `query` / `lint`), neither resurrects `dream`, and
+  both cite the same OKF version.
+- **CI matrix green.** `.github/workflows/ci.yml` runs pytest
+  across Python 3.10 / 3.11 / 3.12 / 3.13 × ubuntu-latest /
+  macos-latest (8 cells), plus a single-cell wheel-install smoke
+  job that proves a fresh-venv `mneme init` + `mneme lint` works
+  against the built wheel.
+
+### What 1.0.0 does NOT include
+
+The assessment's "Recommended version path" treated 0.3.0 → 0.4.0
+→ 0.5.0 → 0.9.0 → 1.0.0 as a linear sequence; in practice the
+project shipped straight through 0.6.1 without a 0.9.0 release
+candidate. The release gate is closed by the items above, not by
+a separate RC phase. Deferred work tracked in `docs/superpowers/`:
+
+- **Phase 5 dream safety** — `find_orphans` is a library primitive
+  (v0.6.0) and wired into `mneme lint` (v0.6.1), but the full
+  auto-curation pipeline (similarity merge, archive, cross-link
+  suggestions, atomic write protocol + git-safety TDD suite) is
+  not implemented. `mneme dream` stays not registered.
+- **Real 141-document dogfood** — the v0.5.0 benchmark against
+  `/Users/scott1743/Desktop/佳都/飞书文档库/` (Recall@5 = 1.000,
+  MRR = 0.800) stands as the labeled retrieval evidence, but the
+  corpus is not in the repository; the benchmark test skips on
+  machines that do not have that path.
+- **Converters (Word / PDF / PPT / Excel / HTML → md/csv)** and
+  **MCP server** — still deferred per `AGENTS.md` §非目标.
+
+### Test changes
+
+- `tests/test_version.py` — rewrote from constants-only to two
+  real assertions: pyproject `version` == `__version__`, and
+  major >= 1 (release gate marker).
+- `tests/test_install.py` / `tests/test_entrypoint.py` — wheel
+  selection now picks the highest-version wheel in `dist/`, not
+  the alphabetically-first. Added `_latest_wheel()` helper.
+- `tests/test_e2e_ingest.py` — four tests now pass `--config` to
+  `mneme init` so they no longer touch the user's
+  `~/.config/mneme/config.toml`.
+- `tests/test_release_budget.py` (new) — 5 release-gate budget
+  tests.
+- `tests/test_skill_drift.py` (new) — 3 EN/ZH drift tests.
+
+## [0.6.1] — 2026-07-12 — hotfix: `mneme lint` calls `find_orphans` for real
+
+`v0.6.0` shipped the `oklib.find_orphans` library primitive but
+the `mneme lint` subcommand still printed the v0.3.0 freeze guard
+text "`find_orphans not yet implemented`" as if the primitive
+were still missing. The library primitive WAS installed; only the
+CLI surface wasn't wired. This release is the wire.
+
+### Fix
+
+- `mneme lint <bundle>` now calls `oklib.find_orphans(bundle)` and
+  prints the list on stderr as an "orphan concept pages (N)"
+  section. The v0.3.0 freeze guard message is removed.
+- Exit code semantics unchanged from v0.6.0:
+  - `1` = bundle missing or validator found errors
+  - `3` = validate clean; orphan section is included
+
+### Test changes
+
+- `tests/test_cli.py::test_cli_lint_runs_find_orphans` — rewrote the
+  v0.3.0 freeze test to assert the **real** orphan output plus a
+  regression guard that asserts `find_orphans not yet implemented`
+  does not reappear in stderr.
+- `tests/test_e2e_lint.py::test_clean_bundle_has_no_errors` —
+  added `0 warning(s)` + `orphan concept pages (0)` assertions
+  and a regression guard for the freeze text.
+- `tests/test_entrypoint.py::test_init_then_lint_in_fresh_venv` —
+  rc assertion moved from `!= 2` to `== 3` (reflecting the
+  status-quo exit code).
+- `tests/test_e2e_ingest.py::test_e2e_lint_clean_after_ingest` —
+  assertion changed from `find_orphans not yet implemented` to
+  `orphan concept pages` plus regression guard.
+
 ## [0.6.0] — 2026-07-12 — `find_orphans` primitive (library API)
 
 This release lands **one** library primitive from Phase 5 of the

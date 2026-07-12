@@ -73,18 +73,27 @@ def _parse_report(stdout: str) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_clean_bundle_has_no_errors():
-    """Baseline: a minimal valid bundle lints clean (only the
-    find_orphans guard runs, since the bundle has only one concept).
-    """
+    """Baseline: a minimal valid bundle lints clean. The clean
+    fixture is structured so the single concept (ok-concepts) IS
+    referenced from index.md, which means find_orphans returns []
+    and lint exits with the no-error code (3)."""
     r = _lint(CLEAN)
     parsed = _parse_report(r.stdout)
     assert parsed["errors"] == [], (
         f"clean bundle lints errors: {parsed['errors']}"
     )
-    # The find_orphans guard fires (lint exit code 3), but no OKF
-    # violations fire. verify parse error count == 0.
+    assert parsed["warnings"] == [], (
+        f"clean bundle lints warnings: {parsed['warnings']}"
+    )
     assert "0 error(s)" in r.stdout, r.stdout
-    assert "find_orphans not yet implemented" in r.stderr
+    assert "0 warning(s)" in r.stdout, r.stdout
+    # Orphan section is always emitted; here it is empty.
+    assert "orphan concept pages (0)" in r.stderr, (
+        f"expected empty orphan section; stderr={r.stderr!r}"
+    )
+    # Regression guard: the v0.3.0 freeze guard message must not
+    # come back — find_orphans IS implemented now.
+    assert "find_orphans not yet implemented" not in r.stderr
 
 
 def test_dirty_bundle_catches_every_pr2_rule():

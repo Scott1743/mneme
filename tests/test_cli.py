@@ -121,12 +121,13 @@ def test_cli_no_dream_subcommand():
     assert mneme.main(["dream", "wiki"]) == 2
 
 
-def test_cli_lint_fails_with_clear_message_when_orphans_unimplemented(tmp_path, capsys):
-    """Phase 0 freeze §3.3: `mneme lint` must (a) exist as a registered
-    subcommand AND (b) report a deterministic message when the find_orphans
-    primitive is not implemented yet. A plain argparse 'invalid choice'
-    error (exit code 2) is not sufficient — it just means we forgot to wire
-    the subcommand.
+def test_cli_lint_runs_find_orphans(tmp_path, capsys):
+    """v0.6.1: `mneme lint <bundle>` runs the OKF validator AND
+    the `find_orphans` primitive. The fixture bundle has one
+    concept with no inbound edge, so find_orphans lights up.
+    The v0.3.0 freeze's "find_orphans not yet implemented"
+    guard message must NOT appear — that's the regression this
+    test guards against.
     """
     bundle = tmp_path / "wiki"
     bundle.mkdir()
@@ -139,10 +140,15 @@ def test_cli_lint_fails_with_clear_message_when_orphans_unimplemented(tmp_path, 
     captured = capsys.readouterr()
     assert rc != 0
     assert rc != 2, (
-        "argparse rejected 'lint' as 'invalid choice' — subcommand is not "
-        "registered. PR1 must register the lint handler first."
+        "argparse rejected 'lint' as 'invalid choice' — subcommand is "
+        "not registered."
     )
-    assert "find_orphans not yet implemented" in captured.err, (
-        f"lint handler ran but did not emit the unimplemented guard. "
-        f"stderr was: {captured.err!r}"
+    # The orphan is now surfaced as a real section.
+    assert "orphan concept pages" in captured.err
+    assert "concepts/a" in captured.err, (
+        f"expected concepts/a listed as orphan; stderr={captured.err!r}"
+    )
+    # Regression guard for the v0.3.0 freeze message.
+    assert "find_orphans not yet implemented" not in captured.err, (
+        f"lint re-emitted the unimplemented guard; stderr={captured.err!r}"
     )

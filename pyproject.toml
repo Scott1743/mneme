@@ -1,17 +1,24 @@
 [project]
 name = "mneme"
-version = "0.6.0"
+version = "1.0.0"
 requires-python = ">=3.10"
 dependencies = [
-    "tomli_w>=0.4",
+    "tomli_w>=1.0,<2",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
-validate = ["PyYAML>=6.0"]
-index = ["sqlite-vec", "fastembed"]
-toml10 = ["tomli>=2.0"]
-all = ["sqlite-vec", "fastembed", "PyYAML>=6.0"]
+dev = ["pytest>=7"]
+validate = ["PyYAML>=6.0,<7"]
+index = [
+    "sqlite-vec>=0.1.9,<0.2",
+    "fastembed>=0.8.0,<0.9",
+]
+toml10 = ["tomli>=2.0,<3"]
+all = [
+    "sqlite-vec>=0.1.9,<0.2",
+    "fastembed>=0.8.0,<0.9",
+    "PyYAML>=6.0,<7",
+]
 
 [project.scripts]
 mneme = "mneme.cli:main"

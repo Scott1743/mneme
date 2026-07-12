@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: pytest (Python ${{ matrix.python }} on ${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Phase 6 release-gate: CI matrix across Python 3.10–3.13 and
+        # the platforms where sqlite-vec ships pre-built wheels.
+        # ubuntu-latest is x86_64; macos-latest is arm64 — both covered
+        # by sqlite-vec's linux_x86_64 and macosx_universal2 wheels.
+        python: ["3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install mneme with dev/validate/index/toml10 extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,validate,index,toml10]'
+      - name: Build wheel (so test_install/test_entrypoint pick it up)
+        run: python -m build --wheel --outdir dist
+      - name: Show installed package versions
+        run: |
+          python -c "import sys; print(sys.version)"
+          python -c "import sqlite_vec; print('sqlite-vec', sqlite_vec.version)" || true
+          python -c "import fastembed; print('fastembed', fastembed.__version__)" || true
+          python -c "import yaml; print('PyYAML', yaml.__version__)" || true
+          python -c "import mneme; print('mneme', mneme.__version__)"
+      - name: Run pytest
+        env:
+          # Keep FastEmbed model cache under $HOME so it persists across
+          # runs via setup-python's cache. Also stops the runner's small
+          # /tmp from filling up with a 91MB model.
+          MNEME_MODEL_CACHE: ${{ runner.temp }}/mneme-models
+        run: python -m pytest -q --tb=short
+
+  wheel-smoke:
+    # Single-cell: build wheel, install in a fresh venv, smoke-test the
+    # console entry point. This is the release-gate "install-to-query
+    # works from the release artifact in a clean environment" check.
+    name: wheel install smoke (Python 3.12, ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install --upgrade pip build
+      - run: python -m build --wheel --outdir dist
+      - name: Install wheel in fresh venv
+        run: |
+          python -m venv /tmp/smoke-venv
+          /tmp/smoke-venv/bin/pip install dist/mneme-*.whl
+      - name: Smoke-test the console entry point
+        env:
+          MNEME_MODEL_CACHE: ${{ runner.temp }}/mneme-models
+        run: |
+          /tmp/smoke-venv/bin/mneme --help
+          /tmp/smoke-venv/bin/mneme init /tmp/smoke-wiki --config /tmp/smoke-cfg.toml
+          test -f /tmp/smoke-wiki/index.md
+          test -f /tmp/smoke-wiki/log.md
+          test -d /tmp/smoke-wiki/sources
+          /tmp/smoke-venv/bin/mneme lint /tmp/smoke-wiki || \
+            [ $? -eq 3 ]  # exit 3 = lint ran, find_orphans reported (expected on empty bundle)

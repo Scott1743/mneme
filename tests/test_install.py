@@ -23,10 +23,37 @@ ROOT = Path(__file__).parent.parent
 WHEEL_GLOB = list((ROOT / "dist").glob("mneme-*-py3-none-any.whl"))
 
 
+def _parse_version(name: str):
+    """Extract PEP 440-ish version tuple from a wheel filename.
+
+    Used to pick the LATEST wheel when dist/ accumulates old ones;
+    falling back to ``WHEEL_GLOB[0]`` (alphabetical) silently picks
+    ``mneme-0.5.0`` over ``mneme-0.6.1`` and runs stale code.
+    """
+    m = re.match(r"^mneme-(.+?)-py3-none-any\.whl$", name)
+    if not m:
+        return ()
+    parts = m.group(1).split(".")
+    out = []
+    for p in parts:
+        # Strip non-digit suffix (rc1, dev0, post1, etc.) for ordering.
+        digits = re.match(r"^(\d+)", p)
+        out.append(int(digits.group(1)) if digits else 0)
+    return tuple(out)
+
+
+def _latest_wheel() -> Path:
+    """Return the highest-version wheel in dist/, or None if empty."""
+    if not WHEEL_GLOB:
+        return None
+    return max(WHEEL_GLOB, key=lambda p: _parse_version(p.name))
+
+
 def _build_wheel(tmp_path_factory) -> Path:
     """Build the wheel into a session tmp dir if not already present."""
-    if WHEEL_GLOB:
-        return WHEEL_GLOB[0]
+    latest = _latest_wheel()
+    if latest:
+        return latest
     out = tmp_path_factory.mktemp("wheel") / "wheel"
     subprocess.run(
         [sys.executable, "-m", "build", "--wheel", "--outdir", str(out)],
@@ -38,17 +65,19 @@ def _build_wheel(tmp_path_factory) -> Path:
 
 
 def _require_wheel() -> Path:
-    if not WHEEL_GLOB:
+    latest = _latest_wheel()
+    if not latest:
         pytest.skip(
             "wheel not built; run `python -m build --wheel` to produce it"
         )
-    return WHEEL_GLOB[0]
+    return latest
 
 
 def _ensure_wheel(tmp_path_factory) -> Path:
     """Use cached wheel if present, otherwise build one. Skips on failure."""
-    if WHEEL_GLOB:
-        return WHEEL_GLOB[0]
+    latest = _latest_wheel()
+    if latest:
+        return latest
     try:
         return _build_wheel(tmp_path_factory)
     except subprocess.CalledProcessError as exc:
@@ -243,9 +272,9 @@ def test_bundle_path_chinese(tmp_path):
 def test_wheel_contains_skill_assets():
     """§5.7: wheel must ship SKILL.md and references/ inside mneme/skill/.
     """
-    if not WHEEL_GLOB:
+    wheel = _latest_wheel()
+    if not wheel:
         pytest.skip("wheel not built")
-    wheel = WHEEL_GLOB[0]
     names = set(zipfile.ZipFile(wheel).namelist())
     assert "mneme/skill/SKILL.md" in names
     assert any(n.startswith("mneme/skill/references/") for n in names)
@@ -254,9 +283,9 @@ def test_wheel_contains_skill_assets():
 def test_wheel_excludes_tests_research_plans():
     """§5.6: wheel must NOT ship tests/, .research/, docs/superpowers/plans/,
     or sample-bundle/."""
-    if not WHEEL_GLOB:
+    wheel = _latest_wheel()
+    if not wheel:
         pytest.skip("wheel not built")
-    wheel = WHEEL_GLOB[0]
     names = set(zipfile.ZipFile(wheel).namelist())
     forbidden_substrings = (
         "tests/", ".research/", "superpowers/plans/", "sample-bundle/",

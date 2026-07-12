@@ -104,17 +104,25 @@ def cmd_search(args: argparse.Namespace) -> int:
 
 
 # Lint handler exit codes:
-#   1 = generic failure (bundle missing, etc.)
-#   3 = validation passed but a downstream primitive (find_orphans) is
-#       unimplemented in v0.3.0 freeze; the gap is reported deterministically
-#       rather than masked as AttributeError. Distinct from argparse's 2.
+#   1 = generic failure (bundle missing, etc.) OR OKF validation has errors
+#   3 = OKF validation passed; the orphan section is included in
+#       stderr. Code 3 is preserved as the "lint ran and found
+#       something to look at" signal — distinct from argparse's 2
+#       ("unrecognized subcommand").
 LINT_GUARD_RC = 3
 
 
 def cmd_lint(args: argparse.Namespace) -> int:
-    """Curate + report. v0.3.0 freeze wires OKF validation; orphan detection
-    is the next primitive in the pipeline and stays unimplemented until PR2.
-    Reports the gap explicitly instead of letting it surface as AttributeError.
+    """Curate + report.
+
+    Pipeline:
+      1. run OKF v0.1 validation (per PR2 rule table)
+      2. run `okflib.find_orphans(bundle)` and print the list on stderr
+
+    Exit codes:
+      1 — bundle path is bad, OR the validator found errors
+      3 — validator passed; orphan section is included (or empty if
+          the bundle has none)
     """
     bundle = Path(args.path)
     if not bundle.is_dir():
@@ -122,10 +130,12 @@ def cmd_lint(args: argparse.Namespace) -> int:
         return 1
     from .validate_okf import print_report, validate_bundle
     rc = print_report(validate_bundle(bundle))
-    print(
-        "find_orphans not yet implemented (see CHANGELOG.md 0.2.1 entry)",
-        file=sys.stderr,
-    )
+
+    from . import okflib
+    orphans = okflib.find_orphans(bundle)
+    print(f"\norphan concept pages ({len(orphans)}):", file=sys.stderr)
+    for slug in orphans:
+        print(f"  - {slug}", file=sys.stderr)
     return LINT_GUARD_RC if rc == 0 else rc
 
 

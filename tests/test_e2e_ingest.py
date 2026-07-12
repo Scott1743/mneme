@@ -234,8 +234,10 @@ def test_step_three_concept_pages_carry_type(tmp_path):
     """Each distilled concept page MUST have a non-empty scalar `type`
     (PR2 §4.1 + OKF §4.1)."""
     bundle = tmp_path / "wiki"
+    cfg = tmp_path / "cfg.toml"
     subprocess.run(
-        [sys.executable, "-m", "mneme", "init", str(bundle)],
+        [sys.executable, "-m", "mneme", "init", str(bundle),
+         "--config", str(cfg)],
         check=True, capture_output=True,
     )
     scripted_ingest(bundle, FIXTURE_SOURCE)
@@ -252,8 +254,10 @@ def test_step_three_concept_pages_carry_type(tmp_path):
 def test_step_five_log_prepends_newest_first(tmp_path):
     """§3.7 + §7 log: ingest must prepend, not append."""
     bundle = tmp_path / "wiki"
+    cfg = tmp_path / "cfg.toml"
     subprocess.run(
-        [sys.executable, "-m", "mneme", "init", str(bundle)],
+        [sys.executable, "-m", "mneme", "init", str(bundle),
+         "--config", str(cfg)],
         check=True, capture_output=True,
     )
     scripted_ingest(bundle, FIXTURE_SOURCE)
@@ -269,8 +273,10 @@ def test_step_five_log_prepends_newest_first(tmp_path):
 def test_step_four_index_links_each_concept(tmp_path):
     """§3.6 step 4: index.md must list each concept page under ## Concepts."""
     bundle = tmp_path / "wiki"
+    cfg = tmp_path / "cfg.toml"
     subprocess.run(
-        [sys.executable, "-m", "mneme", "init", str(bundle)],
+        [sys.executable, "-m", "mneme", "init", str(bundle),
+         "--config", str(cfg)],
         check=True, capture_output=True,
     )
     scripted_ingest(bundle, FIXTURE_SOURCE)
@@ -338,8 +344,10 @@ def test_e2e_lint_clean_after_ingest(tmp_path):
     expected non-zero report).
     """
     bundle = tmp_path / "wiki"
+    cfg = tmp_path / "cfg.toml"
     subprocess.run(
-        [sys.executable, "-m", "mneme", "init", str(bundle)],
+        [sys.executable, "-m", "mneme", "init", str(bundle),
+         "--config", str(cfg)],
         check=True, capture_output=True,
     )
     scripted_ingest(bundle, FIXTURE_SOURCE)
@@ -348,4 +356,8 @@ def test_e2e_lint_clean_after_ingest(tmp_path):
         capture_output=True, text=True, check=False,
     )
     assert "0 error(s)" in rc.stdout, rc.stdout
-    assert "find_orphans not yet implemented" in rc.stderr
+    # v0.6.1: lint always emits an orphan section (empty if none).
+    assert "orphan concept pages" in rc.stderr
+    # Regression guard: the v0.3.0 freeze guard message must not
+    # come back — find_orphans IS implemented.
+    assert "find_orphans not yet implemented" not in rc.stderr

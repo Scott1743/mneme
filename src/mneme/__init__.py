@@ -6,7 +6,7 @@ The package is the implementation surface; the agent skill lives under
 
 from __future__ import annotations
 
-__version__ = "0.3.0"
+__version__ = "1.0.0"
 
 # Re-export so legacy callers (and existing tests) can keep using
 # ``import mneme; mneme.main(args)``.
