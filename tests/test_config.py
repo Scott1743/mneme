@@ -2,6 +2,7 @@
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.unit
 
 from mneme.config import read_config, write_config
 

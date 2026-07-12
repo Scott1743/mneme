@@ -18,6 +18,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.release
 
 ROOT = Path(__file__).parent.parent
 WHEEL_GLOB = list((ROOT / "dist").glob("mneme-*-py3-none-any.whl"))
@@ -149,6 +150,7 @@ def test_wheel_install_provides_entry_point():
     assert "mneme = mneme.cli:main" in ep_text
 
 
+@pytest.mark.network
 def test_wheel_install_with_extras_reindex_runs(tmp_path, tmp_path_factory):
     """§5.2: `pip install 'mneme-*.whl[index]'` then `mneme reindex` runs
     to completion against a freshly-init'd bundle.

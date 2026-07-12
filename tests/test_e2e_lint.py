@@ -35,6 +35,7 @@ import sys
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.e2e
 
 ROOT = Path(__file__).parent.parent
 CLEAN = ROOT / "tests" / "fixtures" / "e2e_lint" / "clean_bundle"

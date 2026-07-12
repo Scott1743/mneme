@@ -11,6 +11,10 @@ venv/
 .pytest_cache/
 .python-version
 
+# Coverage artifacts(本地生成,CI 单独上传 artifact)
+.coverage
+coverage.xml
+
 # Node (if any tooling is added later)
 node_modules/
 

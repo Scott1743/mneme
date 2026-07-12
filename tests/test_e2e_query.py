@@ -33,6 +33,7 @@ import sys
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.e2e
 
 ROOT = Path(__file__).parent.parent
 FIXTURE = ROOT / "tests" / "fixtures" / "e2e_query"
@@ -83,6 +84,7 @@ def reindexed_bundle(tmp_path):
 
 # ─────────────────────────────────────────────────────────────────────────────
 
+@pytest.mark.network
 def test_search_returns_hits_for_known_topics(reindexed_bundle):
     """Searching for a topic word that lives in the fixture body must
     return at least one hit. Phase 4 (real-corpus benchmark) is
@@ -104,6 +106,7 @@ def test_search_returns_hits_for_known_topics(reindexed_bundle):
         assert hits, f"search for '{term}' returned no hits"
 
 
+@pytest.mark.network
 def test_search_hit_schema(reindexed_bundle):
     """Every hit must carry the documented fields — stable JSON
     contract for downstream consumers (the host agent's read step)."""
@@ -119,6 +122,7 @@ def test_search_hit_schema(reindexed_bundle):
         assert hit["concept_id"] == hit["path"][:-3]
 
 
+@pytest.mark.network
 def test_search_no_duplicates_in_top_k(reindexed_bundle):
     """A single concept must not show up twice in the top-k chunk
     list (duplicate concept_ids would force the agent to read the
@@ -132,6 +136,7 @@ def test_search_no_duplicates_in_top_k(reindexed_bundle):
     )
 
 
+@pytest.mark.network
 def test_search_returns_stable_json_array(reindexed_bundle):
     """Search hit list serializes as a JSON array (not null, not an
     object). Stable contract for downstream consumers."""
@@ -140,6 +145,7 @@ def test_search_returns_stable_json_array(reindexed_bundle):
     assert isinstance(parsed, list)
 
 
+@pytest.mark.network
 def test_search_hit_path_resolves_in_bundle(reindexed_bundle):
     """For each top hit, the `path` field must resolve to a real
     Markdown file under the bundle — what makes `Read` the full page
@@ -162,6 +168,7 @@ def test_search_hit_path_resolves_in_bundle(reindexed_bundle):
         )
 
 
+@pytest.mark.network
 def test_search_filter_by_type(reindexed_bundle):
     """`--type <TypeName>` restricts results to that type.
     Sanity: an alpha query (which lives in a Concept page) returns

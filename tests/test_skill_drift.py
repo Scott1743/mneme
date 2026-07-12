@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+import pytest
+pytestmark = pytest.mark.release
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_DIR = ROOT / "skills" / "mneme"

@@ -15,6 +15,8 @@ This module now closes both gaps. It is the single source of truth for
 """
 import re
 from pathlib import Path
+import pytest
+pytestmark = pytest.mark.release
 
 ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT = ROOT / "pyproject.toml"

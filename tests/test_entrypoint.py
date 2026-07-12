@@ -28,6 +28,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.release
 
 ROOT = Path(__file__).parent.parent
 WHEEL_GLOB = list((ROOT / "dist").glob("mneme-*-py3-none-any.whl"))

@@ -30,6 +30,7 @@ import sys
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.e2e
 
 from mneme import indexlib
 from mneme.indexlib import Embedder
@@ -288,6 +289,7 @@ def test_step_four_index_links_each_concept(tmp_path):
         )
 
 
+@pytest.mark.network
 def test_step_six_reindex_then_step_seven_search_finds_each_concept(
     tmp_path, monkeypatch
 ):

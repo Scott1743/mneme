@@ -3,6 +3,8 @@ from pathlib import Path
 
 from mneme import indexlib
 import mneme
+import pytest
+pytestmark = pytest.mark.unit
 
 
 def test_init_scaffolds_bundle_and_config(tmp_path):

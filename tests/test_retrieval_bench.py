@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 import pytest
+pytestmark = [pytest.mark.e2e, pytest.mark.network]
 
 from mneme import indexlib
 

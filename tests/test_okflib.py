@@ -121,6 +121,7 @@ def test_list_concepts_skips_mneme_dir(tmp_path):
 # ─────────────────────────────────────────────────────────────────────────────
 
 import pytest
+pytestmark = pytest.mark.unit
 
 
 def _errors(report):

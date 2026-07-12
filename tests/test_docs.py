@@ -7,6 +7,8 @@ the L3 agent layer was dropped), lists `tools.py`/`ingest.py`/`query.py`/
 the CLI as "Click 风格" when it's argparse. v0.3.0 freeze cleans this up.
 """
 from pathlib import Path
+import pytest
+pytestmark = pytest.mark.docs
 
 ROOT = Path(__file__).resolve().parents[1]
 CLAUDE_MD = ROOT / "CLAUDE.md"

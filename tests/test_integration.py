@@ -6,6 +6,8 @@ from pathlib import Path
 from mneme import indexlib
 import mneme
 from test_indexlib import _E, write_concept
+import pytest
+pytestmark = pytest.mark.integration
 
 
 def test_end_to_end_init_reindex_search_validate(tmp_path, monkeypatch, capsys):

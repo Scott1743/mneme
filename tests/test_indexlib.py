@@ -2,6 +2,7 @@ import hashlib
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.unit
 
 from mneme.indexlib import (
     CorruptIndexError,

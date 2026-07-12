@@ -1,5 +1,7 @@
 from pathlib import Path
 from mneme.tools_helpers import resolve_bundle, slug_from_path
+import pytest
+pytestmark = pytest.mark.unit
 
 
 def test_resolve_bundle_from_config(tmp_path):
