@@ -7,6 +7,60 @@ with one caveat: **1.0.0 is a release-contract gate, not a feature gate.**
 Versions below 1.0.0 may carry partial behavior; consult `docs/superpowers/`
 for in-flight specs and plans.
 
+## [0.6.0] — 2026-07-12 — `find_orphans` primitive (library API)
+
+This release lands **one** library primitive from Phase 5 of the
+readiness-assessment plan: `okflib.find_orphans(bundle_path)`. It
+is the inverse of OKF §9 ("every concept page is reachable from
+`index.md`") — returns the sorted list of concept slugs that no
+`.md` file inside the bundle cross-references.
+
+### `find_orphans` (library API)
+
+- **`okflib.find_orphans(bundle_path)`** returns the sorted list
+  of concept slugs not referenced from anywhere in the bundle.
+  OKF §9 calls this the inverse of "every concept is reachable
+  from `index.md`".
+- Walks every `.md` file under the bundle, skipping `.mneme/`
+  and `sources/`. Captures both `/concepts/foo.md` absolute
+  links and `concepts/foo.md` relative links; relative paths
+  are treated as bundle-rooted.
+- **`list_concepts`** gets a small hygiene fix: now skips
+  `sources/` (matching the validator) and uses
+  `if not p.is_file(): continue` so a stray `something.md/`
+  directory under the bundle can't sneak past `rglob('*.md')`
+  on POSIX.
+
+### Not in this release
+
+Phase 5 (per the readiness-assessment §Phase 5) has four parts:
+
+  1. real merge of similar concepts (requires a similarity
+     implementation tied to actual sqlite-vec cosine distance)
+  2. real archive of stale orphans (90-day threshold)
+  3. real cross-link suggestions between siblings
+  4. atomic write protocol + manifest preview + git-safety TDD suite
+
+This release delivers only the `find_orphans` *primitive* — the
+building block these features would consume. Wiring `find_orphans`
+into `mneme lint`, the actual similarity math, and the rest of the
+auto-curation pipeline are deferred.
+
+`mneme dream` stays **not registered** (the v0.3.0 freeze removed
+it; this release does not re-introduce it). The dream recovery
+prerequisites in
+`docs/superpowers/plans/2026-07-12-mneme-0.3.0-implementation.md`
+§2.3 are intentionally not satisfied in this single-primitive
+release.
+
+### Tests
+
+- `tests/test_okflib.py` — 5 new `find_orphans` cases (empty
+  bundle / single unreferenced / index-listed / peer-to-peer /
+  sources-excluded).
+- All 38 existing fast tests + the 5 new ones = 43 fast tests
+  in test_okflib.py. 103 fast tests total (full suite).
+
 ## [0.5.0] — 2026-07-12 — Phase 4 dogfood on the Feishu 141-doc corpus
 
 The first v0.5.0 release. v0.5.0 is the **dogfood milestone** that

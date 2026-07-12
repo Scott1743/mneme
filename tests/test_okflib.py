@@ -2,7 +2,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-from mneme.okflib import list_concepts, parse_frontmatter, read_concept, validate_bundle
+from mneme.okflib import (
+    find_orphans,
+    list_concepts,
+    parse_frontmatter,
+    read_concept,
+    validate_bundle,
+)
 
 SAMPLE = Path(__file__).parent.parent / "sample-bundle"
 FIX = Path(__file__).parent / "fixtures"
@@ -415,3 +421,116 @@ def test_bad_format_timestamp_warns_only(tmp_path):
     assert any(
         v.rule == "bad-timestamp-format" for v in report.warnings
     ), f"got warnings={_warnings(report)}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# find_orphans (Phase 5-A primitive)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_find_orphans_empty_bundle(tmp_path):
+    """No concepts → empty orphan list."""
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n# Concepts\n',
+        encoding="utf-8",
+    )
+    assert find_orphans(bundle) == []
+
+
+def test_find_orphans_single_unreferenced_concept(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n# Concepts\n',
+        encoding="utf-8",
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "lonely.md").write_text(
+        '---\ntype: Concept\ntitle: Lonely\n---\nbody\n',
+        encoding="utf-8",
+    )
+    assert find_orphans(bundle) == ["concepts/lonely"]
+
+
+def test_find_orphans_concept_listed_in_index_is_not_orphan(tmp_path):
+    """A concept that index.md links to has an inbound edge and is
+    therefore not an orphan — even when no other page references
+    it."""
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n'
+        '# Concepts\n\n'
+        '* [Linked](concepts/linked.md)\n',
+        encoding="utf-8",
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "linked.md").write_text(
+        '---\ntype: Concept\ntitle: Linked\n---\nbody\n',
+        encoding="utf-8",
+    )
+    (bundle / "concepts" / "lonely.md").write_text(
+        '---\ntype: Concept\ntitle: Lonely\n---\nbody\n',
+        encoding="utf-8",
+    )
+    orphans = find_orphans(bundle)
+    assert orphans == ["concepts/lonely"], (
+        f"expected only concepts/lonely as orphan; got {orphans}"
+    )
+
+
+def test_find_orphans_peer_to_peer_link(tmp_path):
+    """Cross-graph case: a → b. Only b gets an inbound edge from
+    a; a has nothing linking to it, so a IS orphan. This catches the
+    off-by-one failure mode where `find_orphans` confuses "links to"
+    with "is linked from".
+    """
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n# Concepts\n',
+        encoding="utf-8",
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "a.md").write_text(
+        '---\ntype: Concept\ntitle: A\n---\n'
+        'See [B](/concepts/b.md).\n',
+        encoding="utf-8",
+    )
+    (bundle / "concepts" / "b.md").write_text(
+        '---\ntype: Concept\ntitle: B\n---\nbody\n',
+        encoding="utf-8",
+    )
+    orphans = find_orphans(bundle)
+    assert orphans == ["concepts/a"], (
+        f"only `a` (no inbound) should be orphan; got {orphans}"
+    )
+
+
+def test_find_orphans_ignores_sources_links(tmp_path):
+    """References inside `sources/*.md` are NOT inbound edges for
+    concept pages (sources are immutable inputs that the validator
+    already carves out). Keeps the orphan analysis coherent with
+    the rest of the validator's sources/ semantics."""
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "index.md").write_text(
+        '---\nokf_version: "0.1"\n---\n# Concepts\n',
+        encoding="utf-8",
+    )
+    (bundle / "concepts").mkdir()
+    (bundle / "concepts" / "lonely.md").write_text(
+        '---\ntype: Concept\ntitle: Lonely\n---\nbody\n',
+        encoding="utf-8",
+    )
+    (bundle / "sources").mkdir()
+    (bundle / "sources" / "raw.md").write_text(
+        'See [Lonely](/concepts/lonely.md)\n',
+        encoding="utf-8",
+    )
+    orphans = find_orphans(bundle)
+    assert orphans == ["concepts/lonely"], (
+        "sources/ links must not count as inbound edges for concepts"
+    )

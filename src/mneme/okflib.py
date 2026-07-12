@@ -33,6 +33,13 @@ from typing import Dict, List, Optional, Tuple
 RESERVED = ("index.md", "log.md")
 _FRONTMATTER_RE = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*\n?(.*)\Z", re.S)
 _LINK_RE = re.compile(r"\]\((/[^\)]+\.md)\)")
+# Used by `find_orphans` and the orphan-side tests. Permissive on
+# path shape: matches `/concepts/foo.md` and `concepts/foo.md`
+# alike, since orphan analysis is forgiving about relative vs
+# absolute bundle-relative links (it's about reachability, not
+# exact target syntax). The validator's stricter `_LINK_RE` keeps
+# only the absolute-bundle-relative form.
+_ORPHAN_LINK_RE = re.compile(r"\]\(([^\)]+\.md)\)")
 
 # OKF §4.1 — `type` is `<Type name>` (scalar). Producer vocab is not
 # centralized (per OKF §9 tolerance); we recognize the four most common
@@ -182,11 +189,24 @@ def _verify_frontmatter_yaml(text: str) -> Optional[List[str]]:
 
 
 def list_concepts(bundle_path) -> List[str]:
-    """Concept IDs (file path without .md) for all non-reserved .md files."""
+    """Concept IDs (file path without .md) for all non-reserved,
+    non-`.mneme/`, non-`sources/` `.md` FILES in the bundle.
+
+    The `sources/` carve-out matches the validator's behavior —
+    raw sources are immutable inputs without OKF frontmatter and
+    are not concepts. The `is_file()` filter prevents a stray
+    `something.md/` directory from sneaking past `rglob('*.md')`
+    on POSIX (where the glob matches directories too).
+    """
     root = Path(bundle_path)
     ids = []
     for p in sorted(root.rglob("*.md")):
-        if any(part == ".mneme" for part in p.relative_to(root).parts):
+        if not p.is_file():
+            continue
+        parts = p.relative_to(root).parts
+        if any(part == ".mneme" for part in parts):
+            continue
+        if "sources" in parts:
             continue
         rel = p.relative_to(root).as_posix()
         if os.path.basename(rel) in RESERVED:
@@ -201,6 +221,63 @@ def read_concept(bundle_path, concept_id: str) -> Optional[Tuple[Dict, str]]:
     if not p.exists():
         return None
     return parse_frontmatter(p.read_text(encoding="utf-8"))
+
+
+def _referenced_targets(bundle_path) -> set:
+    """Bundle-relative concept slugs that get at least one
+    `(/concepts/foo.md)` or `(concepts/foo.md)` cross-reference from
+    any non-reserved, non-`.mneme/`, non-`sources/` Markdown file in
+    the bundle.
+
+    OKF §5.1 recommends absolute bundle-relative links, but this
+    analysis is forgiving — relative paths are treated as
+    bundle-rooted (`concepts/foo.md` → slug `concepts/foo`). The set
+    is the inverse image of `find_orphans` over `list_concepts`.
+    """
+    root = Path(bundle_path)
+    referenced: set = set()
+    for p in sorted(root.rglob("*.md")):
+        if not p.is_file():
+            continue
+        parts = p.relative_to(root).parts
+        if any(part == ".mneme" for part in parts):
+            continue
+        if "sources" in parts:
+            continue
+        text = p.read_text(encoding="utf-8")
+        for m in _ORPHAN_LINK_RE.finditer(text):
+            target = m.group(1).lstrip("/")
+            if target.endswith(".md"):
+                referenced.add(target[:-3])
+    return referenced
+
+
+def find_orphans(bundle_path) -> List[str]:
+    """Sorted list of concept slugs that no `.md` file inside the
+    bundle (other than `.mneme/` and `sources/`) cross-references.
+
+    A concept is "orphaned" if it is not the target of any
+    `(/concepts/foo.md)` or `(concepts/foo.md)` link from anywhere
+    in the bundle. This is the inverse of "every concept page is
+    reachable from `index.md`" — SPEC §9's reachability requirement.
+
+    Used by:
+
+      - `mneme lint` (the CLI's orphan section in its report)
+      - host agents evaluating whether to archive or further
+        distill a concept
+      - `scripts/bootstrap_dogfood.py` to surface candidates the
+        digest pipeline missed
+
+    Strictly: the result is computed by `list_concepts` minus
+    `_referenced_targets`, both of which skip `.mneme/` and
+    `sources/`. SPEC §9 requires that this primitive not silently
+    fail; callers should be able to treat the result as
+    authoritative.
+    """
+    concepts = list_concepts(bundle_path)
+    referenced = _referenced_targets(bundle_path)
+    return sorted(c for c in concepts if c not in referenced)
 
 
 def _validate_reserved(rel: str, name: str, text: str, report: Report) -> None:
@@ -336,6 +413,8 @@ def _validate_log_body(rel: str, body: str, report: Report) -> None:
 
 def _check_links(root: Path, report: Report) -> None:
     for p in sorted(root.rglob("*.md")):
+        if not p.is_file():
+            continue
         if any(part == ".mneme" for part in p.relative_to(root).parts):
             continue
         rel = p.relative_to(root).as_posix()
