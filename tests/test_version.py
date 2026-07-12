@@ -21,6 +21,11 @@ pytestmark = pytest.mark.release
 ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT = ROOT / "pyproject.toml"
 INIT_PY = ROOT / "src" / "mneme" / "__init__.py"
+SKILL_FILES = (
+    ROOT / "skills" / "mneme" / "SKILL.md",
+    ROOT / "skills" / "mneme" / "SKILL cn.md",
+    ROOT / "src" / "mneme" / "skill" / "SKILL.md",
+)
 
 
 def _pyproject_version() -> str:
@@ -49,6 +54,17 @@ def test_pyproject_and_init_version_agree():
         f"version drift: pyproject.toml={py!r} but "
         f"src/mneme/__init__.py={init!r}. Update both to the same value."
     )
+
+
+def test_all_skill_manifests_have_release_version():
+    expected = _pyproject_version()
+    for path in SKILL_FILES:
+        text = path.read_text(encoding="utf-8")
+        match = re.search(r"^version:\s*([^\s]+)\s*$", text, re.MULTILINE)
+        assert match, f"{path} must declare a version in YAML frontmatter"
+        assert match.group(1).strip('"\'') == expected, (
+            f"version drift: {path}={match.group(1)!r}, expected {expected!r}"
+        )
 
 
 def test_version_is_release_gate():

@@ -1,5 +1,6 @@
 ---
 name: mneme
+version: 1.0.0
 description: "Maintain and search a local, OKF-conformant LLM knowledge wiki of research/learning notes. Use when the user wants to ingest a source, search or query the wiki, lint it, reindex it, or initialize a wiki. Triggers: 'mneme', 'my wiki', 'search my wiki', 'ingest this', 'query my notes', 'lint the wiki', 'knowledge base', '查 wiki', '搜索知识库', '摄入笔记', '知识库'. Dream (scheduled auto-curation) is intentionally absent from v0.3.0 — see CHANGELOG for the freeze context."
 allowed-tools:
   - Read

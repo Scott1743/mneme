@@ -1,5 +1,6 @@
 ---
 name: mneme
+version: 1.0.0
 description: "维护和搜索本地、符合 OKF 的 LLM 知识 wiki。适用于摄入资料、搜索或查询 wiki、检查合规性、重建索引或初始化 wiki。触发词：mneme、my wiki、search my wiki、ingest this、query my notes、lint the wiki、knowledge base、查 wiki、搜索知识库、摄入笔记、知识库。Dream（定时自动维护）在 v0.3.0 中**主动移除**，原因见 CHANGELOG 0.2.1 条目。"
 allowed-tools:
   - Read
