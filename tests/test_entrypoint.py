@@ -56,16 +56,37 @@ def _require_wheel() -> Path:
 
 
 def _fresh_venv() -> Path:
-    base = Path("/tmp") / f"mneme-entrypoint-{sys.version_info.minor}-{id(object())}"
+    # Use the repo's own .pytest-tmp/ rather than /tmp. macOS routes
+    # /tmp through /private/tmp, and venv.EnvBuilder writes files to the
+    # resolved path while leaving the symlink path unpopulated — which
+    # makes "bin/mneme" appear missing on lookup. Building inside the
+    # repo sidesteps the symlink entirely (and keeps cleanup local).
+    base = (
+        ROOT / ".pytest-tmp"
+        / f"mneme-entrypoint-{sys.version_info.minor}-{id(object())}"
+    )
     if base.exists():
         shutil.rmtree(base, ignore_errors=True)
-    base.mkdir()
+    base.mkdir(parents=True)
     venv.EnvBuilder(with_pip=True, clear=True).create(str(base))
-    return base
+    return base.resolve()
 
 
 def _py(venv_dir: Path) -> str:
     return str(venv_dir / "bin" / "python")
+
+
+def _fresh_env() -> dict:
+    """Build a clean subprocess env for the fresh venv.
+
+    conftest.py injects PYTHONPATH=skills/mneme/scripts/ so the parent
+    test process can `import mneme`. Inside a fresh venv, that PYTHONPATH
+    makes pip think mneme is already importable (via the repo source),
+    so it refuses to install the wheel: "mneme is already installed with
+    the same version as the provided wheel." Strip it.
+    """
+    import os
+    return {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
 
 
 def test_console_script_help_exits_zero():
@@ -75,8 +96,9 @@ def test_console_script_help_exits_zero():
     env = _fresh_venv()
     try:
         subprocess.run(
-            [_py(env), "-m", "pip", "install", "--quiet", str(wheel)],
+            [_py(env), "-m", "pip", "install", str(wheel)],
             check=True, capture_output=True,
+            env=_fresh_env(),
         )
         out = subprocess.run(
             [str(env / "bin" / "mneme"), "--help"],
@@ -101,12 +123,14 @@ def test_dash_m_mneme_help_in_fresh_venv():
     env = _fresh_venv()
     try:
         subprocess.run(
-            [_py(env), "-m", "pip", "install", "--quiet", str(wheel)],
+            [_py(env), "-m", "pip", "install", str(wheel)],
             check=True, capture_output=True,
+            env=_fresh_env(),
         )
         out = subprocess.run(
             [_py(env), "-m", "mneme", "--help"],
             capture_output=True, text=True,
+            env=_fresh_env(),
         )
         assert out.returncode == 0, (
             f"`python3 -m mneme --help` failed (rc={out.returncode}); "
@@ -126,13 +150,15 @@ def test_init_then_lint_in_fresh_venv(tmp_path):
     bundle = tmp_path / "wiki"
     try:
         subprocess.run(
-            [_py(env), "-m", "pip", "install", "--quiet", str(wheel)],
+            [_py(env), "-m", "pip", "install", str(wheel)],
             check=True, capture_output=True,
+            env=_fresh_env(),
         )
         rc_init = subprocess.run(
             [str(env / "bin" / "mneme"), "init", str(bundle),
              "--config", str(cfg)],
             capture_output=True, text=True,
+            env=_fresh_env(),
         )
         assert rc_init.returncode == 0, rc_init.stderr
         assert bundle.is_dir()
@@ -145,6 +171,7 @@ def test_init_then_lint_in_fresh_venv(tmp_path):
         rc_lint = subprocess.run(
             [str(env / "bin" / "mneme"), "lint", str(bundle)],
             capture_output=True, text=True,
+            env=_fresh_env(),
         )
         # v0.6.1: find_orphans runs as part of lint. Empty bundle
         # has no concepts, so no orphans fire; lint exits 3 (signal)

@@ -25,35 +25,45 @@ ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT = ROOT / "pyproject.toml"
 SKILL_DIR = ROOT / "skills" / "mneme"
 SKILL_MD = SKILL_DIR / "SKILL.md"
-SKILL_CN_MD = SKILL_DIR / "SKILL cn.md"
 SCRIPTS_PKG = SKILL_DIR / "scripts" / "mneme"
 SCRIPTS_SHIM = SKILL_DIR / "scripts" / "mneme.py"
 REFERENCES_DIR = SKILL_DIR / "references"
 
 
 # ---------------------------------------------------------------------------
-# §3.1 — wheel artifacts gone
+# §3.1 — wheel artifacts present (dist/ is back for v1.1.x hybrid delivery)
 # ---------------------------------------------------------------------------
 
-def test_no_dist_directory_after_1_1():
-    """dist/ must not exist on disk in v1.1.0+. wheel builds are gone."""
-    assert not (ROOT / "dist").exists(), (
-        "v1.1.0 stopped shipping wheels; dist/ should not exist. "
-        "Run `rm -rf dist/` and update .gitignore if needed."
+def test_dist_directory_with_wheel_present():
+    """dist/ contains the built wheel after `python -m build --wheel`.
+
+    v1.1.x ships BOTH skill.sh (primary) AND a pip-installable wheel
+    (for users who prefer the standard Python install path). The wheel
+    is built into dist/ and CI keeps it fresh.
+    """
+    assert (ROOT / "dist").is_dir(), (
+        "v1.1.x publishes a wheel; dist/ should exist after build."
+    )
+    wheels = list((ROOT / "dist").glob("mneme-*-py3-none-any.whl"))
+    assert wheels, (
+        "dist/ exists but contains no mneme-*-py3-none-any.whl. "
+        "Run `python -m build --wheel`."
     )
 
 
-def test_no_egg_info_directory():
-    """*.egg-info/ must not exist. setuptools no longer runs."""
-    for path in ROOT.rglob("*.egg-info"):
-        if path.is_dir():
-            pytest.fail(f"v1.1.0 stopped setuptools builds; {path} still exists")
+def test_wheel_filename_matches_pyproject_version():
+    """The wheel filename must match pyproject.toml's `version = "..."`.
 
-
-def test_no_build_directory():
-    """build/ (setuptools build tree) must not exist."""
-    assert not (ROOT / "build").exists(), (
-        "v1.1.0 stopped setuptools builds; build/ should not exist."
+    Filename and version drift is the #1 release-prep bug in this repo
+    (1.0 readiness §"Install-to-query"). This test catches it.
+    """
+    pyproject_v = _pyproject_version()
+    wheels = list((ROOT / "dist").glob("mneme-*-py3-none-any.whl"))
+    assert wheels, "no wheel found in dist/"
+    latest = max(wheels, key=lambda p: p.name)
+    assert pyproject_v in latest.name, (
+        f"latest wheel {latest.name} does not match pyproject.toml "
+        f"version {pyproject_v!r}"
     )
 
 
@@ -66,40 +76,74 @@ def test_no_src_mneme_directory():
 
 
 # ---------------------------------------------------------------------------
-# §3.2 — pyproject.toml cleanup
+# §3.2 — pyproject.toml hybrid setup (wheel + zero-dep core)
 # ---------------------------------------------------------------------------
 
 def _pyproject_text() -> str:
     return PYPROJECT.read_text(encoding="utf-8")
 
 
-def test_pyproject_no_project_scripts():
-    """[project.scripts] is gone — no console-script entry point."""
+def _pyproject_version() -> str:
+    m = re.search(r'^version\s*=\s*"([^"]+)"', _pyproject_text(), re.MULTILINE)
+    assert m, "could not find `version = ...` in pyproject.toml"
+    return m.group(1)
+
+
+def test_pyproject_has_project_scripts():
+    """[project.scripts] exposes the `mneme` console command for pip installs."""
     text = _pyproject_text()
-    assert "[project.scripts]" not in text, (
-        "v1.1.0 dropped the `mneme` console command; "
-        "[project.scripts] should be removed from pyproject.toml."
+    assert "[project.scripts]" in text, (
+        "v1.1.x hybrid delivery needs the `mneme` console command; "
+        "[project.scripts] should declare `mneme = mneme.cli:main`."
     )
-    assert "mneme = " not in text or "mneme = " not in re.findall(
-        r"^[a-zA-Z_]\w*\s*=", text, re.MULTILINE
-    ), "no `mneme = ...` console-script mapping expected"
+    assert re.search(
+        r'^mneme\s*=\s*"mneme\.cli:main"', text, re.MULTILINE
+    ), "expected `mneme = \"mneme.cli:main\"` console-script mapping"
 
 
-def test_pyproject_no_build_system():
-    """[build-system] is gone — no wheel build."""
+def test_pyproject_has_build_system():
+    """[build-system] is present so `python -m build --wheel` works."""
     text = _pyproject_text()
-    assert "[build-system]" not in text, (
-        "v1.1.0 stopped building wheels; [build-system] should be removed."
+    assert "[build-system]" in text, (
+        "v1.1.x publishes a wheel; [build-system] is required."
+    )
+    assert "setuptools" in text and "wheel" in text, (
+        "[build-system] requires should include setuptools and wheel"
     )
 
 
-def test_pyproject_no_setuptools_config():
-    """All [tool.setuptools.*] config is gone."""
+def test_pyproject_setuptools_config_points_at_skills_dir():
+    """[tool.setuptools.packages.find] points at the skill-first layout."""
     text = _pyproject_text()
-    assert "[tool.setuptools" not in text, (
-        "v1.1.0 stopped using setuptools; "
-        "[tool.setuptools.packages.find] and [tool.setuptools.package-data] "
-        "should be removed from pyproject.toml."
+    assert "[tool.setuptools" in text, (
+        "v1.1.x needs [tool.setuptools.packages.find] to discover the package "
+        "at skills/mneme/scripts/mneme/."
+    )
+    # Confirm `where` points at the skill-first directory.
+    m = re.search(
+        r'\[tool\.setuptools\.packages\.find\]\s*\nwhere\s*=\s*\[([^\]]+)\]',
+        text, re.MULTILINE,
+    )
+    assert m, "could not find `where = [...]` in [tool.setuptools.packages.find]"
+    wheres = m.group(1)
+    assert "skills/mneme/scripts" in wheres, (
+        f"[tool.setuptools.packages.find] should point at "
+        f"skills/mneme/scripts; got {wheres!r}"
+    )
+
+
+def test_pyproject_dependencies_empty():
+    """[project].dependencies is empty (zero hard deps for OKF core)."""
+    text = _pyproject_text()
+    m = re.search(
+        r'^dependencies\s*=\s*\[(.*?)\]',
+        text, re.MULTILINE | re.DOTALL,
+    )
+    assert m, "could not find `dependencies = [...]` in pyproject.toml"
+    body = m.group(1).strip()
+    assert body == "", (
+        f"[project].dependencies must be empty for zero-dep OKF core; "
+        f"got {body!r}"
     )
 
 
@@ -134,9 +178,9 @@ def test_skills_mneme_scripts_layout():
         SCRIPTS_PKG / "validate_okf.py",
         SCRIPTS_PKG / "config.py",
         SCRIPTS_PKG / "tools_helpers.py",
-        # toml_writer.py and lazy_index.py land in PR2; tested there.
+        SCRIPTS_PKG / "toml_writer.py",
+        SCRIPTS_PKG / "lazy_index.py",
         SKILL_MD,
-        SKILL_CN_MD,
         REFERENCES_DIR / "workflow-ingest.md",
         REFERENCES_DIR / "workflow-query.md",
         REFERENCES_DIR / "workflow-lint.md",
@@ -146,7 +190,7 @@ def test_skills_mneme_scripts_layout():
     ]
     missing = [p for p in expected_files if not p.exists()]
     assert not missing, (
-        f"v1.1.0 skill layout is missing files:\n"
+        f"v1.1.x skill layout is missing files:\n"
         + "\n".join(f"  - {p}" for p in missing)
     )
 
@@ -172,24 +216,24 @@ def test_skills_mneme_scripts_importable_as_module():
 # §3.4 — SKILL.md path convergence
 # ---------------------------------------------------------------------------
 
-_SKILL_FILES = (SKILL_MD, SKILL_CN_MD)
+_SKILL_FILES = (SKILL_MD,)
 
 
-def test_skill_md_no_mneme_console_command():
-    """SKILL.md does NOT teach `mneme init` etc. as a console command.
-
-    Replaced with the skill.sh path:
-    `python3 ~/.claude/skills/mneme/scripts/mneme.py <subcmd>`
+def test_skill_md_documents_both_delivery_paths():
+    """SKILL.md mentions BOTH the `mneme` console command (pip install)
+    AND the skill.sh path (skill-first delivery). The two paths are
+    interchangeable for the user; SKILL.md should make that explicit.
     """
-    for path in _SKILL_FILES:
-        text = path.read_text(encoding="utf-8")
-        # Look for "mneme <subcmd>" patterns (e.g. "mneme init", "mneme reindex").
-        # Exclude legitimate mentions inside the skill.sh path itself.
-        offending = re.findall(r"\b(mneme\s+(?:init|reindex|search|lint|install))\b", text)
-        assert not offending, (
-            f"{path} still references the dropped console command: "
-            f"{set(offending)!r}. Replace with the skill.sh shim path."
-        )
+    text = SKILL_MD.read_text(encoding="utf-8")
+    assert "~/.claude/skills/mneme/scripts/mneme.py" in text, (
+        "SKILL.md is missing the skill.sh shim path; the skill-first "
+        "delivery needs it for users who didn't pip install."
+    )
+    # The console command is mentioned in the L2 lazy-install note.
+    assert "mneme[index]" in text, (
+        "SKILL.md should mention `pip install 'mneme[index]'` as the "
+        "offline fallback for L2 lazy install."
+    )
 
 
 def test_skill_md_uses_skill_relative_paths():

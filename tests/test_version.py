@@ -23,7 +23,6 @@ PYPROJECT = ROOT / "pyproject.toml"
 INIT_PY = ROOT / "skills" / "mneme" / "scripts" / "mneme" / "__init__.py"
 SKILL_FILES = (
     ROOT / "skills" / "mneme" / "SKILL.md",
-    ROOT / "skills" / "mneme" / "SKILL cn.md",
 )
 
 

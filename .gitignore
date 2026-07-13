@@ -34,6 +34,9 @@ wiki/**/viz.html
 dist/
 build/
 
+# Per-test ephemeral scratch (e.g. fresh venv for entrypoint tests).
+.pytest-tmp/
+
 # Derived L2 index dirs (sqlite-vec + fastembed); '*.mneme/' matches
 # '.mneme/' at any depth (gitignore '*' can match empty path segments).
 *.mneme/

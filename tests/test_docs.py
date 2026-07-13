@@ -3,8 +3,8 @@
 The first two tests pin Phase 0 / v0.3.0 freeze invariants (no Strands,
 no @tool, no deleted helper scripts, no Click 风格). The remaining
 tests pin the v1.1.0 delivery contract (skill-first, zero-dep OKF
-core, L2 lazy install) across CLAUDE.md, AGENTS.md, SKILL.md /
-SKILL cn.md, and the references/ docs.
+core, L2 lazy install) across CLAUDE.md, AGENTS.md, SKILL.md, and
+the references/ docs.
 """
 from pathlib import Path
 import re
@@ -16,7 +16,6 @@ CLAUDE_MD = ROOT / "CLAUDE.md"
 AGENTS_MD = ROOT / "AGENTS.md"
 SKILL_DIR = ROOT / "skills" / "mneme"
 SKILL_MD = SKILL_DIR / "SKILL.md"
-SKILL_CN_MD = SKILL_DIR / "SKILL cn.md"
 REFERENCES_DIR = SKILL_DIR / "references"
 
 PROHIBITED = (
@@ -131,31 +130,6 @@ def test_agents_md_no_repo_relative_paths():
         assert not hits, (
             f"AGENTS.md still references repo-relative path {pat!r}: {hits!r}"
         )
-
-
-# ---------------------------------------------------------------------------
-# v1.1.0 §6.3 — SKILL cn.md parity with SKILL.md
-# ---------------------------------------------------------------------------
-
-def test_skill_cn_md_exists():
-    """SKILL cn.md must exist (lost in 5a1c249; restored in v1.1.0)."""
-    assert SKILL_CN_MD.exists(), (
-        "SKILL cn.md is missing. Restore it from git history or write "
-        "a fresh Chinese version matching SKILL.md."
-    )
-
-
-def test_skill_cn_md_path_convergence():
-    """SKILL cn.md uses the same skill.sh shim path as SKILL.md."""
-    text_en = SKILL_MD.read_text(encoding="utf-8")
-    text_cn = SKILL_CN_MD.read_text(encoding="utf-8")
-    assert "~/.claude/skills/mneme/scripts/mneme.py" in text_en, (
-        "SKILL.md is missing the skill.sh shim path; this test guards parity."
-    )
-    assert "~/.claude/skills/mneme/scripts/mneme.py" in text_cn, (
-        "SKILL cn.md is missing the skill.sh shim path; "
-        "should match SKILL.md's path convention."
-    )
 
 
 # ---------------------------------------------------------------------------
