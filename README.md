@@ -9,11 +9,11 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-6f42c1.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.1.0-0f766e.svg)](CHANGELOG.md)
 [![OKF](https://img.shields.io/badge/OKF-v0.1-2563eb.svg)](.research/upstream/OKF-SPEC.md)
-[![Skills.sh](https://img.shields.io/badge/skills.sh-mneme-111827.svg)](https://skills.sh/?q=mneme)
+[![skills.sh](https://skills.sh/b/Scott1743/mneme)](https://skills.sh/Scott1743/mneme)
 [![Python](https://img.shields.io/badge/python-%E2%89%A53.10-3776ab.svg)](pyproject.toml)
 [![Zero--dep core](https://img.shields.io/badge/OKF_core-zero_deps-22c55e.svg)](#-零依赖-okf-核心)
 
-[`npx skills add Scott1743/mneme`](https://skills.sh) · [`pip install mneme`](https://pypi.org/project/mneme/) · [`OKF v0.1 spec`](.research/upstream/OKF-SPEC.md)
+[`npx skills add Scott1743/mneme`](https://skills.sh/Scott1743/mneme) · [`pip install mneme`](https://pypi.org/project/mneme/) · [`OKF v0.1 spec`](.research/upstream/OKF-SPEC.md)
 
 </div>
 
