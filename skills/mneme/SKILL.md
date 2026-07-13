@@ -1,7 +1,7 @@
 ---
 name: mneme
-version: 1.1.0
-description: "Maintain and search a local, OKF-conformant LLM knowledge wiki of research/learning notes. Use when the user wants to ingest a source, search or query the wiki, lint it, reindex it, or initialize a wiki. Triggers: 'mneme', 'my wiki', 'search my wiki', 'ingest this', 'query my notes', 'lint the wiki', 'knowledge base', '查 wiki', '搜索知识库', '摄入笔记', '知识库'. v1.1.0 ships skill-first delivery (skill.sh), zero-dep OKF core, and lazy L2 install on first search/reindex. Dream (scheduled auto-curation) is intentionally absent — see CHANGELOG for the freeze context."
+version: 2.0.0
+description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki. Use when the user wants to dream (capture knowledge) or search (recall it). Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', '查 wiki', '搜索知识库', '梦', '记住这个'. v2.0 ships skill-first delivery, OKF + tags writer rule, sqlite3 + FTS5 default, and `mneme dream` as a read-only audit CLI; L2 (sqlite-vec + FastEmbed) is deferred to v2.1."
 allowed-tools:
   - Read
   - Write
