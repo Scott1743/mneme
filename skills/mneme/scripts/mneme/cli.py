@@ -69,35 +69,40 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 
 def cmd_reindex(args: argparse.Namespace) -> int:
+    """v2.0 reindex: rebuild the L1 (sqlite3 + FTS5) index.
+
+    Walks ``*.md`` under the bundle (excluding ``.mneme/``, ``sources/``,
+    and ``external-sources/``), parses each page's frontmatter, and writes
+    one ``pages`` row + ``pages_fts`` insertion per page via Task 3's
+    atomic snapshot rebuild. L2 (sqlite-vec + FastEmbed) is deferred to
+    v2.1 — no auto-install, no surprise network calls.
+    """
     bundle = _resolve_bundle(args)
     if bundle is None:
         print("no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init", file=sys.stderr)
         return 1
-    try:
-        from . import indexlib
+    from . import indexlib
 
-        result = indexlib.reindex_bundle(str(bundle), indexlib.default_embed_fn())
-    except ImportError as exc:
-        # L2 deps (sqlite-vec + fastembed) are NOT bundled with the skill.
-        # OKF core stays zero-dep; L2 is opt-in. Tell the user plainly
-        # what to install — no auto-install, no surprise network calls.
-        print(
-            "L2 indexing needs sqlite-vec + fastembed, which are not part "
-            "of the skill bundle.\n"
-            "Install them once with:\n"
-            "  pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'\n"
-            f"(then re-run this command)\n\n"
-            f"Underlying error: {exc}",
-            file=sys.stderr,
-        )
-        return 1
+    bundle = Path(bundle)
+    paths: list[Path] = []
+    for p in sorted(bundle.rglob("*.md")):
+        if not p.is_file():
+            continue
+        parts = p.relative_to(bundle).parts
+        if any(part == ".mneme" for part in parts):
+            continue
+        if "sources" in parts:
+            continue
+        if "external-sources" in parts:
+            continue
+        paths.append(p)
+
+    try:
+        indexed = indexlib.reindex_paths(paths, bundle)
     except Exception as exc:
         print(f"reindex failed: {exc}", file=sys.stderr)
         return 1
-    print(
-        f"indexed {result.indexed_concepts} concepts / {result.indexed_chunks} chunks "
-        f"({result.skipped_concepts} skipped) into {result.db_path}"
-    )
+    print(f"indexed {indexed} page(s) into {bundle / '.mneme' / 'index.db'}")
     return 0
 
 

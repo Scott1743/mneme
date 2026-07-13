@@ -19,16 +19,22 @@ def test_init_scaffolds_bundle_and_config(tmp_path):
     assert f'bundle_path = "{bundle}"' in cfg.read_text()
 
 
-def test_reindex_reports_structured_counts(tmp_path, monkeypatch, capsys):
+def test_reindex_reports_indexed_page_count(tmp_path, monkeypatch, capsys):
+    """v2.0 `mneme reindex` runs Task 3's `reindex_paths` (FTS5).
+
+    Stdout shape: ``indexed N page(s) into <bundle>/.mneme/index.db``.
+    The v1.1.0 "concepts/chunks/skipped" framing does NOT exist in v2.0
+    — L2 (sqlite-vec + FastEmbed) is deferred to v2.1.
+    """
     cfg = tmp_path / "config.toml"
     bundle = tmp_path / "wiki"
     bundle.mkdir()
     cfg.write_text(f'bundle_path = "{bundle}"\n')
-    result = indexlib.ReindexResult(2, 4, 1, bundle / ".mneme" / "index.db")
-    monkeypatch.setattr(indexlib, "default_embed_fn", lambda: object())
-    monkeypatch.setattr(indexlib, "reindex_bundle", lambda *_args, **_kwargs: result)
+    monkeypatch.setattr(indexlib, "reindex_paths", lambda paths, b: 4)
     assert mneme.main(["reindex", "--config", str(cfg)]) == 0
-    assert "2 concepts / 4 chunks (1 skipped)" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "indexed 4 page(s)" in out
+    assert str(bundle / ".mneme" / "index.db") in out
 
 
 def _search_candidate(query):
