@@ -17,6 +17,12 @@
 
 </div>
 
+<div align="center">
+
+📖 完整图文介绍页：**[https://scott1743.github.io/mneme/introduction/](https://scott1743.github.io/mneme/introduction/)**（产品初衷 + 安装 + 原理）
+
+</div>
+
 ---
 
 ## ✨ 为什么选择 Mneme？

@@ -1,0 +1,59 @@
+name: Pages
+
+on:
+  # 只在 main 分支上、且 introduction/ 目录或其下的文件有变化时触发。
+  # 避免每条无关 commit 多跑一次部署。
+  push:
+    branches: [main]
+    paths: ['introduction/**']
+  # 允许从 Actions UI 手动触发一次再发布。
+  workflow_dispatch:
+
+# Pages 部署需要的三条权限：
+#   contents:read   — 检出仓库
+#   pages:write     — 写入 github-pages environment
+#   id-token:write  — OIDC 给 actions/deploy-pages 用来签发部署凭据
+# （fork PR 上 id-token 与 pages 权限会被 GitHub 默认禁用，所以只监听 main push。）
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一 group 内串行化；不要 cancel-in-progress:true，否则会让一个部署中途被下一个砍掉。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # introduction/ 目录直接作为 Pages artifact 部署；
+          # 其下的 index.html 会成为 https://&lt;owner&gt;.github.io/&lt;repo&gt;/introduction/ 的入口。
+          path: introduction
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+# --- first-time setup ---------------------------------------------------------
+# This workflow requires GitHub Pages to be enabled for the repo with
+# Source = "GitHub Actions". The setting lives at:
+#   Repo Settings → Pages → Build and deployment → Source = GitHub Actions
+#
+# Without that one-time toggle the first `Deploy to GitHub Pages` step
+# will report `404 Not Found` for the `github-pages` environment.
+# After the environment exists, subsequent runs need no manual touch.
+# ---------------------------------------------------------------------------

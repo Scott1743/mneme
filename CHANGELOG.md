@@ -7,6 +7,17 @@ with one caveat: **1.0.0 is a release-contract gate, not a feature gate.**
 Versions below 1.0.0 may carry partial behavior; consult `docs/superpowers/`
 for in-flight specs and plans.
 
+## [Unreleased]
+
+### Added
+
+- GitHub Pages 介绍页（`introduction/index.html` + `.github/workflows/pages.yml`），
+  自动部署到 https://scott1743.github.io/mneme/introduction/。
+  单文件、内联 CSS、无外部 CDN、含中英混排（Forest/塔罗树洞 朋友项目互链沿用
+  sibling README 的保守措辞）。
+- `tests/test_introduction_page.py` 作为介绍页的 release-gate：结构 + 锚点 +
+  互链白名单 + CDN 守门四件套（gstack plan-eng-review 升级后的形态）。
+
 ## [1.1.0] — 2026-07-13 — skill-first delivery + zero-dep OKF core + L2 lazy install
 
 Closes the v1.0 readiness assessment's
