@@ -225,7 +225,21 @@ def cmd_search(args: argparse.Namespace) -> int:
 
 
 def cmd_lint(args: argparse.Namespace) -> int:
-    """Validate one bundle; exit 1 only when OKF ERROR diagnostics exist."""
+    """Validate one bundle; exit 1 only when OKF ERROR diagnostics exist.
+
+    Pipeline (Task 5 — see
+    docs/superpowers/plans/2026-07-13-mneme-2.0-implementation.md):
+      1. :func:`okflib.lint_bundle` — wraps :func:`okflib.validate_bundle`
+         and appends MNEME-TAG-MISSING for concept pages lacking
+         ``tags``. The base OKF validator is *not* reimplemented; the
+         wrapper only translates its ``Report`` into flat diagnostics.
+      2. :func:`okflib.find_orphans` — orphan analysis (always printed).
+
+    Exit codes (frozen by Pre-Task B):
+      0 — no ERROR diagnostics (WARN-only bundles exit 0).
+      1 — at least one ERROR diagnostic, OR the bundle could not be
+          resolved.
+    """
     explicit = getattr(args, "path", None)
     if explicit:
         args = argparse.Namespace(
@@ -237,16 +251,29 @@ def cmd_lint(args: argparse.Namespace) -> int:
         print("no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init", file=sys.stderr)
         return 1
 
-    from .validate_okf import print_report, validate_bundle
-
-    rc = print_report(validate_bundle(bundle))
     from . import okflib
+
+    report = okflib.lint_bundle(bundle, require_tags=True)
+    diagnostics = report.get("diagnostics", [])
+
+    errors_count = 0
+    warnings_count = 0
+    for d in diagnostics:
+        # Same `{SEVERITY}  {path}: [{rule}] {detail}` shape as
+        # `validate_okf.print_report` so existing log parsers
+        # (test_e2e_lint._parse_report etc.) keep working.
+        if d["severity"] == "ERROR":
+            errors_count += 1
+        else:
+            warnings_count += 1
+        print(f"{d['severity']}  {d['path']}: [{d['code']}] {d['detail']}")
+    print(f"\n{errors_count} error(s), {warnings_count} warning(s)")
 
     orphans = okflib.find_orphans(bundle)
     print(f"\norphan concept pages ({len(orphans)}):", file=sys.stderr)
     for slug in orphans:
         print(f"  - {slug}", file=sys.stderr)
-    return 1 if rc else 0
+    return 1 if errors_count else 0
 
 
 def cmd_dream(args: argparse.Namespace) -> int:

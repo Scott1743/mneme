@@ -579,3 +579,144 @@ def validate_bundle(bundle_path) -> Report:
         )
 
     return report
+
+
+def _has_tags(meta: Dict) -> bool:
+    """Return True when ``meta`` carries a non-empty ``tags`` value.
+
+    OKF §4.1 declares ``tags`` as a recommended frontmatter field;
+    Mneme promotes it to a writer-side rule. We treat the canonical
+    list-of-strings shape (``tags: [a, b]``) as the source of truth,
+    but also accept a non-empty scalar string for hand-written
+    frontmatter that prefers ``tags: knowledge`` over a single-element
+    list. Anything else (None, empty list, empty string) is "no tags".
+    """
+    value = meta.get("tags")
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, list):
+        return any(str(t).strip() for t in value)
+    # Unknown scalar shape (int/bool/etc.). Be lenient: we don't want
+    # `tags: 1` or `tags: yes` to escalate to MNEME-TAG-MISSING when
+    # the producer clearly meant "I have tags".
+    return True
+
+
+def lint_bundle(
+    bundle_path,
+    *,
+    require_tags: bool = True,
+    okf_external: bool = False,
+) -> Dict:
+    """Extend :func:`validate_bundle` with the Mneme ``tags`` writer rule.
+
+    This is a thin wrapper, **not** a reimplementation. It:
+
+    1. Calls ``validate_bundle`` (which already enforces OKF v0.1
+       §3–§9 — frontmatter, ``type`` scalar, reserved files, broken
+       links, and §9 isolation where one bad file does not hide
+       others). That function is intentionally untouched here.
+    2. Translates the base :class:`Report` dataclass into flat dict
+       diagnostics (``{"severity", "code", "path", "detail"}``) so
+       downstream consumers (CLI, JSON, agents) share one shape.
+    3. When ``require_tags=True``, walks the bundle once more and
+       appends a ``MNEME-TAG-MISSING`` diagnostic for every
+       non-reserved, non-``.mneme/``, non-``sources/`` page whose
+       frontmatter lacks a non-empty ``tags`` value. The reserved
+       ``index.md``/``log.md`` and the immutable ``sources/`` carve-
+       out are skipped — same carve-outs as the base validator.
+
+    Severity is chosen per the bundle's provenance:
+
+    * ``okf_external=False`` (default — this is a Mneme-written
+      bundle): ``ERROR``. Cross-page navigation in SKILL.md uses
+      ``tags`` as the primary index; missing tags means the page
+      cannot be retrieved.
+    * ``okf_external=True`` (an external OKF bundle being ingested):
+      ``WARN``. Per OKF §9 tolerance + SPEC §4.1's "recommended"
+      framing, missing optional fields must not reject the bundle.
+
+    OKF §9 isolation is preserved end-to-end: diagnostics are
+    per-file and per-rule, never bundled. A malformed frontmatter on
+    one page does not prevent MNEME-TAG-MISSING from being checked on
+    others — but a page without *any* frontmatter is left to the base
+    validator's ``no-frontmatter`` ERROR (the missing-tags signal is
+    meaningless without a frontmatter block to inspect).
+
+    Returns a dict::
+
+        {"diagnostics": [{"severity": "ERROR" | "WARN",
+                          "code": "<rule id>",
+                          "path": "<bundle-relative .md path>",
+                          "detail": "<human message>"}, ...]}
+    """
+    base = validate_bundle(bundle_path)
+
+    diagnostics: List[Dict[str, str]] = []
+    # Translate the base Report dataclass into flat dicts. Severity
+    # stays upper-case ("ERROR" / "WARN") so downstream consumers and
+    # the CLI's tab-separated output stay compatible with
+    # ``validate_okf.print_report``.
+    for v in base.errors:
+        diagnostics.append(
+            {
+                "severity": "ERROR",
+                "code": v.rule,
+                "path": v.path,
+                "detail": v.detail,
+            }
+        )
+    for v in base.warnings:
+        diagnostics.append(
+            {
+                "severity": "WARN",
+                "code": v.rule,
+                "path": v.path,
+                "detail": v.detail,
+            }
+        )
+
+    if require_tags:
+        root = Path(bundle_path)
+        if root.is_dir():
+            for p in sorted(root.rglob("*.md")):
+                if not p.is_file():
+                    continue
+                parts = p.relative_to(root).parts
+                if any(part == ".mneme" for part in parts):
+                    continue
+                if "sources" in parts:
+                    continue
+                rel = p.relative_to(root).as_posix()
+                if os.path.basename(rel) in RESERVED:
+                    continue
+                text = p.read_text(encoding="utf-8")
+                parsed = parse_frontmatter(text)
+                # No frontmatter at all → let the base validator's
+                # ``no-frontmatter`` ERROR stand alone. Tag-missing is
+                # meaningless without a frontmatter block, and
+                # double-reporting would mask the underlying issue.
+                if parsed is None:
+                    continue
+                meta = parsed[0]
+                if _has_tags(meta):
+                    continue
+                severity = "WARN" if okf_external else "ERROR"
+                detail = (
+                    "Mneme writer rule: concept pages must have ≥1 `tags` value "
+                    "(external OKF bundle — tolerated as WARN)"
+                    if okf_external
+                    else "Mneme writer rule: concept pages must have ≥1 `tags` value"
+                )
+                diagnostics.append(
+                    {
+                        "severity": severity,
+                        "code": "MNEME-TAG-MISSING",
+                        "path": rel,
+                        "detail": detail,
+                    }
+                )
+
+    return {"diagnostics": diagnostics}
