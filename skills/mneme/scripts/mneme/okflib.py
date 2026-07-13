@@ -41,6 +41,17 @@ _LINK_RE = re.compile(r"\]\((/[^\)]+\.md)\)")
 # only the absolute-bundle-relative form.
 _ORPHAN_LINK_RE = re.compile(r"\]\(([^\)]+\.md)\)")
 
+# Directories that contain non-OKF content (raw inputs, immutable
+# citations). Carved out of concept detection, the orphan/inbound
+# analysis, and the OKF frontmatter validator.
+#   sources/            – OKF `Source` pointer pages (with frontmatter)
+#                         or raw snippets (no frontmatter, v1.x).
+#   external-sources/   – immutable raw content referenced by an OKF
+#                         Source pointer's `resource:` field. Always
+#                         no frontmatter. Lives alongside (not outside)
+#                         the bundle directory for portability.
+_CARVE_OUT_DIRS = ("sources", "external-sources")
+
 # OKF §4.1 — `type` is `<Type name>` (scalar). Producer vocab is not
 # centralized (per OKF §9 tolerance); we recognize the four most common
 # values and warn on anything else.
@@ -206,7 +217,7 @@ def list_concepts(bundle_path) -> List[str]:
         parts = p.relative_to(root).parts
         if any(part == ".mneme" for part in parts):
             continue
-        if "sources" in parts:
+        if any(part in _CARVE_OUT_DIRS for part in parts):
             continue
         rel = p.relative_to(root).as_posix()
         if os.path.basename(rel) in RESERVED:
@@ -242,7 +253,7 @@ def _referenced_targets(bundle_path) -> set:
         parts = p.relative_to(root).parts
         if any(part == ".mneme" for part in parts):
             continue
-        if "sources" in parts:
+        if any(part in _CARVE_OUT_DIRS for part in parts):
             continue
         text = p.read_text(encoding="utf-8")
         for m in _ORPHAN_LINK_RE.finditer(text):
@@ -563,7 +574,11 @@ def validate_bundle(bundle_path) -> Report:
         # Raw sources under sources/ are immutable inputs. They MUST NOT
         # have OKF frontmatter (they predate distillation) and the
         # validator must not flag them as concept violations.
-        if "sources" in parts:
+        # external-sources/ holds the same kind of raw input, just with
+        # an OKF `Source` pointer page elsewhere in sources/ pointing at
+        # it. Both directories are carved out of OKF frontmatter checks
+        # (see _CARVE_OUT_DIRS).
+        if any(part in _CARVE_OUT_DIRS for part in parts):
             continue
         _validate_concept(rel, text, report)
 
