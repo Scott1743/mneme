@@ -42,3 +42,7 @@ build/
 **/.mneme/
 .mneme/
 *.mneme/
+
+# Local agent worktrees (created by superpowers subagent isolation).
+.claude/
+**/.claude/
