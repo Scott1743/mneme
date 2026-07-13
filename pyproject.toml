@@ -16,5 +16,6 @@ markers = [
     "integration: 跨模块组合,仍进程内 + 无网络(离线,1-3s)",
     "release: 发布门禁 — 版本/漂移(离线,3-10s)",
     "docs: 文档冻结规则(离线,<1s)",
+    "l2: 守护 v2.1 `--l2` opt-in 行为(CLI 表面 + 清晰错误;离线,<1s)",
     "network: 需要访问 HuggingFace 下载模型(在线,30-90s;默认跳过)",
 ]

@@ -9,6 +9,22 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-07-14 — `--l2` opt-in flag for sqlite-vec + FastEmbed + BGE
+
+v2.1 把 v2.0 推迟的 L2（语义召回）作为**显式 opt-in**带回：`mneme reindex --l2` 与 `mneme search --l2` 通过 `--l2` 标志走 v1.x 的 `indexlib.reindex_bundle`（`sqlite-vec` + `FastEmbed` + `BAAI/bge-small-zh-v1.5`）路径。L2 依赖（`sqlite-vec>=0.1.9,<0.2` 与 `fastembed>=0.8.0,<0.9`）**仍然**是用户自装——v2.1 不打包、不自动装、不静默回退 FTS5。FTS5 仍是默认路径；`--l2` 显式打开才会触碰 vec0 + BGE，v2.0 的 L0/L1 零依赖基线**未被破坏**。
+
+### Added
+
+- **`--l2` flag on `reindex` and `search`.** 默认仍然走 FTS5；显式加 `--l2` 才走 `indexlib.reindex_bundle`（vec0 + BGE）。`search --l2` 拒绝在 FTS5-only 索引上静默回退——它检查 `vec_chunks` 表是否存在，缺失则报错并提示先跑 `mneme reindex --l2`。
+- **`sqlite-vec` + `FastEmbed` + `BAAI/bge-small-zh-v1.5` are user-installed.** 缺失时打印一行安装提示（`pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'`）而不是 `ImportError` traceback。
+- **`pytest.mark.l2` marker** —— 守护 v2.1 `--l2` 表面（CLI flag、错误文案），离线可跑。<1s。
+
+### Preserved
+
+- **FTS5 remains default.** v2.0 的 L0/L1 零依赖契约未受影响；`tests/test_zero_dep.py` 全部继续通过。
+- **No auto-install.** skill 不自带任何 `pip install` 动作；与 v2.0 一致。
+- **`dream` 仍然只读审计。** v2.1 不引入新写路径。
+
 ## [2.0.0] — 2026-07-14 — dream + search surface; OKF + tags; L2 deferred to 2.1
 
 v2.0 是 **LLM-Wiki-not-RAG** 的里程碑：把 mneme 的产品叙事从「CLI + 可选 L2 向量检索」收回到「`dream` 写、`search` 读、一座 OKF 合规的本地 Markdown 知识库」。OKF 仍是 wiki 本体的格式契约；L1（SQLite FTS5）取代 1.1.0 的 L2（语义召回）成为默认导航层；语义召回推迟到 v2.1。CLI 仍是 `init / lint / reindex / search / dream`，`dream` 是只读审计、写盘由 agent 在 SKILL.md 工作流里完成。

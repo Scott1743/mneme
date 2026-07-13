@@ -70,13 +70,19 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 
 def cmd_reindex(args: argparse.Namespace) -> int:
-    """v2.0 reindex: rebuild the L1 (sqlite3 + FTS5) index.
+    """v2.1 reindex: rebuild the L1 (sqlite3 + FTS5) index by default;
+    with ``--l2``, rebuild the L2 (sqlite-vec + FastEmbed) index.
 
-    Walks ``*.md`` under the bundle (excluding ``.mneme/``, ``sources/``,
-    and ``external-sources/``), parses each page's frontmatter, and writes
-    one ``pages`` row + ``pages_fts`` insertion per page via Task 3's
-    atomic snapshot rebuild. L2 (sqlite-vec + FastEmbed) is deferred to
-    v2.1 — no auto-install, no surprise network calls.
+    Default path walks ``*.md`` under the bundle (excluding ``.mneme/``,
+    ``sources/``, and ``external-sources/``), parses each page's
+    frontmatter, and writes one ``pages`` row + ``pages_fts`` insertion
+    per page via Task 3's atomic snapshot rebuild.
+
+    The ``--l2`` flag opts into the v1.x L2 path: ``indexlib.reindex_bundle``
+    with the BAAI/bge-small-zh-v1.5 embedder. L2 deps
+    (``sqlite-vec`` + ``fastembed``) are user-installed; we surface a
+    one-line install hint instead of an ImportError traceback when they
+    are missing.
     """
     bundle = _resolve_bundle(args)
     if bundle is None:
@@ -85,6 +91,37 @@ def cmd_reindex(args: argparse.Namespace) -> int:
     from . import indexlib
 
     bundle = Path(bundle)
+    if getattr(args, "l2", False):
+        # v2.1: explicit opt-in L2 path. The legacy `reindex_bundle`
+        # requires sqlite-vec + fastembed; surface a clean one-line
+        # install hint if either is missing instead of an ImportError
+        # traceback.
+        try:
+            embed_fn = indexlib.default_embed_fn()
+        except indexlib.FastEmbedUnavailableError as exc:
+            print(
+                f"reindex --l2 failed: {exc}",
+                file=sys.stderr,
+            )
+            return 1
+        try:
+            result = indexlib.reindex_bundle(bundle, embed_fn)
+        except indexlib.SqliteVecUnavailableError as exc:
+            print(
+                f"reindex --l2 failed: {exc}",
+                file=sys.stderr,
+            )
+            return 1
+        except Exception as exc:
+            print(f"reindex --l2 failed: {exc}", file=sys.stderr)
+            return 1
+        print(
+            f"indexed {result.indexed_concepts} concept(s) / "
+            f"{result.indexed_chunks} chunk(s) into {result.db_path} "
+            f"(L2: {embed_fn.model_name})"
+        )
+        return 0
+
     paths: list[Path] = []
     for p in sorted(bundle.rglob("*.md")):
         if not p.is_file():
@@ -188,7 +225,14 @@ def _make_grep_snippet(body: str, query_lower: str, context: int) -> str:
 
 
 def cmd_search(args: argparse.Namespace) -> int:
-    """v2.0 search: candidates + snippets via FTS5, L0 grep fallback."""
+    """v2.1 search: candidates + snippets via FTS5 by default; with
+    ``--l2``, the legacy L2 (sqlite-vec + FastEmbed) path.
+
+    The ``--l2`` path requires an L2-built index (i.e. ``mneme reindex
+    --l2`` must have been run); if the index is FTS5-only, ``--l2``
+    errors with a clear hint rather than silently falling back. FTS5
+    is the default — ``--l2`` is explicit opt-in.
+    """
     bundle = _resolve_bundle(args)
     if bundle is None:
         print(
@@ -200,7 +244,72 @@ def cmd_search(args: argparse.Namespace) -> int:
     from . import indexlib
 
     db = bundle / ".mneme" / "index.db"
-    if db.is_file():
+
+    if getattr(args, "l2", False):
+        # v2.1: --l2 is explicit opt-in. It must NOT silently fall back
+        # to FTS5 — that would be a foot-gun. Check that an L2-shaped
+        # index exists (vec_chunks table is the L2 sentinel) and error
+        # with a clear remediation if not.
+        if not db.is_file():
+            print(
+                "no index at "
+                f"{db}; --l2 requires an L2-built index. "
+                "Run `mneme reindex --l2` first.",
+                file=sys.stderr,
+            )
+            return 1
+        try:
+            import sqlite3 as _sqlite3
+            with _sqlite3.connect(str(db)) as _conn:
+                _has_vec = _conn.execute(
+                    "SELECT 1 FROM sqlite_master "
+                    "WHERE type='table' AND name='vec_chunks'"
+                ).fetchone()
+        except Exception as exc:
+            print(f"search --l2 failed: {exc}", file=sys.stderr)
+            return 1
+        if not _has_vec:
+            print(
+                f"index at {db} is FTS5-only (no vec_chunks table); "
+                "--l2 requires an L2-built index. "
+                "Run `mneme reindex --l2` first.",
+                file=sys.stderr,
+            )
+            return 1
+        try:
+            hits = indexlib.search_bundle(
+                bundle,
+                args.query,
+                k=args.limit,
+                embed_fn=indexlib.default_embed_fn(),
+            )
+        except indexlib.FastEmbedUnavailableError as exc:
+            print(
+                f"search --l2 failed: {exc}",
+                file=sys.stderr,
+            )
+            return 1
+        except indexlib.SqliteVecUnavailableError as exc:
+            print(
+                f"search --l2 failed: {exc}",
+                file=sys.stderr,
+            )
+            return 1
+        except Exception as exc:
+            print(f"search --l2 failed: {exc}", file=sys.stderr)
+            return 1
+        out = {
+            "query": args.query,
+            "candidates": [
+                {
+                    "path": h.get("path", ""),
+                    "title": h.get("title", ""),
+                    "snippet": h.get("text", ""),
+                }
+                for h in hits
+            ],
+        }
+    elif db.is_file():
         try:
             out = indexlib.search(args.query, db, k=args.limit)
         except Exception as exc:
@@ -511,6 +620,15 @@ def build_parser() -> argparse.ArgumentParser:
     reindex_parser = subparsers.add_parser("reindex", help="rebuild the search index")
     reindex_parser.add_argument("--bundle", dest="bundle", default=None)
     reindex_parser.add_argument("--config", default=None)
+    reindex_parser.add_argument(
+        "--l2",
+        action="store_true",
+        help=(
+            "opt into the L2 (sqlite-vec + FastEmbed + BGE) index path "
+            "instead of the default FTS5 rebuild. Requires "
+            "`pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'`."
+        ),
+    )
     reindex_parser.set_defaults(handler=cmd_reindex)
 
     search_parser = subparsers.add_parser("search", help="return ranked candidates from the index")
@@ -520,6 +638,15 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--bundle", dest="bundle", default=None)
     search_parser.add_argument("--config", default=None)
     search_parser.add_argument("--json", action="store_true")
+    search_parser.add_argument(
+        "--l2",
+        action="store_true",
+        help=(
+            "search via L2 (sqlite-vec + FastEmbed + BGE) instead of FTS5. "
+            "Requires an index built with `mneme reindex --l2`; errors out "
+            "rather than silently falling back to FTS5."
+        ),
+    )
     search_parser.set_defaults(handler=cmd_search)
 
     dream_parser = subparsers.add_parser(
