@@ -230,52 +230,6 @@ def cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_dream(args: argparse.Namespace) -> int:
-    """Read-only dream audit.
-
-    Surfaces a candidate audit report (OKF candidates, Mneme writer-rule
-    candidates, navigation candidates) for the agent to review. Writes
-    happen in the SKILL.md workflow after the user explicitly approves
-    the report — never from this CLI. There is no ``--apply`` flag by
-    design.
-    """
-    from . import dream as _dream
-
-    if getattr(args, "bundle", None):
-        bundle = Path(args.bundle)
-    else:
-        bundle = _resolve_bundle(Path(args.config))
-    if bundle is None:
-        print(
-            "no bundle found; pass --bundle or set MNEME_BUNDLE / "
-            "$config_dir/config.toml [bundle_path], or run `mneme init`",
-            file=sys.stderr,
-        )
-        return 1
-    report = _dream.dream_audit(bundle)
-    if getattr(args, "json", False):
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-    else:
-        # Human-readable summary: counts + candidate rules + paths.
-        meta = report.get("_meta", {})
-        candidates = meta.get("candidate_count", 0)
-        print(f"dream audit (read-only) — {candidates} candidate page(s)")
-        print(f"  raw_distance_only: {meta.get('raw_distance_only')}")
-        print(f"  writes: {meta.get('writes')}")
-        for section in ("okf_hard_rules", "mneme_writer_rules"):
-            items = report.get(section, [])
-            if not items:
-                continue
-            print(f"  {section}:")
-            for it in items:
-                print(f"    - {it['path']}: [{it['rule']}]")
-        nav = report.get("navigation", {})
-        for k, v in nav.items():
-            if v:
-                print(f"  navigation.{k}: {len(v)}")
-    return 0
-
-
 def cmd_lint(args: argparse.Namespace) -> int:
     """Validate one bundle; exit 1 only when OKF ERROR diagnostics exist.
 
