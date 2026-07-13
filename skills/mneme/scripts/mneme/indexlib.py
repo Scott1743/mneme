@@ -97,6 +97,48 @@ def open_index(db_path, *, require_vector: bool = False) -> sqlite3.Connection:
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
+    """Create the v2.0 L1 schema (pages + pages_fts with `body`) and the
+    legacy v1.x L2 schema (chunks + meta) for backward compatibility.
+
+    The L1 schema is the new zero-dep FTS5-backed full-text index that
+    `reindex_paths` populates. The L2 schema is left in place so the
+    v1.x reindex_bundle / search_bundle paths keep working until the
+    later tasks remove them outright.
+    """
+    # v2.0 L1 — zero-dep FTS5 with a populated `body` column.
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS pages (
+            id INTEGER PRIMARY KEY,
+            path TEXT UNIQUE NOT NULL,
+            type TEXT,
+            title TEXT,
+            description TEXT,
+            tags TEXT,
+            mtime REAL,
+            body TEXT
+        );
+        CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
+            title, description, tags, body,
+            content='pages', content_rowid='id'
+        );
+        CREATE TRIGGER IF NOT EXISTS pages_ai AFTER INSERT ON pages BEGIN
+            INSERT INTO pages_fts(rowid, title, description, tags, body)
+            VALUES (new.id, new.title, new.description, new.tags, new.body);
+        END;
+        CREATE TRIGGER IF NOT EXISTS pages_ad AFTER DELETE ON pages BEGIN
+            INSERT INTO pages_fts(pages_fts, rowid, title, description, tags, body)
+            VALUES('delete', old.id, old.title, old.description, old.tags, old.body);
+        END;
+        CREATE TRIGGER IF NOT EXISTS pages_au AFTER UPDATE ON pages BEGIN
+            INSERT INTO pages_fts(pages_fts, rowid, title, description, tags, body)
+            VALUES('delete', old.id, old.title, old.description, old.tags, old.body);
+            INSERT INTO pages_fts(rowid, title, description, tags, body)
+            VALUES (new.id, new.title, new.description, new.tags, new.body);
+        END;
+        """
+    )
+    # v1.x L2 legacy — chunks + meta (preserved for reindex_bundle).
     conn.execute(
         "CREATE TABLE IF NOT EXISTS chunks ("
         "chunk_id INTEGER PRIMARY KEY, concept_id TEXT, path TEXT, title TEXT, "
@@ -445,3 +487,89 @@ def search_bundle(
         return search(conn, query, k, embedder, concept_type=concept_type)
     finally:
         conn.close()
+
+
+def reindex_paths(paths, bundle) -> int:
+    """Atomic snapshot rebuild of the v2.0 L1 (FTS5) index for `paths`.
+
+    Writes the new index into ``<bundle>/.mneme/index.db.tmp``, fsyncs
+    it, then ``os.replace``s it into the live ``index.db`` path. A
+    crash mid-build never leaves the live db torn — the temp file is
+    unlinked on any error and the previous live db (if any) stays in
+    place untouched.
+
+    Each input path is parsed with :func:`mneme.okflib.parse_frontmatter`
+    so the frontmatter dict and body come from a single, well-tested
+    source. Pages with no parseable frontmatter are skipped (OKF §9:
+    one bad file must not invalidate the rest).
+
+    Pure stdlib + sqlite3 + FTS5. v2.0 has no L2 — this function does
+    not import ``sqlite_vec`` or ``fastembed``.
+
+    Returns the number of pages actually written to the index.
+    """
+    from . import okflib
+
+    root = Path(bundle)
+    live_path = root / ".mneme" / "index.db"
+    live_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = live_path.with_name(f"{live_path.name}.tmp")
+    _remove_sqlite_sidecars(temp_path)
+    indexed = 0
+    conn = None
+    try:
+        conn = sqlite3.connect(str(temp_path))
+        ensure_schema(conn)
+        for path in paths:
+            try:
+                text = path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            parsed = okflib.parse_frontmatter(text)
+            if parsed is None:
+                # No frontmatter block — OKF §9 tolerance, skip silently.
+                continue
+            meta, body = parsed
+            try:
+                rel = path.relative_to(root).as_posix()
+            except ValueError:
+                # Path outside bundle — skip; OKF §9 one-bad-file isolation.
+                continue
+            tags = meta.get("tags", [])
+            # okflib's lenient parser returns tags as a list when written
+            # like `tags: [a, b]`; the column is a string for portability.
+            if isinstance(tags, list):
+                tags_str = ",".join(str(t) for t in tags)
+            else:
+                tags_str = str(tags) if tags is not None else ""
+            try:
+                mtime = path.stat().st_mtime
+            except OSError:
+                mtime = 0.0
+            conn.execute(
+                "INSERT OR REPLACE INTO pages("
+                "path, type, title, description, tags, mtime, body"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    rel,
+                    str(meta.get("type", "") or ""),
+                    str(meta.get("title", "") or ""),
+                    str(meta.get("description", "") or ""),
+                    tags_str,
+                    mtime,
+                    body,
+                ),
+            )
+            indexed += 1
+        conn.commit()
+        conn.close()
+        conn = None
+        with temp_path.open("rb") as handle:
+            os.fsync(handle.fileno())
+        os.replace(temp_path, live_path)
+    except Exception:
+        if conn is not None:
+            conn.close()
+        _remove_sqlite_sidecars(temp_path)
+        raise
+    return indexed
