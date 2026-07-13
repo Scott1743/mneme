@@ -9,6 +9,7 @@ mneme config round-trip with stdlib only.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Any, Mapping
@@ -24,6 +25,16 @@ import tomllib as _toml_read  # type: ignore[import-not-found]
 
 # In-house hand-rolled writer (replaces tomli_w as of v1.1.0).
 from . import toml_writer as _toml_write  # noqa: E402
+
+
+def resolve_config_dir(*, env: Mapping[str, str] | None = None) -> Path:
+    """Return ``MNEME_CONFIG_DIR`` or the default ``~/.config/mneme``."""
+    environment = os.environ if env is None else env
+    configured = environment.get("MNEME_CONFIG_DIR")
+    if configured:
+        return Path(configured)
+    home = environment.get("HOME")
+    return (Path(home) if home else Path.home()) / ".config" / "mneme"
 
 
 def read_config(path: Path) -> dict:

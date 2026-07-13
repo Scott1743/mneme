@@ -115,36 +115,29 @@ def test_usage_errors_return_2():
     assert mneme.main(["search", "x", "-k", "0"]) == 2
 
 
-def test_cli_no_dream_subcommand():
-    """Phase 0 freeze §3.1: the dream workflow is removed in v0.3.0. Calling
-    `mneme dream <bundle>` must surface argparse's 'invalid choice' usage
-    error (exit code 2). A passing test here means dream is NOT registered.
+def test_cli_no_apply_flag_on_dream():
+    """Pre-Task B frozen contract: `mneme dream` is read-only audit and
+    never exposes a write flag.  Calling `mneme dream` always exits 0.
     """
-    assert mneme.main(["dream", "wiki"]) == 2
+    assert mneme.main(["dream", "--bundle", "/nonexistent"]) == 0
 
 
 def test_cli_lint_runs_find_orphans(tmp_path, capsys):
-    """v0.6.1: `mneme lint <bundle>` runs the OKF validator AND
-    the `find_orphans` primitive. The fixture bundle has one
-    concept with no inbound edge, so find_orphans lights up.
-    The v0.3.0 freeze's "find_orphans not yet implemented"
-    guard message must NOT appear — that's the regression this
-    test guards against.
+    """Pre-Task B: `mneme lint --bundle <path>` runs the OKF validator
+    and the `find_orphans` primitive. The fixture bundle has one
+    concept with no inbound edge, so find_orphans surfaces a real
+    orphan section. Lint exits 0 when the bundle has no OKF errors.
     """
     bundle = tmp_path / "wiki"
     bundle.mkdir()
     (bundle / "index.md").write_text('---\nokf_version: "0.1"\n---\n\n# Test\n')
     (bundle / "concepts").mkdir()
     (bundle / "concepts" / "a.md").write_text(
-        '---\ntype: Concept\ntitle: A\n---\n\nbody\n'
+        '---\ntype: Concept\ntitle: A\ntags: [a]\n---\n\nbody\n'
     )
-    rc = mneme.main(["lint", str(bundle)])
+    rc = mneme.main(["lint", "--bundle", str(bundle)])
     captured = capsys.readouterr()
-    assert rc != 0
-    assert rc != 2, (
-        "argparse rejected 'lint' as 'invalid choice' — subcommand is "
-        "not registered."
-    )
+    assert rc == 0
     # The orphan is now surfaced as a real section.
     assert "orphan concept pages" in captured.err
     assert "concepts/a" in captured.err, (

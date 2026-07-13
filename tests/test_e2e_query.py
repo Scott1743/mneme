@@ -187,7 +187,12 @@ def test_search_filter_by_type(reindexed_bundle):
 
 def test_search_without_index_returns_clean_error(tmp_path):
     """When `mneme init` was run but `mneme reindex` wasn't, search
-    returns a friendly error message — does not crash."""
+    returns a friendly error message — does not crash.
+
+    Pre-Task B contract: `MNEME_BUNDLE` is the highest-priority
+    resolver, so this test points the resolver at the bundle via the
+    `MNEME_BUNDLE` env var instead of relying on config lookup.
+    """
     bundle = tmp_path / "wiki"
     cfg = tmp_path / "cfg.toml"
     subprocess.run(
@@ -195,7 +200,12 @@ def test_search_without_index_returns_clean_error(tmp_path):
          "--config", str(cfg)],
         check=True, capture_output=True,
     )
-    r = _search("anything", bundle)
+    env = {**__import__("os").environ, "MNEME_BUNDLE": str(bundle)}
+    r = subprocess.run(
+        [sys.executable, "-m", "mneme", "search", "anything",
+         "-k", "10", "--json"],
+        capture_output=True, text=True, check=False, env=env,
+    )
     # Either: clean empty array (graceful), or stderr mentions the
     # missing index (helpful). Exit code 0 OR 1 with descriptive
     # stderr is acceptable. Crash (rc != 0,1 and empty stderr) is
