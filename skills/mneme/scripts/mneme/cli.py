@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 def _default_config_path() -> Path:
     from .config import resolve_config_dir
@@ -328,7 +329,44 @@ def cmd_lint(args: argparse.Namespace) -> int:
 
 
 def cmd_dream(args: argparse.Namespace) -> int:
-    """Read-only dream audit thin wrapper (real logic in dream.dream_audit)."""
+    """`mneme dream` — read-only audit; ``--schedule`` / ``--unschedule``
+    print platform-specific scheduler snippets for the user to install.
+
+    Without ``--schedule`` / ``--unschedule``, behaves as the read-only
+    audit (Task 6 — ``dream_audit``). With either flag, prints a snippet
+    and exits; never invokes ``launchctl``, ``crontab``, ``schtasks`` or
+    any other side-effecting command. The user reviews the snippet and
+    pastes / saves it themselves — ``mneme dream`` stays read-only by
+    design (frozen contract enforced by ``tests/test_dream_readonly.py``).
+    """
+    schedule = getattr(args, "schedule", False)
+    unschedule = getattr(args, "unschedule", False)
+    if schedule and unschedule:
+        print(
+            "--schedule and --unschedule are mutually exclusive",
+            file=sys.stderr,
+        )
+        return 2
+
+    if schedule or unschedule:
+        bundle = _resolve_bundle(args)
+        if bundle is None:
+            print(
+                "no bundle found; pass --bundle or set MNEME_BUNDLE / "
+                "config.toml [bundle_path]",
+                file=sys.stderr,
+            )
+            return 1
+        hh, mm, err = _parse_dream_time(getattr(args, "time", None))
+        if err is not None:
+            print(err, file=sys.stderr)
+            return 2
+        if schedule:
+            print(_dream_schedule_snippet(sys.platform, bundle, hh, mm))
+        else:
+            print(_dream_unschedule_snippet(sys.platform, bundle))
+        return 0
+
     from . import dream as _dream
     if getattr(args, "bundle", None):
         bundle = Path(args.bundle)
@@ -351,6 +389,152 @@ def cmd_dream(args: argparse.Namespace) -> int:
             for it in items:
                 print(f"    - {it['path']}: [{it['rule']}]")
     return 0
+
+
+# ---------------------------------------------------------------------------
+# dream --schedule / --unschedule snippet helpers
+#
+# The helper prints a platform-specific scheduler snippet. It NEVER writes
+# to ``~/Library/LaunchAgents/``, never edits the user's crontab, and
+# never calls ``schtasks`` directly. The user inspects and pastes the
+# output. ``sys.platform`` drives the dispatch: ``darwin`` -> launchd,
+# ``win32`` -> schtasks, everything else -> crontab.
+# ---------------------------------------------------------------------------
+
+_DEFAULT_DREAM_TIME = "02:00"  # 24h HH:MM, matches README
+_DREAM_LAUNCHD_DIR = "~/Library/LaunchAgents"
+_DREAM_LAUNCHD_LABEL_PREFIX = "mneme.dream"
+
+
+def _parse_dream_time(value: str | None) -> Tuple[int, int, str | None]:
+    """Parse ``HH:MM`` into ``(hour, minute, error)``.
+
+    ``None`` or empty -> default ``02:00``. Returns an error string
+    (instead of raising) so the CLI can format it on stderr and exit 2.
+    """
+    raw = (value or _DEFAULT_DREAM_TIME).strip()
+    try:
+        hh_s, mm_s = raw.split(":", 1)
+        hh, mm = int(hh_s), int(mm_s)
+    except (ValueError, AttributeError):
+        return 0, 0, f"--time must be HH:MM, got {value!r}"
+    if not (0 <= hh <= 23 and 0 <= mm <= 59):
+        return 0, 0, f"--time out of range (00:00..23:59), got {value!r}"
+    return hh, mm, None
+
+
+def _bundle_token(bundle: Path) -> str:
+    """Stable short token for ``bundle`` so plist / crontab labels are unique."""
+    return hashlib.sha256(str(bundle).encode("utf-8")).hexdigest()[:8]
+
+
+def _xml_attr(value: str) -> str:
+    """Minimal XML attribute escaping for plist snippets."""
+    return (
+        value.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def _render_launchd_plist(bundle: Path, python_path: str, hh: int, mm: int) -> str:
+    label = f"{_DREAM_LAUNCHD_LABEL_PREFIX}.{_bundle_token(bundle)}"
+    plist_path = f"{_DREAM_LAUNCHD_DIR}/{label}.plist"
+    bundle_x = _xml_attr(str(bundle))
+    py_x = _xml_attr(python_path)
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+        '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+        '<plist version="1.0">\n'
+        "<dict>\n"
+        "  <key>Label</key>\n"
+        f"  <string>{label}</string>\n"
+        "  <key>ProgramArguments</key>\n"
+        "  <array>\n"
+        f"    <string>{py_x}</string>\n"
+        "    <string>-m</string>\n"
+        "    <string>mneme</string>\n"
+        "    <string>dream</string>\n"
+        "    <string>--bundle</string>\n"
+        f"    <string>{bundle_x}</string>\n"
+        "  </array>\n"
+        "  <key>StartCalendarInterval</key>\n"
+        "  <dict>\n"
+        "    <key>Hour</key>\n"
+        f"    <integer>{hh}</integer>\n"
+        "    <key>Minute</key>\n"
+        f"    <integer>{mm}</integer>\n"
+        "  </dict>\n"
+        "  <key>WorkingDirectory</key>\n"
+        f"  <string>{bundle_x}</string>\n"
+        "</dict>\n"
+        "</plist>\n"
+        "\n"
+        f"# Save the snippet above as: {plist_path}\n"
+        f"# Then load it (run once):  launchctl load {plist_path}\n"
+    )
+
+
+def _render_launchd_unschedule(bundle: Path) -> str:
+    label = f"{_DREAM_LAUNCHD_LABEL_PREFIX}.{_bundle_token(bundle)}"
+    plist_path = f"{_DREAM_LAUNCHD_DIR}/{label}.plist"
+    return (
+        f"# Unschedule nightly dream audit for {bundle}:\n"
+        f"launchctl unload {plist_path} 2>/dev/null || true\n"
+        f"rm {plist_path}\n"
+    )
+
+
+def _render_crontab_line(bundle: Path, python_path: str, hh: int, mm: int) -> str:
+    # Preserve a sane PATH so `python3 -m mneme ...` resolves the same
+    # interpreter the user just ran in their shell.
+    return (
+        f"# Mneme nightly dream audit (read-only) — {bundle}\n"
+        f"{mm} {hh} * * * {python_path} -m mneme dream --bundle {bundle}\n"
+        f"# install:  ( crontab -l 2>/dev/null; "
+        f"printf '%s\\n' '<lines above>' ) | crontab -\n"
+    )
+
+
+def _render_crontab_unschedule(bundle: Path) -> str:
+    return (
+        f"# Remove the Mneme dream audit crontab entry for {bundle}:\n"
+        f"crontab -l 2>/dev/null | "
+        f"grep -v 'mneme dream --bundle {bundle}' | crontab -\n"
+    )
+
+
+def _render_schtasks(bundle: Path, python_path: str, hh: int, mm: int) -> str:
+    time_str = f"{hh:02d}:{mm:02d}"
+    return (
+        f'schtasks /Create /SC DAILY /TN mneme-dream '
+        f'/TR "{python_path} -m mneme dream --bundle {bundle}" '
+        f"/ST {time_str}\n"
+    )
+
+
+def _render_schtasks_unschedule() -> str:
+    return "schtasks /Delete /TN mneme-dream /F\n"
+
+
+def _dream_schedule_snippet(platform: str, bundle: Path, hh: int, mm: int) -> str:
+    py = sys.executable
+    if platform == "darwin":
+        return _render_launchd_plist(bundle, py, hh, mm)
+    if platform == "win32":
+        return _render_schtasks(bundle, py, hh, mm)
+    # Linux and other unix-likes -> crontab.
+    return _render_crontab_line(bundle, py, hh, mm)
+
+
+def _dream_unschedule_snippet(platform: str, bundle: Path) -> str:
+    if platform == "darwin":
+        return _render_launchd_unschedule(bundle)
+    if platform == "win32":
+        return _render_schtasks_unschedule()
+    return _render_crontab_unschedule(bundle)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -396,6 +580,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     dream_parser.add_argument("--config", default=None)
     dream_parser.add_argument("--json", action="store_true")
+    dream_parser.add_argument(
+        "--schedule",
+        action="store_true",
+        help=(
+            "print a platform-specific nightly scheduler snippet "
+            "(launchd / crontab / schtasks) — does NOT install it"
+        ),
+    )
+    dream_parser.add_argument(
+        "--unschedule",
+        action="store_true",
+        help="print the matching removal snippet (does NOT uninstall)",
+    )
+    dream_parser.add_argument(
+        "--time",
+        default=None,
+        help="local run time HH:MM for --schedule (default: 02:00)",
+    )
     dream_parser.set_defaults(handler=cmd_dream)
     return parser
 

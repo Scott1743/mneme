@@ -37,6 +37,11 @@ cd introduction && python -m http.server 8000
 
 `init` / `lint` / `reindex` / `dream` 是 agent 在后台跑的确定性脚本，不出现在用户叙事里。L2（语义召回）v2.0 不在，v2.1 才有；索引永远可删除。
 
+### 夜巡 `dream`（可选）
+
+想要每天夜里自动跑一次只读审计？`mneme dream --schedule` 只**打印**一段你系统调度器能直接吃的片段——macOS 的 launchd plist、Linux 的 crontab、Windows 的 `schtasks` 行；不会自己装。
+默认凌晨 `02:00`，改时间加 `--time HH:MM`，想撤就 `mneme dream --unschedule`。一行粘贴、即可。
+
 ## 4 层架构
 
 ```
