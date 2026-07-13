@@ -135,10 +135,16 @@ Curate + report (do **not** auto-modify):
 
 See `references/workflow-lint.md`.
 
-> **dream (scheduled, fully automatic)** is **intentionally absent** from this skill. The dream workflow's similarity math referenced a non-existent `find_orphans()` primitive, ran `git add -A` before resolving the bundle, and could auto-commit unrelated user changes. Re-introduction requires: (a) Phase 5 retrieval benchmark passing, (b) `find_orphans` + similarity-safe workflow under test, (c) dry-run preview mode + a dedicated safety TDD suite. See `CHANGELOG.md` 0.2.1 entry.
+## Dream — read-only audit lens
+
+`mneme dream` is a **read-only audit lens** over the bundle. It returns a candidate report (OKF hard-rule candidates, Mneme writer-rule candidates, navigation candidates) — never a similarity score, never a similarity threshold, never a write.
+
+`dream` does not shell `git`, never modifies the bundle, and the CLI exposes no `--apply` flag. The write-side workflow (what to do with the report after the user explicitly approves it) lives in `references/workflow-dream.md`; the agent performs those writes with its own `Write` / `Edit` tools, never from the CLI. The contract is enforced by `tests/test_dream_readonly.py`.
+
+See `references/workflow-dream.md` for the full write-side workflow.
 
 ## references (load on demand)
 
-`references/workflow-ingest.md` · `references/workflow-query.md` · `references/workflow-lint.md` · `references/type-vocab.md` · `references/wiki-structure.md` · `references/index-design.md`.
+`references/workflow-ingest.md` · `references/workflow-query.md` · `references/workflow-lint.md` · `references/workflow-dream.md` · `references/type-vocab.md` · `references/wiki-structure.md` · `references/index-design.md`.
 
 OKF spec: <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>.

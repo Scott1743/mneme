@@ -320,21 +320,23 @@ def test_step_four_lint_reports_clean_bundle(blackbox_bundle):
     )
 
 
-def test_step_five_dream_subcommand_is_rejected(blackbox_bundle):
-    """Pre-Task B frozen contract: ``mneme dream`` IS a registered
-    subcommand, but it is read-only (no ``--apply``), never writes,
-    and always exits 0. The CLI never shells out to git.
+def test_step_five_dream_subcommand_is_read_only_audit(blackbox_bundle):
+    """v2.0 contract: ``mneme dream`` IS a registered read-only audit
+    subcommand. There is no ``--apply`` flag (writes happen via the
+    SKILL.md workflow after explicit user approval). The CLI never
+    shells out to git.
     """
     bundle, _ = blackbox_bundle
     rc = subprocess.run(
-        [sys.executable, "-m", "mneme", "dream", "--bundle", str(bundle)],
+        [sys.executable, "-m", "mneme", "dream", "--bundle", str(bundle), "--json"],
         capture_output=True, text=True, check=False,
     )
     assert rc.returncode == 0, (
-        f"`mneme dream` should exit 0 (read-only audit); got {rc.returncode}."
+        f"`mneme dream` should exit 0 (read-only audit); got {rc.returncode}, "
+        f"stdout={rc.stdout!r}, stderr={rc.stderr!r}"
     )
     payload = json.loads(rc.stdout)
-    assert payload.get("read_only") is True
+    assert "none" in payload.get("_meta", {}).get("writes", "")
     # Regression guard: dream must not be implemented as a Python
     # write-path; the audit contract is enforced by the absence of
     # --apply in the parser.
