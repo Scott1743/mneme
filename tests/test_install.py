@@ -18,7 +18,11 @@ import zipfile
 from pathlib import Path
 
 import pytest
-pytestmark = pytest.mark.release
+# v1.1.0 ships via skill.sh; no wheel install path. These tests cover
+# the dropped wheel-install flow and stay around as a release-prep
+# compat check (1.0.x users who still have the wheel installed can
+# still run it). Default-skipped per pyproject.toml addopts.
+pytestmark = [pytest.mark.release, pytest.mark.compat]
 
 ROOT = Path(__file__).parent.parent
 WHEEL_GLOB = list((ROOT / "dist").glob("mneme-*-py3-none-any.whl"))

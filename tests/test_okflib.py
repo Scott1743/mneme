@@ -12,7 +12,7 @@ from mneme.okflib import (
 
 SAMPLE = Path(__file__).parent.parent / "sample-bundle"
 FIX = Path(__file__).parent / "fixtures"
-VALIDATOR = Path(__file__).parent.parent / "src" / "mneme" / "validate_okf.py"
+VALIDATOR = Path(__file__).parent.parent / "skills" / "mneme" / "scripts" / "mneme" / "validate_okf.py"
 
 
 def test_parse_frontmatter_basic():

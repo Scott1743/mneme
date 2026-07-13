@@ -20,11 +20,10 @@ pytestmark = pytest.mark.release
 
 ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT = ROOT / "pyproject.toml"
-INIT_PY = ROOT / "src" / "mneme" / "__init__.py"
+INIT_PY = ROOT / "skills" / "mneme" / "scripts" / "mneme" / "__init__.py"
 SKILL_FILES = (
     ROOT / "skills" / "mneme" / "SKILL.md",
     ROOT / "skills" / "mneme" / "SKILL cn.md",
-    ROOT / "src" / "mneme" / "skill" / "SKILL.md",
 )
 
 
@@ -52,7 +51,7 @@ def test_pyproject_and_init_version_agree():
     init = _init_version()
     assert py == init, (
         f"version drift: pyproject.toml={py!r} but "
-        f"src/mneme/__init__.py={init!r}. Update both to the same value."
+        f"skills/mneme/scripts/mneme/__init__.py={init!r}. Update both to the same value."
     )
 
 

@@ -28,7 +28,7 @@ The ingest scenario in SKILL.md guides the host agent through these steps. This 
 4. **Cross-link** related pages with `/concepts/<slug>.md`.
 5. **Edit `<bundle>/index.md`** — add `* [Title](path) - description` under `# Concepts`.
 6. **Edit `<bundle>/log.md>`** — **prepend** (insert at top) `## YYYY-MM-DD ingest | <source title>` + one-line note. The OKF v0.1 log contract requires newest-first.
-7. **Reindex**: `Bash: mneme reindex`.
-8. **Validate**: `Bash: mneme lint <bundle>` — must be 0 ERROR.
+7. **Reindex**: `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py reindex`. First run triggers `ensure_index_deps()` which installs `mneme[index]` (sqlite-vec + fastembed) and downloads the ~90MB BGE model automatically. Subsequent runs use cached deps.
+8. **Validate**: `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py lint <bundle>` — must be 0 ERROR.
 
-If `fastembed` model download fails, surface the error to the user and tell them to install `pip install 'mneme[index]'`. There is no production fallback — see `SKILL.md` ingest step 7.
+If `ensure_index_deps()` fails (offline / permission denied), the CLI exits with a clear message instructing manual `pip install 'mneme[index]'`. There is no production fallback — see `SKILL.md` ingest step 7.

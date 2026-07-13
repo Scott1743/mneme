@@ -7,6 +7,96 @@ with one caveat: **1.0.0 is a release-contract gate, not a feature gate.**
 Versions below 1.0.0 may carry partial behavior; consult `docs/superpowers/`
 for in-flight specs and plans.
 
+## [1.1.0] — 2026-07-13 — skill-first delivery + zero-dep OKF core + L2 lazy install
+
+Closes the v1.0 readiness assessment's
+[§"P0 Delivery model is internally inconsistent"](../docs/superpowers/reports/2026-07-12-mneme-1.0-readiness-assessment.md).
+Switches from wheel-based distribution (CLI+skill hybrid) to a single
+**skill-first** delivery path. The product contract is now: a skill.sh
+user installs the skill, runs any CLI subcommand, and the OKF core just
+works — zero third-party deps, no `pip install mneme`, no PyPI round trip.
+
+CLI subcommand surface (`init` / `reindex` / `search` / `lint`) is
+unchanged from 1.0.0. What changed is the delivery and dependency
+contract.
+
+### Delivery model — skill-first
+
+- **No more wheel.** `dist/` and `mneme.egg-info/` are removed from the
+  repo. `pyproject.toml` no longer declares `[project.scripts]`,
+  `[build-system]`, or `[tool.setuptools.*]`. The only deliverable is
+  `skills/mneme/` itself — installable from [skill.sh](https://skill.sh).
+- **Skill.sh install location.** The skill lands at
+  `~/.claude/skills/mneme/`. The agent invokes the CLI as
+  `python3 ~/.claude/skills/mneme/scripts/mneme.py <subcmd>` (a thin
+  shim), or `cd ~/.claude/skills/mneme/scripts && python3 -m mneme <subcmd>`.
+  The `mneme` console command is gone.
+- **`src/mneme/` Python package layout reverted.** The implementation
+  lives at `skills/mneme/scripts/mneme/` (real files, not symlinks).
+- **SKILL.md path convergence.** All Bash invocations in `SKILL.md` /
+  `SKILL cn.md` / `references/*.md` use the skill.sh shim path.
+  No `mneme <cmd>` console-command references in user-facing prose.
+
+### Zero-dep OKF core
+
+- **`tomli_w` replaced with hand-rolled TOML writer.**
+  `skills/mneme/scripts/mneme/toml_writer.py` (~60 lines, stdlib only).
+  Covers the types mneme actually writes: `str` / `int` / `float` / `bool` /
+  `list`. Quote / backslash / unicode / newline / tab escapes round-trip
+  cleanly through `tomllib` (3.11+) or `tomli` (3.10 fallback via the
+  `toml10` extras).
+- **`tomli_w` removed from hard deps.** `pyproject.toml [project].dependencies`
+  is now empty. L1 (lint / init / ingest / query) runs from a fresh venv
+  with **only stdlib** — verified by `test_clean_venv_*`.
+- **`PyYAML` still opt-in via the `validate` extra.** Default install uses
+  the lenient producer-side frontmatter parser; strict consumer-side
+  verification opts in via `pip install 'mneme[validate]'`.
+
+### L2 lazy install
+
+- **`ensure_index_deps()` triggers `pip install 'mneme[index]'` on first
+  `reindex` or `search`.** Auto-installs `sqlite-vec` + `fastembed` (the
+  L2 stack) and downloads the ~90MB BGE model on first invocation.
+  Subsequent calls use cached deps; no second download.
+- **PEP 668 aware.** On system Python (where `pip install` is blocked
+  by externally-managed-environment on macOS 14+ and many modern
+  distros), the install uses `--user`. Inside a venv, plain
+  `pip install` (the venv is its own writable site-packages).
+- **`os.execvp` restarts self after install.** The current Python
+  process can't see the freshly-installed packages (imports are cached
+  for the lifetime of a process); `os.execvp` replaces it with a fresh
+  interpreter so the user's command runs to completion transparently.
+- **Offline / permission-denied graceful.** `CalledProcessError` or
+  `PermissionError` from pip → `SystemExit(1)` with a clear manual-install
+  instruction in stderr, never a raw stack trace.
+
+### Tests added
+
+| File | Tests | Pins |
+|---|---:|---|
+| `tests/test_release_layout.py` | 16 | §3 layout: no `dist/`, no `src/mneme/`, no `[project.scripts]`, skill.sh paths only |
+| `tests/test_toml_writer.py` | 9 | §4.1 escape edge cases (quote / backslash / unicode / newline / tab / int / bool / list) |
+| `tests/test_zero_dep.py` | 5 | §4.2 stdlib-only AST check + §4.3 clean-venv init/lint/search |
+| `tests/test_lazy_index.py` | 7 | §5 / §5.3-bis / §5.3-ter: lazy detect / offline / PEP 668 / `os.execvp` re-exec shape |
+| `tests/test_docs.py` | +8 | §6 CLAUDE.md / AGENTS.md / SKILL*.md / references/*.md contract |
+| **Net new** | **45** | v1.1.0 spec coverage |
+
+Legacy subprocess tests (`test_install.py`, `test_e2e_*.py`,
+`test_blackbox_news.py`) are marked `@pytest.mark.compat` (default-skipped).
+They assumed the wheel-install path and need PR2/PR3 rewrite to use the
+new shim path. They re-enable under `pytest -m compat` for release-prep.
+
+### Migration notes for 1.0.x wheel users
+
+- Continue using your existing `mneme` console command; 1.0.x wheels
+  on PyPI are unaffected.
+- New features (lazy L2 install, zero-dep core) require reinstalling
+  via skill.sh.
+- No data migration needed; `~/.config/mneme/config.toml` and bundle
+  directories are unchanged.
+- Bug-fix releases on the 1.0.x line (if any) still publish wheels;
+  the 1.1.x line ships via skill.sh only.
+
 ## [1.0.0] — 2026-07-12 — release-gate closure
 
 Closes the readiness-assessment release gate

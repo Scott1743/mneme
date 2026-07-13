@@ -24,7 +24,7 @@ pytestmark = pytest.mark.release
 ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT = ROOT / "pyproject.toml"
 SKILL_DIR = ROOT / "skills" / "mneme"
-INDEXLIB = ROOT / "src" / "mneme" / "indexlib.py"
+INDEXLIB = ROOT / "skills" / "mneme" / "scripts" / "mneme" / "indexlib.py"
 
 # Budget from the readiness assessment §Phase 6:
 # "base skill artifact < 250KB".
@@ -81,7 +81,7 @@ def test_l1_markdown_read_has_zero_runtime_deps():
         [sys.executable, "-c", code],
         cwd=str(ROOT),
         capture_output=True, text=True,
-        env={**__import__("os").environ, "PYTHONPATH": str(ROOT / "src")},
+        env={**__import__("os").environ, "PYTHONPATH": str(ROOT / "skills" / "mneme" / "scripts")},
     )
     assert r.returncode == 0, (
         f"L1 import failed when sqlite-vec/fastembed/PyYAML are blocked:\n"
@@ -140,10 +140,15 @@ def test_runtime_dependencies_have_upper_bounds():
     explicit breaking-change warnings; unbounded deps mean a clean
     install can change behavior without a Mneme code change.
 
+    v1.1.0 ships with an empty base dependencies block (zero hard
+    deps) — when that's the case the bounds check is vacuously true.
+    Optional extras (validate / index / toml10 / all) MUST still
+    carry upper bounds if they declare any deps.
+
     We accept `pytest>=7` (dev only) without an upper bound because
     pytest's own stability budget is well past 1.0 and the dev extra
-    does not ship. Runtime deps — base + validate + index + toml10
-    + all — must all carry upper bounds.
+    does not ship. Runtime extras — validate + index + toml10 + all
+    — must all carry upper bounds where non-empty.
     """
     text = PYPROJECT.read_text(encoding="utf-8")
     # Extract each extra block.
@@ -154,7 +159,9 @@ def test_runtime_dependencies_have_upper_bounds():
         text, re.MULTILINE | re.DOTALL,
     )
     assert base_match, "could not find `dependencies = [...]` in pyproject.toml"
-    _assert_bounds(base_match.group(1), "base dependencies")
+    base_block = base_match.group(1).strip()
+    if base_block:
+        _assert_bounds(base_block, "base dependencies")
 
     for extra in runtime_extras:
         m = re.search(
@@ -162,7 +169,9 @@ def test_runtime_dependencies_have_upper_bounds():
             text, re.MULTILINE | re.DOTALL,
         )
         assert m, f"could not find `{extra} = [...]` extra in pyproject.toml"
-        _assert_bounds(m.group(1), f"{extra} extra")
+        extra_block = m.group(1).strip()
+        if extra_block:
+            _assert_bounds(extra_block, f"{extra} extra")
 
 
 def _assert_bounds(block: str, label: str) -> None:

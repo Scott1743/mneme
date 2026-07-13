@@ -1,13 +1,11 @@
 """mneme — lightweight OKF v0.1 LLM knowledge wiki.
 
-The package is the implementation surface; the agent skill lives under
-``mneme/skill/SKILL.md`` and is installed via ``package_data``.
+The implementation lives in this package; the agent skill ships
+alongside at ``skills/mneme/SKILL.md`` (skill.sh layout, no wheel).
 """
 
 from __future__ import annotations
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
-# Re-export so legacy callers (and existing tests) can keep using
-# ``import mneme; mneme.main(args)``.
 from .cli import main  # noqa: E402,F401

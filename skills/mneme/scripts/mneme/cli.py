@@ -56,6 +56,8 @@ def cmd_reindex(args: argparse.Namespace) -> int:
     if bundle is None:
         print("no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init", file=sys.stderr)
         return 1
+    from . import lazy_index
+    lazy_index.ensure_index_deps()  # may os.execvp on first call; never returns if install succeeds
     try:
         from . import indexlib
 
@@ -80,6 +82,8 @@ def cmd_search(args: argparse.Namespace) -> int:
     if bundle is None:
         print("no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init", file=sys.stderr)
         return 1
+    from . import lazy_index
+    lazy_index.ensure_index_deps()  # may os.execvp on first call; never returns if install succeeds
     try:
         from . import indexlib
 

@@ -1,19 +1,20 @@
 """TOML config read/write for mneme.
 
 `read_config(path)` returns a `dict` from the config file. `write_config(path,
-data)` writes a dict back as TOML. Both use stdlib TOML where possible:
+data)` writes a dict back as TOML. Both use stdlib (or stdlib-equivalent)
+TOML where possible:
 
-- Read: `tomllib` on Python 3.11+; `tomli` (from the `toml10` extras) on
-  3.10. We try the fallback lazily because tomllib is bytecode-stable and
-  not all installs share a .pth with tomli.
-- Write: `tomli_w` (always required; declared in `dependencies`).
+- Read: ``tomllib`` on Python 3.11+; ``tomli`` (from the ``toml10`` extras)
+  on 3.10. We try the fallback lazily because tomllib is bytecode-stable
+  and not all installs share a .pth with tomli.
+- Write: in-house hand-rolled writer (~60 lines, see ``toml_writer.py``).
+  Replaces ``tomli_w`` so the OKF core stays zero-third-party-dep per
+  ``CLAUDE.md`` §"分层依赖". The writer covers exactly the types mneme
+  writes (``str`` / ``int`` / ``float`` / ``bool`` / ``list``); unknown
+  types raise ``TypeError`` rather than emit invalid TOML.
 
-The reader preserves types — strings stay strings, numbers stay numbers,
-booleans stay booleans, etc. — so that the `bundle_path` we read back is
-identical to the one we wrote.
-
-A round-trip is the contract of `read_config ∘ write_config`: any value
-written through `write_config` must read back equal.
+A round-trip is the contract of ``read_config ∘ write_config``: any value
+written through ``write_config`` must read back equal.
 """
 from __future__ import annotations
 
@@ -32,7 +33,8 @@ else:  # pragma: no cover — fallback path on Python 3.10
             "extras: `pip install 'mneme[toml10]'`."
         ) from exc
 
-import tomli_w  # type: ignore[import-untyped]
+# In-house hand-rolled writer (replaces tomli_w as of v1.1.0).
+from . import toml_writer as _toml_write  # noqa: E402
 
 
 def read_config(path: Path) -> dict:
@@ -50,11 +52,9 @@ def read_config(path: Path) -> dict:
 
 
 def write_config(path: Path, data: Mapping[str, Any]) -> None:
-    """Write a dict as TOML. Uses tomli_w for proper escaping of quotes,
-    backslashes, and control characters.
+    """Write a dict as TOML via the in-house ``toml_writer``.
 
-    The output is canonical-ish but stable enough that a `read_config`
-    round-trip on the same data yields an equal dict.
+    The output is one ``key = value`` per line, no section headers.
+    Round-tripping through ``read_config`` yields the same dict.
     """
-    body = tomli_w.dumps(dict(data))
-    Path(path).write_text(body, encoding="utf-8")
+    _toml_write.write_config(Path(path), data)
