@@ -16,7 +16,14 @@ npx skills add Scott1743/mneme
 
 落地到 `~/.claude/skills/mneme/`，重启 agent 会话即可。**没有 wheel、没有 `pip install` 全包、没有 setuptools——一个 zip，解压即用。**
 
-更多说明书：[scott1743.github.io/mneme](https://scott1743.github.io/mneme/) —— 产品初衷、安装与原理的图文介绍。
+**更多**：图文版介绍（产品初衷 + 娓娓道来 + 安装示例）见仓库内 [`introduction/index.html`](introduction/index.html)，下载后可在浏览器中离线阅读。本地预览：
+
+```bash
+cd introduction && python -m http.server 8000
+# 然后浏览器打开 http://localhost:8000/
+```
+
+或等 GitHub Pages 启用后访问 `https://scott1743.github.io/mneme/`（仓库 Settings → Pages → Source = GitHub Actions）。
 
 ## 两件事（用户表面）
 
