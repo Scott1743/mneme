@@ -4,27 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mneme · 轻量化 LLM Wiki · 介绍</title>
-  <meta name="description" content="Mneme 是一个生于本地文件系统、由 Agent 增量维护的 OKF 知识 Wiki。安装一次、长期复利，原生兼容 Google OKF v0.1。" />
+  <meta name="description" content="一座由 Agent 增量维护的本地 Markdown 知识库。dream 写、search 读；零依赖；OKF v0.1。" />
   <meta name="color-scheme" content="light dark" />
   <style>
-    /* Brand tokens — preserve the README shield palette, add body neutrals. */
     :root {
       --pine-teal: #0f766e;
       --okf-blue:  #2563eb;
-      --mit-purple:#6f42c1;
-      --skills-ink:#111827;
-
       --paper:     #f7f5ee;
       --paper-dim: #ece8d8;
       --ink:       #0f1f1c;
       --ink-soft:  #3a4540;
       --hairline:  rgba(15,31,28,.18);
-
       --font-h:    "STKaiti","KaiTi","Songti SC",Georgia,serif;
       --font-b:    "PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
       --font-mono: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-
       --max-w:     980px;
+      --content:   720px;
       --radius:    14px;
     }
     @media (prefers-color-scheme: dark) {
@@ -36,269 +31,167 @@
         --hairline:  rgba(244,241,223,.18);
       }
     }
-
     *, *::before, *::after { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
-    body { font-family: var(--font-b); line-height: 1.7; font-size: 17px; }
-    main { max-width: var(--max-w); margin: 0 auto; padding: 48px 28px 96px; }
-    h1, h2, h3, h4 { font-family: var(--font-h); font-weight: 600; line-height: 1.25; margin: 0 0 0.4em; }
-    h1 { font-size: clamp(2.4rem, 5vw, 3.6rem); margin: 0.4em 0 0.6em; letter-spacing: -0.01em; }
-    h2 { font-size: clamp(1.4rem, 2.4vw, 1.9rem); margin-top: 1.8em; padding-top: 0.7em; border-top: 1px solid var(--hairline); }
-    h3 { font-size: 1.15rem; margin-top: 1.4em; color: var(--pine-teal); }
-    h4 { font-size: 1rem; margin-top: 1.2em; color: var(--pine-teal); font-family: var(--font-mono); }
-    p  { margin: 0.6em 0; }
+    body { font-family: var(--font-b); line-height: 1.78; font-size: 17px; }
+    main { max-width: var(--max-w); margin: 0 auto; padding: 56px 28px 96px; }
+    main > header, main > section, main > footer, main > nav { max-width: var(--content); margin-left: auto; margin-right: auto; }
+    h1, h2, h3 { font-family: var(--font-h); font-weight: 600; line-height: 1.25; margin: 0 0 0.4em; }
+    h1 { font-size: clamp(3.6rem, 8vw, 5.2rem); margin: 0.3em 0 0.5em; letter-spacing: -0.01em; text-align: center; }
+    h2 { font-size: clamp(1.35rem, 2.3vw, 1.85rem); margin-top: 1.7em; padding-top: 0.9em; border-top: 1px solid var(--hairline); }
+    h3 { font-size: 1.05rem; margin-top: 1.3em; color: var(--pine-teal); font-family: var(--font-b); }
+    p  { margin: 0.7em 0; }
     a  { color: var(--okf-blue); text-decoration: none; border-bottom: 1px dotted currentColor; }
     a:hover { border-bottom-style: solid; }
     code { font-family: var(--font-mono); font-size: 0.92em; padding: 1px 6px; border-radius: 4px; background: var(--paper-dim); }
-    pre { font-family: var(--font-mono); background: var(--paper-dim); padding: 16px 18px; border-radius: var(--radius); overflow-x: auto; font-size: 0.9em; line-height: 1.55; border: 1px solid var(--hairline); }
+    pre { font-family: var(--font-mono); background: var(--paper-dim); padding: 14px 16px; border-radius: var(--radius); overflow-x: auto; font-size: 0.9em; line-height: 1.55; border: 1px solid var(--hairline); }
     pre code { padding: 0; background: transparent; }
     blockquote { margin: 1em 0; padding: 0.6em 1em; border-left: 4px solid var(--pine-teal); background: var(--paper-dim); color: var(--ink-soft); border-radius: 0 var(--radius) var(--radius) 0; }
-    ul, ol { padding-left: 1.4em; }
 
-    .hero { text-align: center; margin-bottom: 24px; }
-    .hero p.lede { font-size: 1.12em; color: var(--ink-soft); max-width: 720px; margin: 0.3em auto; }
-    .hero .tagline { font-family: var(--font-h); font-style: italic; color: var(--pine-teal); font-size: 1.3em; }
+    .hero { text-align: center; margin-bottom: 24px; padding-top: 32px; }
+    .hero p.lede { font-size: 1.1em; color: var(--ink-soft); max-width: 600px; margin: 0.7em auto 0.3em; }
+    .hero p.lede + p.lede { font-size: 1em; max-width: 600px; margin: 0.4em auto 1.8em; }
+    .cta { display: inline-block; padding: 14px 26px; border-radius: 999px; background: var(--pine-teal); color: #fff; font-weight: 600; font-family: var(--font-mono); font-size: 1.02em; border-bottom: none; margin-top: 8px; }
+    .cta:hover { background: #0c5a55; color: #fff; }
+    .meta { font-family: var(--font-mono); font-size: 0.86em; color: var(--ink-soft); margin: 14px 0 0; }
 
-    .badges { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 28px 0 8px; }
-    .badge { display: inline-block; padding: 4px 11px; border-radius: 999px; font-size: 0.82em; border: 1px solid transparent; letter-spacing: 0.01em; }
-    .badge.mit    { background: #f3eaf9; color: #5a3299; border-color: #e1cdf2; }
-    .badge.ver    { background: #d6efeb; color: #0c5a55; border-color: #b9e2dc; }
-    .badge.okf    { background: #dbe6fe; color: #1d4ed8; border-color: #bccbfd; }
-    .badge.skills { background: var(--skills-ink); color: #f9fafb; }
-    @media (prefers-color-scheme: dark) {
-      .badge.mit { background: #2b1d40; color: #d4baff; border-color: #4b3270; }
-      .badge.ver { background: #12332f; color: #79d4cc; border-color: #20544e; }
-      .badge.okf { background: #15264d; color: #93b3ff; border-color: #2c4882; }
-    }
+    .glyph { float: right; font-family: var(--font-mono); font-size: 0.78em; color: var(--ink-soft); white-space: pre; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper-dim); margin: 4px 0 14px 24px; line-height: 1.55; }
 
-    .cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 28px 0 0; }
-    .cta a { display: inline-block; padding: 12px 22px; border-radius: 999px; font-weight: 600; border: 1.5px solid var(--hairline); }
-    .cta a.primary { background: var(--pine-teal); color: #fff; border-color: var(--pine-teal); }
-    .cta a.primary:hover { background: #0c5a55; }
-    .cta a.ghost { background: transparent; color: var(--ink); }
-    .cta a.ghost:hover { background: var(--paper-dim); }
-
-    nav.quick { margin: 32px 0 0; padding: 16px 22px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper-dim); }
-    nav.quick strong { display: block; margin-bottom: 8px; font-family: var(--font-h); }
+    nav.quick { margin: 28px 0 8px; padding: 12px 18px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper-dim); font-size: 0.96em; }
     nav.quick a { margin-right: 14px; }
 
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 16px; margin: 18px 0 8px; }
-    .card  { padding: 20px 22px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper-dim); }
-    .card h3 { margin-top: 0; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 22px 0 8px; }
+    .card  { padding: 18px 20px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper-dim); }
+    .card h3 { margin-top: 0; font-family: var(--font-b); }
     .card p  { margin-bottom: 0; }
 
-    .friend-card {
-      margin-top: 32px;
-      padding: 24px 26px;
-      border-radius: var(--radius);
-      background:
-        linear-gradient(135deg, rgba(7,15,13,.04), rgba(15,118,110,.10)),
-        var(--paper-dim);
-      border: 1px solid var(--hairline);
-    }
+    .friend-card { margin-top: 12px; padding: 22px 24px; border-radius: var(--radius); background: linear-gradient(135deg, rgba(7,15,13,.04), rgba(15,118,110,.10)), var(--paper-dim); border: 1px solid var(--hairline); }
     .friend-card .tag  { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--ink); color: var(--paper); font-size: 0.78em; margin-bottom: 8px; }
-    .friend-card h3    { margin-top: 8px; }
-    .friend-card .links { margin-top: 14px; font-size: 0.96em; }
+    .friend-card h3    { margin-top: 6px; font-family: var(--font-b); }
+    .friend-card .links { margin-top: 12px; font-size: 0.96em; }
 
-    .ascii {
-      font-family: var(--font-mono); white-space: pre; overflow-x: auto;
-      background: var(--ink); color: var(--paper);
-      padding: 22px 24px; border-radius: var(--radius); font-size: 0.86em; line-height: 1.45;
-    }
-    .ascii .accent { color: #79d4cc; }
-    .ascii .dim    { color: #88a39a; }
-    .ascii .src    { color: #f0bc4c; }
-
-    .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 14px; }
-    .role  { padding: 18px 20px; border-radius: var(--radius); border: 1px solid var(--hairline); background: var(--paper-dim); }
-    .role p { margin: 6px 0 0; font-size: 0.96em; }
-
-    footer { margin-top: 96px; padding-top: 32px; border-top: 1px solid var(--hairline); text-align: center; color: var(--ink-soft); font-size: 0.94em; }
+    footer { margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--hairline); text-align: center; color: var(--ink-soft); font-size: 0.94em; }
     footer a { color: inherit; border-bottom-color: rgba(0,0,0,.2); }
 
-    @media (max-width: 560px) { main { padding: 24px 18px 64px; } h1 { font-size: 2.4rem; } }
+    @media (max-width: 720px) { .glyph { float: none; margin: 14px auto; } }
+    @media (max-width: 560px) { main { padding: 28px 20px 64px; } h1 { font-size: 3.2rem; } }
   </style>
 </head>
 <body>
   <main>
 
-    <!-- ========== Hero ========== -->
     <header class="hero">
       <h1>Mneme</h1>
-      <p class="lede"><span class="tagline">轻量化 LLM Wiki</span></p>
-      <p class="lede">一个生于本地文件系统、由 Agent 增量维护的 OKF 知识 Wiki。</p>
-      <p class="lede">把读过的东西编译一次，让知识在每次使用中继续复利。</p>
-
-      <div class="badges" aria-label="项目摘要">
-        <span class="badge mit">MIT License</span>
-        <span class="badge ver">v1.1.0</span>
-        <span class="badge okf">OKF v0.1</span>
-        <span class="badge skills">skill.sh</span>
-      </div>
-
-      <div class="cta">
-        <a class="primary" href="https://skill.sh/?q=mneme" target="_blank" rel="noopener">📥 npx skills add Scott1743/mneme</a>
-        <a class="ghost" href="https://github.com/Scott1743/mneme" target="_blank" rel="noopener">⭐ GitHub</a>
-        <a class="ghost" href="https://github.com/Scott1743/mneme/blob/main/LICENSE" target="_blank" rel="noopener">📜 MIT</a>
-      </div>
+      <p class="lede">一座由 Agent 增量维护的本地 Markdown 知识库。</p>
+      <p class="lede">不是每次提问都重新检索——让 Agent 把读过的资料编译进一棵可以反复行走的概念树。</p>
+      <a class="cta" href="https://skill.sh/?q=mneme" target="_blank" rel="noopener">npx skills add Scott1743/mneme</a>
+      <p class="meta">~/.claude/skills/mneme/ · MIT · 2.0.0</p>
     </header>
 
-    <!-- ========== 顶部 jump-nav ========== -->
-    <nav class="quick" aria-label="页面内快速跳转">
-      <strong>跳到：</strong>
+    <nav class="quick" aria-label="跳转">
       <a href="#初衷">§ 1 初衷</a>
-      <a href="#安装">§ 2 安装 & 使用</a>
+      <a href="#安装">§ 2 安装</a>
       <a href="#原理">§ 3 原理</a>
+      <a href="#为什么">§ 4 为什么</a>
+      <a href="#朋友">§ 5 朋友项目</a>
     </nav>
 
-    <!-- ========================================= -->
-    <!-- §1 初衷 (营销段 + 朋友项目)               -->
-    <!-- ========================================= -->
+    <!-- § 1 初衷 -->
     <section id="初衷" aria-labelledby="初衷-h">
-      <h2 id="初衷-h">§ 1 · 初衷 — 为什么把 LLM Wiki 绑在 Agent 上</h2>
+      <h2 id="初衷-h">§ 1 · 初衷</h2>
 
-      <p>大多数知识工具让 LLM <em>每次</em> 都从头检索、重新理解同一份资料。Mneme 换了一种思路：让 Agent 像维护源码一样，把原始资料逐步编译成互相链接的 Markdown 概念页。一次摄入、多次查询、持续修订——这是 Karpathy 在 <a href="https://gist.github.com/karpathy/" target="_blank" rel="noopener">LLM Wiki gist</a> 里说的 "compile once, read many times"。</p>
+      <div class="glyph" aria-hidden="true">.mneme/index.db  ← sqlite3 + FTS5 (默认)
+.mneme/cache/    ← agent 记忆;永不是真相源
+wiki/            ← 你读什么;你 git 什么</div>
 
-      <p>本地图——而不是云端 SaaS——是这件事的关键。它意味着：知识留在你手里的普通 Markdown 文件里，能用 <code>git</code> 一样 diff / blame / branch；Agent 仍能用它回答问题；规模上来之后再打开 L2 语义索引。</p>
+      <p>大多数知识工具让 LLM <em>每次</em> 都从头检索、重新理解同一份资料。Mneme 换了一种思路：让 Agent 像维护源码一样，把原始资料逐步编译成互相链接的 Markdown 概念页。</p>
 
-      <h3>三块场景，它都更顺手</h3>
-      <div class="cards">
-        <div class="card">
-          <h3>🌱 心理咨询 & 个人反思</h3>
-          <p>把零散笔记、阅读摘录、对话要点分门别类连成你自己的网络。私密、可回看、长期积累；本地优先让表达更自由。</p>
-        </div>
-        <div class="card">
-          <h3>🗂️ 长期文档整理</h3>
-          <p>把项目资料、外部文章、API 笔记按概念而不是日期组织；Agent 在你提问时只读它真的需要的那几页，不在 Prompt 窗口里反复重新理解。</p>
-        </div>
-        <div class="card">
-          <h3>👥 团队知识沉淀</h3>
-          <p>Google 2026 年发布的 <a href="https://github.com/google/open-knowledge-format" target="_blank" rel="noopener">OKF v0.1</a> 把 Wiki 标准化为带 YAML frontmatter 的 Markdown + 索引；Mneme 是它的一个本地优先、不依赖服务端的实现。</p>
-        </div>
-      </div>
+      <p>一次摄入、多次查询、持续修订——这是 Karpathy 在 <a href="https://gist.github.com/karpathy/" target="_blank" rel="noopener">LLM Wiki gist</a> 里说的 <em>compile once, read many times</em>。</p>
 
-      <div class="friend-card">
-        <span class="tag">朋友项目</span>
-        <h3>森林密语 / 塔罗树洞（tarot-confessional）</h3>
-        <p>想用 Mneme 沉淀一次塔罗解读或长会话里的体会？试试 <strong>森林密语</strong>——它是 Mneme 在符号性反思方向上的同源项目。<em>森林密语</em>负责温柔地完成抽牌与象征性解读（local-first，本地抽牌码不携带心事原文），<em>Mneme</em> 负责把有价值的体会整理进本地知识 Wiki，让反复出现的母题在时间的另一面再次浮现。两边都坚持：</p>
-        <ul>
-          <li>本地优先 / Agent 驱动 / 可检查的开放文件</li>
-          <li>不替任何产品下诊断，不替任何决定表态</li>
-          <li>写入是显式的——你不主动「保存到 Wiki」，什么都不会被留下</li>
-        </ul>
-        <p class="links">
-          🔗 仓库：<a href="https://github.com/Scott1743/tarot-confessional" target="_blank" rel="noopener">github.com/Scott1743/tarot-confessional</a><br/>
-          🪞 落地页：<a href="https://scott1743.github.io/tarot-confessional/" target="_blank" rel="noopener">scott1743.github.io/tarot-confessional</a><br/>
-          📜 skills.sh 安装：<code>npx skills add Scott1743/tarot-confessional</code>
-        </p>
-      </div>
+      <p>本地优先意味着：知识留在你手里的普通 Markdown 文件里，能用 <code>git</code> 一样 diff / blame / branch；Agent 仍能用它回答问题；规模上来时打开 SQLite FTS5 加速导航，索引永远是 <em>可丢弃的</em>。</p>
     </section>
 
-    <!-- ========================================= -->
-    <!-- §2 安装 & 使用                            -->
-    <!-- ========================================= -->
+    <!-- § 2 安装 -->
     <section id="安装" aria-labelledby="安装-h">
-      <h2 id="安装-h">§ 2 · 安装 & 使用</h2>
+      <h2 id="安装-h">§ 2 · 先和 Agent 聊</h2>
 
-      <h3>A · 通过 skills.sh（首选）</h3>
       <p>一行命令，把 skill 安装到你的 Agent skills 目录：</p>
       <pre><code>npx skills add Scott1743/mneme</code></pre>
 
-      <h3>B · 从 GitHub 直接链接</h3>
-      <pre><code>git clone https://github.com/Scott1743/mneme.git ~/mneme
-ln -s ~/mneme/skills/mneme ~/.claude/skills/mneme
-# 现在 ~/.claude/skills/mneme/scripts/mneme.py 就是 CLI 入口。</code></pre>
+      <p>安装到 <code>~/.claude/skills/mneme/</code> 之后，重启会话即可。Mneme 没有独立窗口、没有常驻服务、没有命令行仪表——你和你的 Agent 聊天就是了。</p>
 
-      <h3>C · 三步建立你的第一座 Wiki</h3>
-      <pre><code># 1. 在任意目录建一个空 wiki（CLI 会创建 sources/、index.md、log.md）
-python3 ~/.claude/skills/mneme/scripts/mneme.py init ~/my-wiki
+      <p><strong>dream</strong> 收集你读过的资料，把它们编译成本地的 OKF Markdown 概念页；Agent 写 page、写 link、写 tag，你说了算。</p>
 
-# 2. 把要研究的资料（PDF 文本、网页存档、自己写过的 .md……）
-#    放进 ~/my-wiki/sources/
+      <p><strong>search</strong> 在你的 wiki 里走——按 index / tags / 链接 / FTS5 召回；找不到就说没找到，不编。</p>
 
-# 3. 让 Agent 用一句中文开启摄入流程：
-#    「用 mneme 把 my-wiki/sources/ 里的资料摄入进去，建立概念页。」</code></pre>
+      <pre><code>你:    我刚读了几篇关于 OKF 的文章,帮我把它们收进我的 wiki。
 
-      <p>之后你想搜任何主题，让 Agent 直接读 Wiki：</p>
-      <pre><code># 构建 L2 语义索引（首次会联网下载 ~90MB 的 BGE 模型，之后离线可用）
-python3 ~/.claude/skills/mneme/scripts/mneme.py reindex
+Agent: 好。把文章路径发给我吗?我会创建一个新 wiki,按 OKF 协议写
+       摘要页,互相链接,更新 index,最后跑一遍 lint。</code></pre>
 
-# 自然语言检索
-python3 ~/.claude/skills/mneme/scripts/mneme.py search "拖延到底在保护我什么" --limit 8</code></pre>
+      <pre><code>你:    我三周前看过一篇东西,里面讲到 SQLite FTS5 怎么建倒排索引——
+       帮我找回来。
 
-      <blockquote>
-        <strong>使用上的边界：</strong>你用 LLM Wiki 不是为了 <em>取代</em> 判断，是为了 <em>替你记住</em> 那些值得长期回看的判断。心理咨询方向请把它当成「私人索引」——诊断和处置始终交给专业人员。
-      </blockquote>
+Agent: 让我读你的 wiki 看看。
+       ← 命中「SQLite 内部」「FTS5 vs LIKE」两组概念页
+         它们都引用了一份来源笔记——给你看摘要片段与原始资料路径。</code></pre>
     </section>
 
-    <!-- ========================================= -->
-    <!-- §3 原理                                   -->
-    <!-- ========================================= -->
+    <!-- § 3 原理 -->
     <section id="原理" aria-labelledby="原理-h">
-      <h2 id="原理-h">§ 3 · 原理 — 它怎么工作</h2>
+      <h2 id="原理-h">§ 3 · 原理 —— 知识不是每次都被重新检索</h2>
 
-      <h3>一个朴素的类比（写给不写代码的伙伴）</h3>
-      <p>把一座 Wiki 想成<strong>一座你自己的小图书馆</strong>：</p>
-      <ul>
-        <li><strong>原始资料（<code>sources/</code>）</strong> 是永远不动的高保真原件，相当于图书馆的<em>善本库</em>——Agent 只读不改。</li>
-        <li><strong>OKF Wiki</strong> 是 Agent 写出来的<em>互相参照的阅读卡片</em>——每一张都带一个 <code>type</code>（Concept / Reference / Summary / Source）和时间戳。</li>
-        <li><strong><code>index.md</code> + <code>log.md</code></strong> 是图书馆的<em>主目录 + 入藏登记簿</em>——让你和未来的你都能一目了然。</li>
-        <li><strong>CLAUDE.md / SKILL.md</strong> 是馆里的<em>工作守则</em>——告诉 Agent 什么时候读、什么时候写、不要做什么。</li>
-      </ul>
+      <p>这是 Mneme 真正想讲的事：知识不是每次提问都被重新发现——它是被你的 Agent 编译进一棵你看得见、改得了、行得通的树。</p>
 
-      <h3>三层架构</h3>
-      <div class="ascii" aria-label="三层架构图" role="img"><span class="dim">原始资料 sources/</span>          <span class="dim">不可变的事实来源</span>
-            │
-            ▼
-       <span class="accent">OKF Wiki</span>                 <span class="dim">Agent 维护的 Markdown 概念网络</span>
-            │
-            ▼
-       <span class="src">CLAUDE.md + SKILL.md</span>    <span class="dim">人与 Agent 共同维护的工作规约</span></div>
+      <p>想象一下你读过的所有笔记、论文摘录、对话笔记——它们被放在一个本地文件夹里，被 Agent 加上 YAML frontmatter，被指向相邻的概念页，被链接、被标记。你可以用 <code>git</code> 一样 diff 它，blame 谁改了哪一行，branch 出一个实验分支。所有你想得起来的「我三周前看的那个东西」都被存在那里，不是被重新检索。</p>
 
-      <h3>一次 <code>ingest</code> 在背后做了什么</h3>
-      <ol>
-        <li>你丢一份原始资料进 <code>sources/</code>（PDF 文本、.md、网页存档……）。</li>
-        <li>Agent 用 OKF 标准读取 frontmatter，把不变量留给 sources，把可蒸馏的概念写到 <code>concepts/</code>。</li>
-        <li>Agent 更新本目录的 <code>index.md</code>（渐进式索引）和 <code>log.md</code>（日期前缀时间线）。</li>
-        <li><code>mneme reindex</code> 把所有概念按 L2 索引建好，搜索时只取相关页作答并附引用。</li>
-        <li><code>mneme lint</code> 周期性自检：OKF 硬约束 + 孤儿页 + 断链 + 缺页的重要概念——只告警不拒绝。</li>
-      </ol>
+      <p>RAG 每次都重新发现知识——不持久、不积累、不互相引用。LLM Wiki 把知识编译一次：以后每次提问都是在已经存在的东西上行走的，不是在空仓库里爬的。</p>
 
-      <h3>关键代码片段（两段，选自 <code>skills/mneme/scripts/mneme/</code>）</h3>
+      <p>Mneme 让这件事对个人和团队都变得轻：本地存储、纯 Markdown、零常驻、零云依赖。你用 Agent 维护它；Agent 写、Agent 链、Agent 审 lint，你只是和 Agent 聊。规模上来时打开 SQLite FTS5；想要语义召回就装 [optional] v2.1 才会出现的语义索引。索引是垃圾，你不需要它也能用——它只是帮你走得更快。</p>
 
-      <p>1) 创建 Wiki（<code>cli.py</code> 里 <code>cmd_init</code> 的 18 行核心——整页外壳就这么简单）：</p>
-      <pre><code>def cmd_init(args: argparse.Namespace) -> int:
-    bundle = Path(args.path)
-    config = Path(args.config)
-    bundle.mkdir(parents=True, exist_ok=True)
-    (bundle / "sources").mkdir(exist_ok=True)
-    (bundle / "sources" / ".gitkeep").touch(exist_ok=True)
-    if not (bundle / "index.md").exists():
-        (bundle / "index.md").write_text(
-            '---\nokf_version: "0.1"\n---\n\n# Concepts\n', encoding="utf-8"
-        )
-    if not (bundle / "log.md").exists():
-        (bundle / "log.md").write_text("# Directory Update Log\n", encoding="utf-8")
-    _write_config(bundle, config)
-    return 0</code></pre>
-
-      <p>2) 解析 frontmatter（<code>okflib.py</code> 里 stdlib-only 实现，没有任何 YAML 依赖）：</p>
-      <pre><code>_FRONTMATTER_RE = re.compile(
-    r"\A---[ \t]*\n(.*?)\n---[ \t]*\n?(.*)\Z", re.S
-)
-_LOG_HEADING_DATE_RE = re.compile(r"^## (\d{4}-\d{2}-\d{2})\b")
-# OKF §4 — `type` 必填，其余 (title/description/tags/timestamp)
-# 是 recommended；未知键会被保留，未知 type 只告警不拒绝。</code></pre>
-
-      <h3>四个角色，就是用它做的四件事</h3>
-      <div class="roles">
-        <div class="role"><h4>📥 ingest</h4><p>丢原始资料进来 → Agent 读、讨论、写摘要页、更新索引与时间线。</p></div>
-        <div class="role"><h4>🔎 query</h4><p>对 Wiki 提问 → 先读 index 定位 → 读权威页综合 → 标注每条 bundle 引用。</p></div>
-        <div class="role"><h4>🩺 lint</h4><p>周期性体检：找矛盾、过时论断、孤儿页、缺页的重要概念；容忍未知的 type 与可选字段缺失。</p></div>
-        <div class="role"><h4>🔍 search</h4><p>资料规模上来后，sqlite-vec + FastEmbed 本地索引接管检索——首次按需懒装。</p></div>
+      <div class="cards">
+        <div class="card">
+          <h3>dream</h3>
+          <p>把资料编译进 wiki——增量维护，默认先出预览，等你点头才落盘。</p>
+        </div>
+        <div class="card">
+          <h3>search</h3>
+          <p>在已有的 wiki 里走——读 index / tags / 链接；大 wiki 打开 FTS5 召回。</p>
+        </div>
+        <div class="card">
+          <h3>lint</h3>
+          <p>周期性指出矛盾、孤儿、漂移——只告警，不替你改。</p>
+        </div>
       </div>
+    </section>
 
-      <p>底层 100% 本地：Python 标准库写成的 OKF 库 + 可选的 sqlite-vec / fastembed；没有数据库服务、没有云、没有构建步骤。能 <code>cat</code> 就能读，能 <code>git clone</code> 就能 ship。</p>
+    <!-- § 4 为什么 -->
+    <section id="为什么" aria-labelledby="为什么-h">
+      <h2 id="为什么-h">§ 4 · 你为什么可能需要它</h2>
+
+      <p>一份查得到、改得了、被 Agent 维护着的知识，比随时重新检索的 RAG 库更接近「思维的外接硬盘」。Mneme 想做的就是这件事——把它说出来的语言是 OKF v0.1，把它写出来的工具是一个站在你 Agent 旁边的轻量 skill。心理咨询方向请把它当成私人索引：诊断和处置始终交给专业人员。</p>
+
+      <p>v2.0 只带 <strong>L0</strong>(index / tags / 链接 / grep) 和 <strong>L1</strong>(SQLite FTS5)——零依赖、默认可用。语义索引层放在 v2.1，并且只是导航加速器，永不是事实源。</p>
+    </section>
+
+    <!-- § 5 朋友项目 -->
+    <section id="朋友" aria-labelledby="朋友-h">
+      <h2 id="朋友-h">§ 5 · 朋友项目</h2>
+
+      <aside class="friend-card">
+        <span class="tag">朋友项目</span>
+        <h3>森林密语 / 塔罗树洞(tarot-confessional)</h3>
+        <p>想用 Mneme 沉淀一次塔罗解读或长会话里的体会?试试 <strong>森林密语</strong>——它是 Mneme 在符号性反思方向上的同源项目。<em>森林密语</em>负责温柔地完成抽牌与象征性解读(本地优先,本地抽牌码不携带心事原文),<em>Mneme</em> 负责把有价值的体会整理进本地知识 Wiki,让反复出现的母题在时间的另一面再次浮现。两边都坚持:</p>
+        <ul>
+          <li>本地优先 / Agent 驱动 / 可检查的开放文件</li>
+          <li>不替任何产品下诊断,不替任何决定表态</li>
+          <li>写入是显式的——你不主动「保存到 Wiki」,什么都不会被留下</li>
+        </ul>
+        <p class="links">
+          🔗 <a href="https://github.com/Scott1743/tarot-confessional" target="_blank" rel="noopener">github.com/Scott1743/tarot-confessional</a><br/>
+          🪞 <a href="https://scott1743.github.io/tarot-confessional/" target="_blank" rel="noopener">scott1743.github.io/tarot-confessional</a>
+        </p>
+      </aside>
     </section>
 
     <footer>
@@ -308,7 +201,7 @@ _LOG_HEADING_DATE_RE = re.compile(r"^## (\d{4}-\d{2}-\d{2})\b")
         <a href="https://github.com/Scott1743/mneme/blob/main/CHANGELOG.md">CHANGELOG</a> ·
         <a href="https://skill.sh/?q=mneme">skills.sh</a>
       </p>
-      <p>本页面自包含、无外部 CDN。可在浏览器里「另存为」后离线阅读。</p>
+      <p>本页面自包含、无外部 CDN、可在浏览器里「另存为」离线阅读。</p>
     </footer>
 
   </main>

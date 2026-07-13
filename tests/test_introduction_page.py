@@ -22,7 +22,7 @@ pytestmark = pytest.mark.release
 ROOT = Path(__file__).resolve().parents[1]
 INTRO_HTML = ROOT / "introduction" / "index.html"
 
-REQUIRED_SECTION_IDS = ("初衷", "安装", "原理")
+REQUIRED_SECTION_IDS = ("初衷", "安装", "原理", "为什么", "朋友")
 
 CANONICAL_FOREST_URLS = (
     "https://github.com/Scott1743/tarot-confessional",

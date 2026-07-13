@@ -15,7 +15,7 @@ from mneme.indexlib import (
     read_index_meta,
     reindex_bundle,
     remove_concept,
-    search,
+    search_semantic,
     search_bundle,
     upsert_concept,
 )
@@ -79,8 +79,8 @@ def test_search_returns_ranked_chunks_and_filters_type(tmp_path):
     exact = "Attention is all you need."
     upsert_concept(conn, "c1", "c1.md", "One", "Concept", exact, "[]", "", _E)
     upsert_concept(conn, "c2", "c2.md", "Two", "Reference", "Other text", "[]", "", _E)
-    assert search(conn, exact, 1, _E)[0]["concept_id"] == "c1"
-    assert search(conn, exact, 2, _E, concept_type="Reference")[0]["concept_id"] == "c2"
+    assert search_semantic(conn, exact, 1, _E)[0]["concept_id"] == "c1"
+    assert search_semantic(conn, exact, 2, _E, concept_type="Reference")[0]["concept_id"] == "c2"
     conn.close()
 
 
@@ -89,7 +89,7 @@ def test_search_validates_query_and_limit(tmp_path, query, k):
     conn = open_index(tmp_path / "index.db")
     ensure_schema(conn)
     with pytest.raises(ValueError):
-        search(conn, query, k, _E)
+        search_semantic(conn, query, k, _E)
     conn.close()
 
 
@@ -144,7 +144,7 @@ def test_failed_reindex_preserves_previous_index(tmp_path):
     with pytest.raises(RuntimeError, match="embedding failed"):
         reindex_bundle(bundle, Embedder(fail, "broken"), db_path=db)
     conn = open_index(db, require_vector=True)
-    assert search(conn, "stable content", 1, _E)[0]["concept_id"] == "concepts/good"
+    assert search_semantic(conn, "stable content", 1, _E)[0]["concept_id"] == "concepts/good"
     conn.close()
 
 
@@ -177,5 +177,5 @@ def test_corrupt_index_reports_actionable_error(tmp_path):
     conn = open_index(db)
     ensure_schema(conn)
     with pytest.raises(CorruptIndexError, match="metadata"):
-        search(conn, "x", 1, _E)
+        search_semantic(conn, "x", 1, _E)
     conn.close()

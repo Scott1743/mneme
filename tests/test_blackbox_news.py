@@ -45,6 +45,8 @@ import sys
 from pathlib import Path
 
 import pytest
+
+from mneme import cli
 # v1.1.0 switched CLI entry from `mneme <cmd>` console command to
 # `python3 ~/.claude/skills/mneme/scripts/mneme.py <cmd>`. These
 # subprocess tests still call the old form and need a rewrite
@@ -299,18 +301,16 @@ def test_step_four_lint_reports_clean_bundle(blackbox_bundle):
     """``mneme lint`` on the ingested bundle reports 0 errors (every
     concept carries valid frontmatter, every link resolves, the log
     is newest-first) and 0 orphans (every concept is reachable from
-    ``index.md``)."""
+    ``index.md``). Pre-Task B contract: exit 0 means clean, exit 1
+    means OKF errors."""
     bundle, _ = blackbox_bundle
     rc = subprocess.run(
-        [sys.executable, "-m", "mneme", "lint", str(bundle)],
+        [sys.executable, "-m", "mneme", "lint", "--bundle", str(bundle)],
         capture_output=True, text=True, check=False,
     )
-    # Exit code 3 means "lint ran, no OKF errors, orphan section
-    # emitted (empty here)". Exit 1 would mean a real validation
-    # failure. See cli.cmd_lint docstring.
-    assert rc.returncode == 3, (
-        f"lint exit code {rc.returncode} (expected 3 = clean + orphan "
-        f"section):\nstdout={rc.stdout}\nstderr={rc.stderr}"
+    assert rc.returncode == 0, (
+        f"lint exit code {rc.returncode} (expected 0 = clean):\n"
+        f"stdout={rc.stdout}\nstderr={rc.stderr}"
     )
     assert "0 error(s)" in rc.stdout, (
         f"lint reported errors:\n{rc.stdout}"
@@ -320,45 +320,27 @@ def test_step_four_lint_reports_clean_bundle(blackbox_bundle):
     )
 
 
-def test_step_five_dream_subcommand_is_rejected(blackbox_bundle):
-    """``mneme dream`` is **not** a registered subcommand. The v0.2.1rc1
-    freeze removed it; 1.0.0 keeps it removed.
-
-    The contract: argparse exits with code 2 ("invalid choice") and
-    prints a usage message naming the real subcommands. This is the
-    opposite of the v0.2.0 behavior, which would have raised
-    ``AttributeError`` mid-execution after running ``git add -A`` on
-    the wrong repository.
-
-    A future dream restoration must:
-      1. implement ``okflib.find_orphans`` + similarity-safe workflow
-         (Phase 5 retrieval benchmark gates).
-      2. add a dry-run preview mode + dedicated safety TDD suite.
-      3. update ``tests/test_skill_drift.py`` so the
-         ``FROZEN_SCENARIOS`` set no longer contains "dream".
-    Until then, this test is the release-gate guard.
+def test_step_five_dream_subcommand_is_read_only_audit(blackbox_bundle):
+    """v2.0 contract: ``mneme dream`` IS a registered read-only audit
+    subcommand. There is no ``--apply`` flag (writes happen via the
+    SKILL.md workflow after explicit user approval). The CLI never
+    shells out to git.
     """
     bundle, _ = blackbox_bundle
     rc = subprocess.run(
-        [sys.executable, "-m", "mneme", "dream", str(bundle)],
+        [sys.executable, "-m", "mneme", "dream", "--bundle", str(bundle), "--json"],
         capture_output=True, text=True, check=False,
     )
-    assert rc.returncode == 2, (
-        f"`mneme dream` should exit 2 (argparse invalid choice); "
-        f"got {rc.returncode}. Either argparse's choice list changed "
-        f"or dream was resurrected without the Phase 5 safety gate."
+    assert rc.returncode == 0, (
+        f"`mneme dream` should exit 0 (read-only audit); got {rc.returncode}, "
+        f"stdout={rc.stdout!r}, stderr={rc.stderr!r}"
     )
-    stderr = rc.stderr
-    # argparse prints "invalid choice: 'dream'" on stderr.
-    assert "invalid choice" in stderr, (
-        f"expected 'invalid choice' in stderr; got:\n{stderr}"
-    )
-    assert "dream" in stderr, (
-        f"argparse error did not name 'dream' as the bad choice:\n{stderr}"
-    )
-    # The usage line must list the real subcommands so a user
-    # mistyping `dream` learns what IS available.
-    for cmd in ("init", "reindex", "search", "lint"):
-        assert cmd in stderr, (
-            f"usage line missing '{cmd}' in:\n{stderr}"
-        )
+    payload = json.loads(rc.stdout)
+    assert "none" in payload.get("_meta", {}).get("writes", "")
+    # Regression guard: dream must not be implemented as a Python
+    # write-path; the audit contract is enforced by the absence of
+    # --apply in the parser.
+    parser = cli.build_parser()
+    dream_sub = parser._subparsers._group_actions[0].choices["dream"]
+    option_strings = {flag for action in dream_sub._actions for flag in action.option_strings}
+    assert "--apply" not in option_strings

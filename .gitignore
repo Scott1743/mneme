@@ -37,6 +37,12 @@ build/
 # Per-test ephemeral scratch (e.g. fresh venv for entrypoint tests).
 .pytest-tmp/
 
-# Derived L2 index dirs (sqlite-vec + fastembed); '*.mneme/' matches
-# '.mneme/' at any depth (gitignore '*' can match empty path segments).
+# Derived cache dirs (sqlite3 + FTS5 index, model cache) — never in git,
+# at any depth.
+**/.mneme/
+.mneme/
 *.mneme/
+
+# Local agent worktrees (created by superpowers subagent isolation).
+.claude/
+**/.claude/

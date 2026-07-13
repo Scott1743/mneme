@@ -1,9 +1,9 @@
 """Zero-dep OKF core — §4.2 stdlib import discipline & §4.3 clean-venv runs.
 
 These tests pin v1.1.0's central claim: the OKF core (lint / init / ingest
-/ query) runs from a clean venv with **only stdlib** installed. L2 deps
-(sqlite-vec + fastembed) install lazily on first search/reindex (see
-test_lazy_index.py).
+/ query) runs from a clean venv with **only stdlib** installed. v2.0
+extends this to the FTS5 search surface — no sqlite-vec, no fastembed
+required for the v2.0 user-facing search.
 
 Failing one of these means the OKF core has picked up an unintended
 third-party import — which would re-introduce the v0.x install pain
@@ -12,6 +12,7 @@ this whole refactor exists to delete.
 from __future__ import annotations
 
 import ast
+import json
 import re
 import subprocess
 import sys
@@ -225,14 +226,11 @@ def test_clean_venv_lint_works_without_index(clean_venv, tmp_path):
     assert "orphan" in r.stderr.lower()
 
 
-def test_clean_venv_search_falls_back_to_lazy_install(clean_venv, tmp_path):
-    """`mneme search` in a clean venv (no [index]) triggers the lazy-install
-    flow. Without network it will fail with a clear SystemExit, NOT a
-    stack trace from a missing sqlite_vec import.
-
-    This is the user-facing safety net for v1.1.0: a skill.sh user with
-    no [index] installed gets `ensure_index_deps()` prompting instead of
-    a raw ModuleNotFoundError on first search.
+def test_clean_venv_search_falls_back_to_l0_grep(clean_venv, tmp_path):
+    """`mneme search` in a clean venv (no L2 deps installed) must fall
+    back to L0 grep when no FTS5 index exists — never crash with a
+    raw traceback from a missing optional module. v2.0 ships without
+    L2; the FTS5 + L0 grep path is stdlib-only and works in any venv.
     """
     import shutil
     bundle = tmp_path / "wiki"
@@ -242,31 +240,37 @@ def test_clean_venv_search_falls_back_to_lazy_install(clean_venv, tmp_path):
     # need to walk up to find it.
     cfg.write_text(f'bundle_path = "{bundle}"\n', encoding="utf-8")
 
-    # We can't easily assert "pip install was called" without a real
-    # network in CI. The minimum we can assert offline: search either
-    # triggers install (and fails cleanly when offline) OR raises a clear
-    # SystemExit mentioning the install command. Either way, NOT a raw
-    # stack trace from the missing module.
-    r = subprocess.run(
+    result = subprocess.run(
         [str(clean_venv), "-m", "mneme", "search", "okf",
-         "--config", str(cfg)],
+         "--json", "--config", str(cfg)],
         cwd=str(ROOT / "skills" / "mneme" / "scripts"),
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
         env={**__import__("os").environ,
              "PYTHONPATH": str(ROOT / "skills" / "mneme" / "scripts")},
         timeout=60,
     )
-    # The behavior depends on whether the venv has internet access.
-    # Acceptable outcomes:
-    #   rc=0: search succeeded (network available, install worked)
-    #   rc!=0 with clear stderr mentioning [index] install OR pip install
-    combined = r.stdout + r.stderr
-    assert (
-        r.returncode == 0
-        or "[index]" in combined
-        or "pip install" in combined
-        or "Failed to install" in combined
-    ), (
-        f"`mneme search` in clean venv did not behave as expected:\n"
-        f"rc={r.returncode}\nstdout={r.stdout!r}\nstderr={r.stderr!r}"
+    combined = result.stdout + result.stderr
+    # No raw traceback — that's the original contract we still uphold.
+    assert "Traceback (most recent call last)" not in combined, (
+        f"`mneme search` in clean venv emitted a raw traceback:\n"
+        f"rc={result.returncode}\nstdout={result.stdout!r}\nstderr={result.stderr!r}"
+    )
+    # v2.0: L0 grep fallback runs against *.md and returns candidates
+    # (the sample-bundle contains `concepts/okf.md`). Exit 0 is the
+    # expected outcome; stderr nudges toward `mneme reindex` for
+    # full-text ranking.
+    assert result.returncode == 0, (
+        f"clean venv `mneme search` should fall back to L0 grep "
+        f"and exit 0; got rc={result.returncode}, "
+        f"stdout={result.stdout!r}, stderr={result.stderr!r}"
+    )
+    payload = json.loads(result.stdout)
+    assert payload["query"] == "okf"
+    assert payload["candidates"], (
+        f"expected L0 grep to find OKF content in sample-bundle; "
+        f"got {payload!r}"
+    )
+    assert "reindex" in result.stderr.lower(), (
+        f"stderr should nudge toward `mneme reindex`; got {result.stderr!r}"
     )

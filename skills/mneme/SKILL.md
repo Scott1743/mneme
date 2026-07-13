@@ -1,7 +1,7 @@
 ---
 name: mneme
-version: 1.1.0
-description: "Maintain and search a local, OKF-conformant LLM knowledge wiki of research/learning notes. Use when the user wants to ingest a source, search or query the wiki, lint it, reindex it, or initialize a wiki. Triggers: 'mneme', 'my wiki', 'search my wiki', 'ingest this', 'query my notes', 'lint the wiki', 'knowledge base', '查 wiki', '搜索知识库', '摄入笔记', '知识库'. v1.1.0 ships skill-first delivery (skill.sh), zero-dep OKF core, and lazy L2 install on first search/reindex. Dream (scheduled auto-curation) is intentionally absent — see CHANGELOG for the freeze context."
+version: 2.0.0
+description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki. Use when the user wants to dream (capture knowledge) or search (recall it). Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', '查 wiki', '搜索知识库', '梦', '记住这个'. v2.0 ships skill-first delivery, OKF + tags writer rule, sqlite3 + FTS5 default, and `mneme dream` as a read-only audit CLI; L2 (sqlite-vec + FastEmbed) is deferred to v2.1."
 allowed-tools:
   - Read
   - Write
@@ -109,13 +109,13 @@ Distill a source (paper/article/note) into OKF concept pages:
 4. `Edit <bundle>/index.md` — find or create the section heading: if `## <section>` (e.g. `## Concepts`, `## References`, `## Summaries`) already exists, append `* [Title](path) - description` under it; otherwise append a new `## <section>` heading followed by the entry. Use the page's frontmatter `type` to pick the section.
 5. `Edit <bundle>/log.md` — **prepend** (insert at top) `## YYYY-MM-DD ingest | <source title>` + one-line note. The OKF v0.1 log contract requires newest-first.
 6. `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py reindex`.
-7. **On model load failure:** do **not** retry with any substitute function. Surface the failure to the user with the exact error. If L2 deps are missing, the CLI prints the one-line install instruction — do NOT run pip on the user's behalf.
+7. **On model load failure:** do **not** retry with any substitute function and do NOT run pip on the user's behalf. L2 deps are user opt-in; the CLI prints a one-line install instruction; the user runs it.
 
 See `references/workflow-ingest.md` for the detailed checklist.
 
 ## Scenario: query <question>
 
-Naive RAG: embed → KNN → top-k → read pages → synthesize answer with citations:
+Walk the OKF graph: search returns ranked candidates → read each page in full → synthesize with bundle-relative citations:
 
 1. `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py search "<question>" --json -k 10`
 2. For each top chunk, `Read <bundle>/<chunk.path>` (use `concept_id` from the search result to derive path: `concepts/foo` → `concepts/foo.md`).
@@ -135,10 +135,16 @@ Curate + report (do **not** auto-modify):
 
 See `references/workflow-lint.md`.
 
-> **dream (scheduled, fully automatic)** is **intentionally absent** from this skill. The dream workflow's similarity math referenced a non-existent `find_orphans()` primitive, ran `git add -A` before resolving the bundle, and could auto-commit unrelated user changes. Re-introduction requires: (a) Phase 5 retrieval benchmark passing, (b) `find_orphans` + similarity-safe workflow under test, (c) dry-run preview mode + a dedicated safety TDD suite. See `CHANGELOG.md` 0.2.1 entry.
+## Dream — read-only audit lens
+
+`mneme dream` is a **read-only audit lens** over the bundle. It returns a candidate report (OKF hard-rule candidates, Mneme writer-rule candidates, navigation candidates) — never a similarity score, never a similarity threshold, never a write.
+
+`dream` does not shell `git`, never modifies the bundle, and the CLI exposes no `--apply` flag. The write-side workflow (what to do with the report after the user explicitly approves it) lives in `references/workflow-dream.md`; the agent performs those writes with its own `Write` / `Edit` tools, never from the CLI. The contract is enforced by `tests/test_dream_readonly.py`.
+
+See `references/workflow-dream.md` for the full write-side workflow.
 
 ## references (load on demand)
 
-`references/workflow-ingest.md` · `references/workflow-query.md` · `references/workflow-lint.md` · `references/type-vocab.md` · `references/wiki-structure.md` · `references/index-design.md`.
+`references/workflow-ingest.md` · `references/workflow-query.md` · `references/workflow-lint.md` · `references/workflow-dream.md` · `references/type-vocab.md` · `references/wiki-structure.md` · `references/index-design.md`.
 
 OKF spec: <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>.

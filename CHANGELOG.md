@@ -9,104 +9,79 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-07-14 — dream + search surface; OKF + tags; L2 deferred to 2.1
+
+v2.0 是 **LLM-Wiki-not-RAG** 的里程碑：把 mneme 的产品叙事从「CLI + 可选 L2 向量检索」收回到「`dream` 写、`search` 读、一座 OKF 合规的本地 Markdown 知识库」。OKF 仍是 wiki 本体的格式契约；L1（SQLite FTS5）取代 1.1.0 的 L2（语义召回）成为默认导航层；语义召回推迟到 v2.1。CLI 仍是 `init / lint / reindex / search / dream`，`dream` 是只读审计、写盘由 agent 在 SKILL.md 工作流里完成。
+
+### Breaking changes
+
+- **User surface = `dream` + `search` only.** `init` / `lint` / `reindex` / `search` / `dream` 是 agent 在后台跑的确定性 CLI；用户叙事里只讲 `dream` 与 `search`。SKILL.md 删去 `ingest` / `query` 场景标题 —— 同等意图并入 `dream` / `search`。
+- **`init` 退出码改为 `1` 表示 bundle 已存在**（取代 1.x 的「幂等覆盖」语义）。bundle 已存在时仍按原值返回，**不会**静默覆盖；想做覆盖必须显式 `--force`。
+- **`lint` 退出码简化为 `0/1`，用 `1` 表示存在 ERROR。** 取代 1.x 的 `LINT_GUARD_RC=3` 信号；CI / shell 脚本请把 `rc == 3` 改为 `rc != 0`。
+- **`dream` 子命令只读。** 无 `--apply` 标志（v1.x 草案中的 `--apply` 已删除）；dream 出的报告由 agent 在 SKILL.md 工作流里、用 `Write` / `Edit` 工具落盘，且必须**先得到用户明确点头**。`git add -A` / `git commit` / `git push` 永不自动触发。
+- **删除 L2 子命令与 `--l2` 标志。** `reindex` / `search` 在 v2.0 不再支持语义召回路径。可选语义召回层**推迟到 v2.1**——v2.0 不引入、不打包、不自动装相关依赖。
+- **删除「Naive RAG」叙事。** SKILL.md / README / introduction 全部明确为「compile-once / walk-the-graph」；语义召回不再是默认叙事。
+- **bilingual `SKILL cn.md` 删除。** v2.0 只保留下单份英文 `SKILL.md`（取代 1.1.0 起的 `SKILL cn.md` 镜像）。中文读者由 `introduction/index.html` 承担。
+
 ### Added
 
-- GitHub Pages 介绍页（`introduction/index.html` + `.github/workflows/pages.yml`），
-  自动部署到 https://scott1743.github.io/mneme/introduction/。
-  单文件、内联 CSS、无外部 CDN、含中英混排（Forest/塔罗树洞 朋友项目互链沿用
-  sibling README 的保守措辞）。
-- `tests/test_introduction_page.py` 作为介绍页的 release-gate：结构 + 锚点 +
-  互链白名单 + CDN 守门四件套（gstack plan-eng-review 升级后的形态）。
+- **`mneme dream` —— 只读 audit CLI。** 返回一组候选报告（OKF 硬规则 / mneme 写作纪律 / 导航健康度），永不直接改 bundle。`tests/test_dream_readonly.py` 守护「dream 不写盘」、「dream 不 shell `git add -A`」、「dream 只报告 raw distance」的契约。
+- **`tags` 写入规则。** mneme 自己写出来的概念页 frontmatter 至少含 1 个 `tags` 值；外部 OKF bundle 缺 `tags` 只 WARN，不拒绝。`type` 与 `tags` 不重叠：`type` 描述文档角色（OKF 协议级 MUST），`tags` 描述主题归类（mneme 写作纪律）。
+- **Topic 页面作为概念地图。** 需要「按主题聚合」时写一份普通 OKF `Topic` 页面（`type: Topic`）；不要按 tag 镜像 `tags/<tag>.md`，后者维护成本高且易腐化。
+- **L1 默认 — `sqlite3` + FTS5。** 索引文件 `<bundle>/.mneme/index.db`；`body` 列在线可搜，`mneme reindex` 用「temp-db → fsync → os.replace」做原子全量重建。FTS5 schema 见 `references/workflow-search.md`。
+- **`tests/test_changelog.py` + `tests/test_introduction_rewrite.py`** —— 守护 2.0 表面：`dream`/`search` 作为用户动词、L2 仅在「deferred to v2.1」语境出现、CHANGELOG `## 2.0.0` 写明 dream/search + L2 deferred。
 
-## [1.1.0] — 2026-07-13 — skill-first delivery + zero-dep OKF core + L2 lazy install
+### Fixed
 
-Closes the v1.0 readiness assessment's
-[§"P0 Delivery model is internally inconsistent"](../docs/superpowers/reports/2026-07-12-mneme-1.0-readiness-assessment.md).
-Switches from wheel-based distribution (CLI+skill hybrid) to a single
-**skill-first** delivery path. The product contract is now: a skill.sh
-user installs the skill, runs any CLI subcommand, and the OKF core just
-works — zero third-party deps, no `pip install mneme`, no PyPI round trip.
+- 1.1.0 中**误称**的「L2 首次调用自动装」机制（首次 `reindex` / `search` 触发 `pip install` + 下载 ~90MB 模型）：v2.0 不存在；语义召回推迟到 v2.1。
+- 1.1.0 中**承诺**的「wheel build smoke」：v2.0 不存在；交付物仅为 skill zip。
+- 1.1.0 中**从未实际删除**的 `skills/mneme/scripts/mneme.egg-info/` 与 `dist/mneme-1.1.0.zip` 残留：v2.0 清理 + `.gitignore` 守门。
+- 1.1.0 中**未修正**的 `test_release_layout.py` 中对 1.1.0 字面量的硬编码：v2.0 改为基于 `__version__` 的正则断言。
+- sample-bundle 内部 `sources/*.md` raw 内容移到 `sample-bundle/external-sources/`；bundle 内部只剩 OKF `Source` 指针页。
+- CI matrix 收窄到 Python 3.11 / 3.12 / 3.13（去掉 3.10——`config.py` 要求 3.11+）。
 
-CLI subcommand surface (`init` / `reindex` / `search` / `lint`) is
-unchanged from 1.0.0. What changed is the delivery and dependency
-contract.
+## [1.1.0] — 2026-07-13 — skill-first delivery + zero-dep OKF core + L2 lazy install (CORRECTED)
 
-### Delivery model — skill-first
+> 1.1.0 的描述在 v2.0 中得到修正。以下是 v2.0 视角下 1.1.0 的真实状态——其中 **drop lazy install / drop wheel / drop bilingual SKILL** 三项均在 v2.0 中撤销或更正。
 
-- **No more wheel.** `dist/` and `mneme.egg-info/` are removed from the
-  repo. `pyproject.toml` no longer declares `[project.scripts]`,
-  `[build-system]`, or `[tool.setuptools.*]`. The only deliverable is
-  `skills/mneme/` itself — installable from [skill.sh](https://skill.sh).
-- **Skill.sh install location.** The skill lands at
-  `~/.claude/skills/mneme/`. The agent invokes the CLI as
-  `python3 ~/.claude/skills/mneme/scripts/mneme.py <subcmd>` (a thin
-  shim), or `cd ~/.claude/skills/mneme/scripts && python3 -m mneme <subcmd>`.
-  The `mneme` console command is gone.
-- **`src/mneme/` Python package layout reverted.** The implementation
-  lives at `skills/mneme/scripts/mneme/` (real files, not symlinks).
-- **SKILL.md path convergence.** All Bash invocations in `SKILL.md` /
-  `SKILL cn.md` / `references/*.md` use the skill.sh shim path.
-  No `mneme <cmd>` console-command references in user-facing prose.
+### Delivery model — skill-first (kept)
 
-### Zero-dep OKF core
+- `skills/mneme/` 是唯一交付物；`dist/mneme-1.1.0.zip` 是当时唯一的发布物；安装地址仍是 `~/.claude/skills/mneme/`。**这与 v2.0 一致**。
+- **`pyproject.toml` 的 `[build-system]` / `[project.scripts]` / `[tool.setuptools.*]` 在 1.1.0 中已删除。** 这与 v2.0 一致。
 
-- **`tomli_w` replaced with hand-rolled TOML writer.**
-  `skills/mneme/scripts/mneme/toml_writer.py` (~60 lines, stdlib only).
-  Covers the types mneme actually writes: `str` / `int` / `float` / `bool` /
-  `list`. Quote / backslash / unicode / newline / tab escapes round-trip
-  cleanly through `tomllib` (3.11+) or `tomli` (3.10 fallback via the
-  `toml10` extras).
-- **`tomli_w` removed from hard deps.** `pyproject.toml [project].dependencies`
-  is now empty. L1 (lint / init / ingest / query) runs from a fresh venv
-  with **only stdlib** — verified by `test_clean_venv_*`.
-- **`PyYAML` still opt-in via the `validate` extra.** Default install uses
-  the lenient producer-side frontmatter parser; strict consumer-side
-  verification opts in via `pip install 'mneme[validate]'`.
+### Zero-dep OKF core (kept)
 
-### L2 lazy install
+- **tomli_w 被手写 TOML writer 取代。** `toml_writer.py`（~60 行，stdlib only），类型 `str` / `int` / `float` / `bool` / `list` round-trip 通过 `tomllib`（3.11+）/ `tomli`（3.10 extras `toml10`）。这与 v2.0 一致。
+- **PyYAML 仍是 opt-in**，通过 `mneme[validate]` extras。v2.0 一致。
 
-- **`ensure_index_deps()` triggers `pip install 'mneme[index]'` on first
-  `reindex` or `search`.** Auto-installs `sqlite-vec` + `fastembed` (the
-  L2 stack) and downloads the ~90MB BGE model on first invocation.
-  Subsequent calls use cached deps; no second download.
-- **PEP 668 aware.** On system Python (where `pip install` is blocked
-  by externally-managed-environment on macOS 14+ and many modern
-  distros), the install uses `--user`. Inside a venv, plain
-  `pip install` (the venv is its own writable site-packages).
-- **`os.execvp` restarts self after install.** The current Python
-  process can't see the freshly-installed packages (imports are cached
-  for the lifetime of a process); `os.execvp` replaces it with a fresh
-  interpreter so the user's command runs to completion transparently.
-- **Offline / permission-denied graceful.** `CalledProcessError` or
-  `PermissionError` from pip → `SystemExit(1)` with a clear manual-install
-  instruction in stderr, never a raw stack trace.
+### L2 lazy install — **REVERTED in v2.0**
 
-### Tests added
+- 1.1.0 声称 `ensure_index_deps()` 触发首次 `reindex` 或 `search` 时自动 `pip install sqlite-vec fastembed` 并下载 ~90MB 模型。**v2.0 撤销此行为：**自动安装路径不存在；语义召回层整体推迟到 v2.1。`tests/test_lazy_index.py` 在 v2.0 中被对应的「无 L2 自动装」与「无 `--l2` 标志」契约替代（见 v2.0.0 §Breaking 与 §Added）。
+- 1.1.0 的 "Pre-existing-L2-gets-imported-on-first-use"（`os.execvp` 重启 self）行为：**v2.0 不存在**。
 
-| File | Tests | Pins |
-|---|---:|---|
-| `tests/test_release_layout.py` | 16 | §3 layout: no `dist/`, no `src/mneme/`, no `[project.scripts]`, skill.sh paths only |
-| `tests/test_toml_writer.py` | 9 | §4.1 escape edge cases (quote / backslash / unicode / newline / tab / int / bool / list) |
-| `tests/test_zero_dep.py` | 5 | §4.2 stdlib-only AST check + §4.3 clean-venv init/lint/search |
-| `tests/test_lazy_index.py` | 7 | §5 / §5.3-bis / §5.3-ter: lazy detect / offline / PEP 668 / `os.execvp` re-exec shape |
-| `tests/test_docs.py` | +8 | §6 CLAUDE.md / AGENTS.md / SKILL*.md / references/*.md contract |
-| **Net new** | **45** | v1.1.0 spec coverage |
+### Bilingual SKILL — **DROPPED in v2.0**
 
-Legacy subprocess tests (`test_install.py`, `test_e2e_*.py`,
-`test_blackbox_news.py`) are marked `@pytest.mark.compat` (default-skipped).
-They assumed the wheel-install path and need PR2/PR3 rewrite to use the
-new shim path. They re-enable under `pytest -m compat` for release-prep.
+- 1.1.0 保留 `SKILL.md`（权威英文）+ `SKILL cn.md`（中文镜像）。**v2.0 删除 `SKILL cn.md`**，只保留单份英文 `SKILL.md`。中文读者由 `introduction/index.html` 承担。
 
-### Migration notes for 1.0.x wheel users
+### wheel build / `mneme` console command — **DROPPED in v2.0**
 
-- Continue using your existing `mneme` console command; 1.0.x wheels
-  on PyPI are unaffected.
-- New features (lazy L2 install, zero-dep core) require reinstalling
-  via skill.sh.
-- No data migration needed; `~/.config/mneme/config.toml` and bundle
-  directories are unchanged.
-- Bug-fix releases on the 1.0.x line (if any) still publish wheels;
-  the 1.1.x line ships via skill.sh only.
+- 1.1.0 已经在 zip-only 路径上撤销 wheel / `mneme` console command。**v2.0 严格强化这条约束**：`tests/test_release_layout.py` 不允许 `[build-system]` / `[project.scripts]` / `[tool.setuptools.*]` / `setuptools` 任意一项出现在 `pyproject.toml` 中。
+- 仓库工作树的 `dist/mneme-1.1.0.zip` / `skills/mneme/scripts/mneme.egg-info/` 残留：v2.0 一并清理 + `.gitignore` 守门。
+
+### Tests added in 1.1.0 (kept where compatible, replaced where not)
+
+- `tests/test_release_layout.py`（16）——v2.0 改为基于 `__version__` 的断言。
+- `tests/test_toml_writer.py`（9）—— kept。
+- `tests/test_zero_dep.py`（5）——v2.0 调整（不再断言 L2 lazy-install 行为，改为断言「不引入 sqlite-vec / fastembed 依赖」）。
+- `tests/test_lazy_index.py`（7）——**v2.0 删除**，对应契约改由 `tests/test_skill_drift.py` 守护。
+- `tests/test_docs.py`（+8）——v2.0 强化：禁止 README / introduction / CLAUDE / AGENTS 出现 `--l2` / `sqlite-vec` / `fastembed` / `BGE` / `naive rag` / `auto-install` 字样。
+
+### Migration notes for 1.0.x wheel users (v2.0 perspective)
+
+- 1.0.x wheels 仍可在 PyPI 上获取；它们与 v2.0 zip-only 路径不再互操作。
+- 升级到 v2.0：重装为 skill zip；现有 `~/.config/mneme/config.toml` 与 bundle 目录无需迁移。
+- 升级路径不包含任何 L2 自动装；想要语义召回请等 v2.1 或自行装。
+
 
 ## [1.0.0] — 2026-07-12 — release-gate closure
 
