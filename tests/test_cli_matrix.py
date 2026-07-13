@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import pytest
@@ -142,10 +143,19 @@ def test_reindex_exit_code_is_one_when_bundle_is_missing(tmp_path):
 def test_search_exit_code_is_zero_for_empty_candidates(tmp_path, monkeypatch, capsys):
     bundle = tmp_path / "wiki"
     bundle.mkdir()
-    monkeypatch.setattr(indexlib, "search_bundle", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        indexlib,
+        "search",
+        lambda query, db, k: {"query": query, "candidates": []},
+    )
+    # Drop a sentinel index.db so cmd_search takes the FTS5 path
+    # rather than the L0 grep fallback.
+    (bundle / ".mneme").mkdir()
+    (bundle / ".mneme" / "index.db").write_bytes(b"")
 
     assert cli.main(["search", "absent", "--bundle", str(bundle), "--json"]) == 0
-    assert capsys.readouterr().out.strip() == "[]"
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == {"query": "absent", "candidates": []}
 
 
 def test_search_exit_code_is_one_when_bundle_is_missing(tmp_path):

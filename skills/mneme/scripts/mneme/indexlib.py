@@ -287,13 +287,26 @@ def remove_concept(conn, concept_id) -> None:
     conn.commit()
 
 
-def search(
+def search_semantic(
     conn,
     query: str,
     k: int,
     embed_fn: EmbedFn | Embedder,
     concept_type: Optional[str] = None,
 ) -> List[Dict]:
+    """L2 vector-search backend (sqlite-vec + fastembed).
+
+    Deferred from the v2.0 user-facing ``search`` surface — the L2
+    stack is not part of v2.0 (deferred to v2.1 per
+    ``docs/superpowers/plans/2026-07-13-mneme-2.0-implementation.md``).
+    This function is retained so ``reindex_bundle`` /
+    ``search_bundle`` keep working for the existing tests that
+    exercise the L2 path (``tests/test_blackbox_news.py`` and
+    ``tests/test_indexlib.py``).
+
+    Use the new top-level :func:`search` for v2.0 candidate search;
+    it does not require L2 deps.
+    """
     if not query.strip():
         raise ValueError("query must not be empty")
     if not 1 <= k <= 100:
@@ -484,7 +497,7 @@ def search_bundle(
         if read_index_meta(conn).get("indexed_concepts") == "0":
             return []
         embedder = _as_embedder(embed_fn) if embed_fn is not None else default_embed_fn()
-        return search(conn, query, k, embedder, concept_type=concept_type)
+        return search_semantic(conn, query, k, embedder, concept_type=concept_type)
     finally:
         conn.close()
 
@@ -573,3 +586,64 @@ def reindex_paths(paths, bundle) -> int:
         _remove_sqlite_sidecars(temp_path)
         raise
     return indexed
+
+
+def search(query: str, db: Path, k: int = 10) -> Dict:
+    """v2.0 FTS5 candidate search — no L2 deps.
+
+    Returns a dict of the form::
+
+        {
+            "query": <query>,
+            "candidates": [
+                {"path": ..., "title": ..., "snippet": ...}, ...
+            ],
+        }
+
+    Each candidate is a *navigation hint*, not a final answer. The
+    host agent (Claude Code) is expected to ``Read`` each candidate
+    page in full before composing a response. This separation —
+    "the CLI produces candidates, the agent produces the answer" —
+    is the v2.0 contract; see ``docs/superpowers/plans/2026-07-13-
+    mneme-2.0-implementation.md`` Task 4.
+
+    Implementation notes:
+
+    - Uses the v1.x FTS5 column-indexing convention for the
+      ``pages_fts`` virtual table declared in :func:`ensure_schema`:
+      ``title=0, description=1, tags=2, body=3``. Task 3 corrected
+      the original plan (which had body at column 4); this function
+      pins column 3 to surface body-only matches in the snippet.
+    - Snippet delimiters are ``|...|…`` (start/sep/end) with up to
+      8 tokens of context — a deliberately compact snippet so the
+      host agent still does the work of reading the full page.
+    - Pure stdlib + sqlite3 + FTS5. Does NOT import ``sqlite_vec``
+      or ``fastembed``. L2 lives at :func:`search_semantic` and is
+      deferred to v2.1.
+    """
+    if not query.strip():
+        raise ValueError("query must not be empty")
+    if not 1 <= k <= 100:
+        raise ValueError("limit must be between 1 and 100")
+    db_path = Path(db)
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute(
+            # FTS5 column 3 = body (see ensure_schema). SELECT
+            # path/title/body columns from `pages` joined on rowid
+            # to keep the candidate shape stable.
+            "SELECT p.path, p.title, "
+            "snippet(pages_fts, 3, '|', '|', '…', 8) "
+            "FROM pages_fts JOIN pages p ON p.id = pages_fts.rowid "
+            "WHERE pages_fts MATCH ? ORDER BY rank LIMIT ?",
+            (query, k),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {
+        "query": query,
+        "candidates": [
+            {"path": row[0], "title": row[1] or "", "snippet": row[2] or ""}
+            for row in rows
+        ],
+    }

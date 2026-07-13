@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Dict, List
 
 def _default_config_path() -> Path:
     from .config import resolve_config_dir
@@ -100,47 +101,126 @@ def cmd_reindex(args: argparse.Namespace) -> int:
     return 0
 
 
-def _snippet(text: str, limit: int = 180) -> str:
-    normalized = " ".join(text.split())
-    return normalized if len(normalized) <= limit else f"{normalized[: limit - 3]}..."
+# v2.0 search surface — see
+# docs/superpowers/plans/2026-07-13-mneme-2.0-implementation.md Task 4.
+# Search returns *candidates* (path + title + snippet) only; the host
+# agent reads each candidate page in full to compose the final answer.
+# Two paths:
+#   1. FTS5 against <bundle>/.mneme/index.db (default; built by
+#      `mneme reindex` via Task 3's reindex_paths).
+#   2. L0 grep fallback over *.md when index.db is missing.
+# No L2 deps (sqlite-vec + fastembed) are imported here; those land
+# in v2.1.
+
+_L0_GREP_CONTEXT = 60  # chars of context around the matched line
+
+
+def _cmd_search_grep(bundle: Path, query: str, k: int) -> Dict:
+    """L0 fallback: walk ``*.md`` files in the bundle, parse
+    frontmatter for the title, and case-insensitively scan the body
+    for ``query``. Returns the same ``{"query": ..., "candidates": [...]}``
+    shape as :func:`indexlib.search` so the caller doesn't branch.
+    """
+    from . import okflib
+
+    q = query.lower()
+    candidates: List[Dict] = []
+    for md_path in sorted(bundle.rglob("*.md")):
+        if not md_path.is_file():
+            continue
+        parts = md_path.relative_to(bundle).parts
+        if any(part == ".mneme" for part in parts):
+            continue
+        # Raw sources under sources/ are immutable inputs — they have
+        # no frontmatter and shouldn't be surfaced as OKF concepts.
+        if "sources" in parts:
+            continue
+        if md_path.name in ("index.md", "log.md"):
+            continue
+        try:
+            text = md_path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        parsed = okflib.parse_frontmatter(text)
+        title = ""
+        body = text
+        if parsed is not None:
+            meta, body = parsed
+            title = str(meta.get("title", "") or "")
+        if q not in title.lower() and q not in body.lower():
+            continue
+        snippet = _make_grep_snippet(body, q, _L0_GREP_CONTEXT)
+        rel = md_path.relative_to(bundle).as_posix()
+        candidates.append({"path": rel, "title": title, "snippet": snippet})
+        if len(candidates) >= k:
+            break
+    return {"query": query, "candidates": candidates}
+
+
+def _make_grep_snippet(body: str, query_lower: str, context: int) -> str:
+    """Build a short snippet around the first body match of ``query_lower``.
+
+    Truncates to a single line so the agent's candidate list stays
+    scannable; falls back to a head-of-body snippet when no match
+    exists (which shouldn't happen because the caller already
+    filtered on the match, but keeps the function defensive).
+    """
+    lines = body.splitlines()
+    for line in lines:
+        if query_lower in line.lower():
+            stripped = line.strip()
+            if len(stripped) <= context * 2:
+                return stripped
+            idx = stripped.lower().find(query_lower)
+            start = max(0, idx - context)
+            end = min(len(stripped), idx + len(query_lower) + context)
+            return stripped[start:end]
+    # Defensive fallback — body had the match per the caller, but no
+    # single line did (e.g. match spans a line boundary). Trim head.
+    head = " ".join(lines).strip()
+    return head if len(head) <= context * 2 else f"{head[: context * 2]}..."
 
 
 def cmd_search(args: argparse.Namespace) -> int:
+    """v2.0 search: candidates + snippets via FTS5, L0 grep fallback."""
     bundle = _resolve_bundle(args)
     if bundle is None:
-        print("no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init", file=sys.stderr)
-        return 1
-    try:
-        from . import indexlib
-
-        hits = indexlib.search_bundle(
-            bundle,
-            args.query,
-            k=args.limit,
-            concept_type=args.concept_type,
-        )
-    except ImportError as exc:
         print(
-            "L2 search needs sqlite-vec + fastembed, which are not part "
-            "of the skill bundle.\n"
-            "Install them once with:\n"
-            "  pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'\n"
-            f"(then re-run this command)\n\n"
-            f"Underlying error: {exc}",
+            "no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init",
             file=sys.stderr,
         )
         return 1
-    except Exception as exc:
-        print(f"search failed: {exc}", file=sys.stderr)
-        return 1
-    ranked = [{"rank": rank, **hit} for rank, hit in enumerate(hits, start=1)]
+
+    from . import indexlib
+
+    db = bundle / ".mneme" / "index.db"
+    if db.is_file():
+        try:
+            out = indexlib.search(args.query, db, k=args.limit)
+        except Exception as exc:
+            print(f"search failed: {exc}", file=sys.stderr)
+            return 1
+    else:
+        # L0 grep fallback. Don't write the index here — the user
+        # opted out of `mneme reindex`. Just nudge on stderr.
+        print(
+            f"no index at {db}; falling back to L0 grep. "
+            "Run `mneme reindex` for full-text ranking.",
+            file=sys.stderr,
+        )
+        out = _cmd_search_grep(bundle, args.query, args.limit)
+
     if args.json:
-        print(json.dumps(ranked, ensure_ascii=False, indent=2))
-        return 0
-    for hit in ranked:
-        print(f"{hit['rank']}. {hit['title']} [{hit['type']}]")
-        print(f"   {hit['path']}  distance={hit['distance']:.4f}")
-        print(f"   {_snippet(hit['text'])}")
+        print(json.dumps(out, ensure_ascii=False))
+    else:
+        for candidate in out["candidates"]:
+            # FTS5 snippet() may return multi-line fragments (e.g.
+            # `# h\n|rareword| appears here\n`); collapse to a single
+            # line so the tab-separated human output stays scannable.
+            snippet = candidate["snippet"].replace("\n", " ").strip()
+            print(
+                f"{candidate['path']}\t{candidate['title']}\t{snippet}"
+            )
     return 0
 
 

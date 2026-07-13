@@ -31,18 +31,19 @@ def test_reindex_reports_structured_counts(tmp_path, monkeypatch, capsys):
     assert "2 concepts / 4 chunks (1 skipped)" in capsys.readouterr().out
 
 
-def _search_hit(query):
+def _search_candidate(query):
+    """Sample v2.0 candidate shape returned by the FTS5 path."""
     return {
-        "concept_id": "concepts/a",
         "path": "concepts/a.md",
         "title": "中文 A",
-        "type": "WhateverThing",
-        "text": f"# 中文 A\n{query}",
-        "distance": 0.125,
+        "snippet": f"中文 A {query}",
     }
 
 
 def test_search_json_is_stable_and_passes_query_as_data(tmp_path, monkeypatch, capsys):
+    """v2.0 search JSON shape: ``{"query": ..., "candidates": [...]}``,
+    each candidate carries ``path``, ``title``, ``snippet``.
+    """
     cfg = tmp_path / "config.toml"
     bundle = tmp_path / "wiki"
     bundle.mkdir()
@@ -50,59 +51,76 @@ def test_search_json_is_stable_and_passes_query_as_data(tmp_path, monkeypatch, c
     query = "引号 ' \" newline\n$()"
     seen = {}
 
-    def fake_search(bundle_path, value, k, concept_type):
-        seen.update(bundle=bundle_path, query=value, k=k, concept_type=concept_type)
-        return [_search_hit(value)]
+    def fake_search(query, db, k):
+        seen.update(query=query, db=str(db), k=k)
+        return {"query": query, "candidates": [_search_candidate(query)]}
 
-    monkeypatch.setattr(indexlib, "search_bundle", fake_search)
-    rc = mneme.main(
-        ["search", query, "-k", "5", "--type", "WhateverThing", "--json", "--config", str(cfg)]
-    )
+    monkeypatch.setattr(indexlib, "search", fake_search)
+    # Drop a sentinel index.db so cmd_search takes the FTS5 path
+    # rather than the L0 grep fallback.
+    (bundle / ".mneme").mkdir()
+    (bundle / ".mneme" / "index.db").write_bytes(b"")
+    rc = mneme.main(["search", query, "-k", "5", "--json", "--config", str(cfg)])
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
-    assert seen == {
-        "bundle": bundle,
-        "query": query,
-        "k": 5,
-        "concept_type": "WhateverThing",
-    }
-    assert payload[0]["rank"] == 1
-    assert payload[0]["path"] == "concepts/a.md"
-    assert payload[0]["title"] == "中文 A"
+    assert seen["query"] == query
+    assert seen["k"] == 5
+    assert payload["query"] == query
+    assert payload["candidates"][0]["path"] == "concepts/a.md"
+    assert payload["candidates"][0]["title"] == "中文 A"
 
 
 def test_search_human_output(tmp_path, monkeypatch, capsys):
+    """v2.0 human output is tab-separated ``path\\ttitle\\tsnippet``
+    lines — one per candidate.
+    """
     cfg = tmp_path / "config.toml"
     bundle = tmp_path / "wiki"
     bundle.mkdir()
     cfg.write_text(f'bundle_path = "{bundle}"\n')
-    monkeypatch.setattr(indexlib, "search_bundle", lambda *_args, **_kwargs: [_search_hit("body")])
+    monkeypatch.setattr(
+        indexlib,
+        "search",
+        lambda query, db, k: {"query": query, "candidates": [_search_candidate("body")]},
+    )
+    (bundle / ".mneme").mkdir()
+    (bundle / ".mneme" / "index.db").write_bytes(b"")
     assert mneme.main(["search", "body", "--config", str(cfg)]) == 0
     output = capsys.readouterr().out
-    assert "1. 中文 A [WhateverThing]" in output
-    assert "concepts/a.md  distance=0.1250" in output
+    assert "concepts/a.md" in output
+    assert "中文 A" in output
+    assert "body" in output
 
 
 def test_search_zero_hits_is_success(tmp_path, monkeypatch, capsys):
+    """Empty candidates still exit 0 and emit the new JSON shape."""
     cfg = tmp_path / "config.toml"
     bundle = tmp_path / "wiki"
     bundle.mkdir()
     cfg.write_text(f'bundle_path = "{bundle}"\n')
-    monkeypatch.setattr(indexlib, "search_bundle", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        indexlib, "search", lambda query, db, k: {"query": query, "candidates": []}
+    )
+    (bundle / ".mneme").mkdir()
+    (bundle / ".mneme" / "index.db").write_bytes(b"")
     assert mneme.main(["search", "none", "--json", "--config", str(cfg)]) == 0
-    assert json.loads(capsys.readouterr().out) == []
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == {"query": "none", "candidates": []}
 
 
 def test_search_runtime_error_returns_1(tmp_path, monkeypatch, capsys):
+    """FTS5 errors propagate as exit 1 with the underlying message."""
     cfg = tmp_path / "config.toml"
     bundle = tmp_path / "wiki"
     bundle.mkdir()
     cfg.write_text(f'bundle_path = "{bundle}"\n')
+    (bundle / ".mneme").mkdir()
+    (bundle / ".mneme" / "index.db").write_bytes(b"")
 
     def fail(*_args, **_kwargs):
-        raise indexlib.IndexNotFoundError("run mneme reindex")
+        raise RuntimeError("index metadata is missing; run mneme reindex")
 
-    monkeypatch.setattr(indexlib, "search_bundle", fail)
+    monkeypatch.setattr(indexlib, "search", fail)
     assert mneme.main(["search", "x", "--config", str(cfg)]) == 1
     assert "run mneme reindex" in capsys.readouterr().err
 

@@ -1,9 +1,9 @@
 """Zero-dep OKF core — §4.2 stdlib import discipline & §4.3 clean-venv runs.
 
 These tests pin v1.1.0's central claim: the OKF core (lint / init / ingest
-/ query) runs from a clean venv with **only stdlib** installed. L2 deps
-(sqlite-vec + fastembed) install lazily on first search/reindex (see
-test_lazy_index.py).
+/ query) runs from a clean venv with **only stdlib** installed. v2.0
+extends this to the FTS5 search surface — no sqlite-vec, no fastembed
+required for the v2.0 user-facing search.
 
 Failing one of these means the OKF core has picked up an unintended
 third-party import — which would re-introduce the v0.x install pain
@@ -12,6 +12,7 @@ this whole refactor exists to delete.
 from __future__ import annotations
 
 import ast
+import json
 import re
 import subprocess
 import sys
@@ -225,12 +226,11 @@ def test_clean_venv_lint_works_without_index(clean_venv, tmp_path):
     assert "orphan" in r.stderr.lower()
 
 
-def test_clean_venv_search_fails_cleanly_without_index(clean_venv, tmp_path):
-    """`mneme search` in a clean venv (no L2 deps installed) must report a
-    plain error message — never a raw traceback from a missing module.
-    The skill itself does not auto-install sqlite-vec / fastembed; the user
-    opts in by running `pip install ...` themselves. This test pins that
-    contract for the clean-venv path.
+def test_clean_venv_search_falls_back_to_l0_grep(clean_venv, tmp_path):
+    """`mneme search` in a clean venv (no L2 deps installed) must fall
+    back to L0 grep when no FTS5 index exists — never crash with a
+    raw traceback from a missing optional module. v2.0 ships without
+    L2; the FTS5 + L0 grep path is stdlib-only and works in any venv.
     """
     import shutil
     bundle = tmp_path / "wiki"
@@ -242,7 +242,7 @@ def test_clean_venv_search_fails_cleanly_without_index(clean_venv, tmp_path):
 
     result = subprocess.run(
         [str(clean_venv), "-m", "mneme", "search", "okf",
-         "--config", str(cfg)],
+         "--json", "--config", str(cfg)],
         cwd=str(ROOT / "skills" / "mneme" / "scripts"),
         capture_output=True,
         text=True,
@@ -251,23 +251,26 @@ def test_clean_venv_search_fails_cleanly_without_index(clean_venv, tmp_path):
         timeout=60,
     )
     combined = result.stdout + result.stderr
-    # Should NOT be a raw traceback from a missing optional module.
+    # No raw traceback — that's the original contract we still uphold.
     assert "Traceback (most recent call last)" not in combined, (
         f"`mneme search` in clean venv emitted a raw traceback:\n"
         f"rc={result.returncode}\nstdout={result.stdout!r}\nstderr={result.stderr!r}"
     )
-    # The clean venv cannot satisfy L2 search, so non-zero is expected.
-    assert result.returncode != 0, (
-        "clean venv unexpectedly indexed a bundle without L2 deps installed"
+    # v2.0: L0 grep fallback runs against *.md and returns candidates
+    # (the sample-bundle contains `concepts/okf.md`). Exit 0 is the
+    # expected outcome; stderr nudges toward `mneme reindex` for
+    # full-text ranking.
+    assert result.returncode == 0, (
+        f"clean venv `mneme search` should fall back to L0 grep "
+        f"and exit 0; got rc={result.returncode}, "
+        f"stdout={result.stdout!r}, stderr={result.stderr!r}"
     )
-    # The message should tell the user what to do next, not promise auto-install.
-    # Either point at the missing L2 deps or at the missing index — both are
-    # valid clean-venv outcomes; the contract is "plain message, no traceback".
-    assert (
-        "pip install" in combined
-        or "L2" in combined
-        or "index" in combined
-    ), (
-        f"`mneme search` in clean venv should report a plain next-step message:\n"
-        f"rc={result.returncode}\nstdout={result.stdout!r}\nstderr={result.stderr!r}"
+    payload = json.loads(result.stdout)
+    assert payload["query"] == "okf"
+    assert payload["candidates"], (
+        f"expected L0 grep to find OKF content in sample-bundle; "
+        f"got {payload!r}"
+    )
+    assert "reindex" in result.stderr.lower(), (
+        f"stderr should nudge toward `mneme reindex`; got {result.stderr!r}"
     )
