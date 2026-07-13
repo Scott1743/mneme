@@ -1,5 +1,10 @@
 # Mneme
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Scott1743/mneme/releases/tag/v2.0.0)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab.svg)](.research/upstream/OKF-SPEC.md)
+[![skills.sh](https://skills.sh/Scott1743/mneme.svg)](https://skills.sh/Scott1743/mneme)
+
 > 一座由 Agent 增量维护的本地 Markdown 知识库。
 > **dream** 写，**search** 读——其余都是细节。
 
