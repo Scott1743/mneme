@@ -40,13 +40,12 @@ mneme keeps an external OKF v0.1 wiki of research/learning notes. The skill has 
 
 ## Step 0: resolve the bundle (EVERY scenario)
 
-Find the wiki bundle in this order; use the first hit:
-1. `~/.config/mneme/config.toml` key `bundle_path`.
-2. `MNEME_BUNDLE` env var.
-3. An explicit path the user gave.
-4. Auto-discover: walk up from cwd for a root `index.md` whose frontmatter contains `okf_version`.
-5. `./wiki` if it exists.
-6. None found → ask the user for the path, or offer to run `init`.
+Find the wiki bundle in this order; use the first hit (env-first contract):
+1. `$MNEME_BUNDLE` env var.
+2. `$HOME/.config/mneme/config.toml` key `[bundle_path]`.
+3. Walk up from cwd for a root `index.md` whose frontmatter contains `okf_version`.
+4. `./wiki` if it exists.
+5. None found → ask the user for the path, or offer to run `init`.
 
 Helper:
 ```bash
