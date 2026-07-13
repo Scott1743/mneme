@@ -53,7 +53,7 @@ Helper:
 Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py --help
 ```
 
-> **L2 (semantic search) is lazy-installed.** `search` and `reindex` subcommands require `sqlite-vec` + `fastembed` (~90MB BGE model download on first use). The skill's `ensure_index_deps()` triggers `pip install mneme[index]` automatically on first L2 invocation — the user does not need to run any installation step. If the install fails (offline, permission denied), the CLI exits with a clear message instructing manual `pip install 'mneme[index]'`.
+> **L2 (semantic search) is opt-in.** `search` and `reindex` subcommands require `sqlite-vec` + `fastembed`. The OKF core (init/lint/ingest/query) does NOT need them — the skill works out of the box for non-L2 use. If a user wants L2, they install once: `pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'`. No auto-install, no surprise network calls. The first `search`/`reindex` prints a clear one-line instruction if the deps are missing.
 
 ## OKF v0.1 conformance (hard rules — never violate on write)
 
@@ -80,7 +80,7 @@ Scaffold an OKF bundle + record its location:
 Rebuild the L2 sqlite-vec index from scratch:
 
 1. `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py reindex [--config <cfg>]`
-2. First run: triggers `ensure_index_deps()` which installs `mneme[index]` (sqlite-vec + fastembed) and downloads the ~90MB BGE model. Subsequent runs use cached deps.
+2. **First-time L2 use only:** if `sqlite-vec` / `fastembed` are not installed, the CLI prints a one-line instruction: `pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'`. The user runs that once; the model download (~90MB) follows on first index. **No auto-install, no surprise network calls.**
 3. Confirm the output: `indexed N concepts into <bundle>/.mneme/index.db`.
 
 After every `ingest` that adds/removes/merges pages, run `reindex`.
@@ -90,7 +90,7 @@ After every `ingest` that adds/removes/merges pages, run `reindex`.
 Return ranked L2 retrieval hits without synthesizing an answer or modifying the bundle:
 
 1. `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py search "<query>" --json [--type <type>] [-k <limit>]`
-2. First run: same `ensure_index_deps()` flow as `reindex` (installs L2 deps + downloads model on first invocation).
+2. **First-time L2 use only:** same as reindex — if `sqlite-vec` / `fastembed` are not installed, the CLI prints the one-line install instruction.
 3. Present the matching titles, bundle-relative paths, types, and snippets.
 4. Do not auto-reindex. If the index is absent or incompatible, report the CLI remedy (`python3 ~/.claude/skills/mneme/scripts/mneme.py reindex`).
 
@@ -108,8 +108,8 @@ Distill a source (paper/article/note) into OKF concept pages:
    - Cross-link related pages with absolute bundle-relative paths (`/concepts/other.md`).
 4. `Edit <bundle>/index.md` — find or create the section heading: if `## <section>` (e.g. `## Concepts`, `## References`, `## Summaries`) already exists, append `* [Title](path) - description` under it; otherwise append a new `## <section>` heading followed by the entry. Use the page's frontmatter `type` to pick the section.
 5. `Edit <bundle>/log.md` — **prepend** (insert at top) `## YYYY-MM-DD ingest | <source title>` + one-line note. The OKF v0.1 log contract requires newest-first.
-6. `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py reindex` (triggers `ensure_index_deps()` on first run).
-7. **On model load failure:** do **not** retry with any substitute function. Surface the failure to the user with the exact error. The CLI's offline fallback message includes `pip install 'mneme[index]'` for manual install.
+6. `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py reindex`.
+7. **On model load failure:** do **not** retry with any substitute function. Surface the failure to the user with the exact error. If L2 deps are missing, the CLI prints the one-line install instruction — do NOT run pip on the user's behalf.
 
 See `references/workflow-ingest.md` for the detailed checklist.
 

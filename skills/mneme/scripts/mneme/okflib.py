@@ -6,7 +6,7 @@ intentional, because we want base installs to round-trip human-written
 fragments without pulling in a YAML dependency.
 
 The verify-side, used by `validate_bundle()`, optionally adopts PyYAML when
-the `mneme[validate]` extra is installed. With PyYAML the validator certifies
+installed in the environment. With PyYAML the validator certifies
 arbitrary OKF bundles; without it the validator falls back to the lenient
 parser and emits a `strict-validation-disabled` warning so callers can see
 they are operating in zero-dep mode.
@@ -545,7 +545,7 @@ def validate_bundle(bundle_path) -> Report:
                 "warning",
                 (
                     "PyYAML not installed; OKF v0.1 strict YAML validation is "
-                    "disabled. Install `mneme[validate]` for full conformance."
+                    "disabled. Install `pyyaml` for full conformance."
                 ),
             )
         )

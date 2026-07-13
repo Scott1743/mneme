@@ -73,7 +73,8 @@ def _load_sqlite_vec(conn: sqlite3.Connection, required: bool) -> None:
     except ImportError as exc:
         if required:
             raise SqliteVecUnavailableError(
-                "sqlite-vec is required for semantic indexing/search; install mneme[index]"
+                "sqlite-vec is required for semantic indexing/search. "
+                "Install once with: pip install 'sqlite-vec>=0.1.9,<0.2'"
             ) from exc
         return
     try:
@@ -132,7 +133,8 @@ def _ensure_vec_table(conn: sqlite3.Connection, dim: int) -> None:
             )
         except sqlite3.Error as exc:
             raise SqliteVecUnavailableError(
-                "sqlite-vec is not loaded; install mneme[index] and rebuild the index"
+                "sqlite-vec is not loaded; install via "
+                "`pip install 'sqlite-vec>=0.1.9,<0.2' fastembed` and rebuild the index"
             ) from exc
         _write_meta(conn, {"dim": str(dim)})
     elif int(row[0]) != dim:
@@ -305,7 +307,8 @@ def default_embed_fn(model: str = DEFAULT_MODEL) -> Embedder:
         from fastembed import TextEmbedding
     except ImportError as exc:
         raise FastEmbedUnavailableError(
-            "fastembed is required for semantic indexing/search; install mneme[index]"
+            "fastembed is required for semantic indexing/search. "
+            "Install once with: pip install 'fastembed>=0.8.0,<0.9'"
         ) from exc
     cache_dir = _model_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)

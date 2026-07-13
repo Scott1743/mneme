@@ -1,85 +1,20 @@
-[project]
-name = "mneme"
-version = "1.1.0"
-requires-python = ">=3.10"
-# Zero hard deps as of v1.1.0. The OKF core (lint / init / ingest / query)
-# needs only stdlib; L2 deps (sqlite-vec + fastembed) install lazily on
-# first `reindex` / `search`. Strict YAML validation opts into PyYAML via
-# the `validate` extra (rare — most users don't need it).
-dependencies = []
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7",
-    "coverage>=7.5,<8",
-    "build>=1.0,<2",
-]
-validate = ["PyYAML>=6.0,<7"]
-index = [
-    "sqlite-vec>=0.1.9,<0.2",
-    "fastembed>=0.8.0,<0.9",
-]
-toml10 = ["tomli>=2.0,<3"]
-all = [
-    "sqlite-vec>=0.1.9,<0.2",
-    "fastembed>=0.8.0,<0.9",
-    "PyYAML>=6.0,<7",
-]
-
-# Console-script entry point: `pip install dist/mneme-*.whl` puts a
-# `mneme` command on PATH that dispatches to mneme.cli.main. The skill.sh
-# path (python3 ~/.claude/skills/mneme/scripts/mneme.py <subcmd>) is the
-# other delivery; both call the same CLI.
-[project.scripts]
-mneme = "mneme.cli:main"
-
-[build-system]
-requires = ["setuptools>=64", "wheel"]
-build-backend = "setuptools.build_meta"
-
-# The Python package lives at skills/mneme/scripts/mneme/ (skill-first
-# layout — the skill directory IS the delivery). Point setuptools at
-# it so `python -m build --wheel` produces a wheel with the package
-# properly installed at site-packages/mneme/.
-[tool.setuptools.packages.find]
-where = ["skills/mneme/scripts"]
-
-[tool.setuptools.package-data]
-# Ship SKILL.md + references/ inside the wheel so pip-installed users
-# can discover them via `python -c "import mneme; print(mneme.__file__)"`
-# and read the SKILL alongside. The skill.sh install path doesn't need
-# these (it ships them as the skill itself), but pip installs do.
-mneme = ["skill/SKILL*.md", "skill/references/*.md"]
+# mneme — minimal dev/test config only.
+#
+# The user-facing deliverable is `dist/mneme-<version>.zip` — a plain zip
+# archive of the skill directory. Unzip into `~/.claude/skills/mneme/` and
+# the agent picks it up. No wheel, no `pip install mneme`, no setuptools,
+# no entry points. This file exists ONLY so `pytest` finds the test
+# paths and markers; it's not a build manifest.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# 默认跳过 network 与 compat 测试。开发者想跑全部时显式 `pytest -m ""`。
-# 6 个 marker 对应 6 个测试层,详见 TESTING.md 与
-# docs/superpowers/plans/2026-07-12-mneme-test-strategy.md。
-addopts = "-m 'not network and not compat'"
+# Skip network tests by default. Developers run all markers explicitly
+# with `pytest -m ""`.
+addopts = "-m 'not network'"
 markers = [
     "unit: 单函数/单模块的纯逻辑测试,无外部 IO(离线,<1s)",
     "integration: 跨模块组合,仍进程内 + 无网络(离线,1-3s)",
-    "e2e: 通过 CLI subprocess 跑完整 bundle 流程(部分离线,5-30s)",
-    "release: 发布门禁 — wheel/入口/版本/预算/漂移(离线,3-10s)",
+    "release: 发布门禁 — 版本/漂移(离线,3-10s)",
     "docs: 文档冻结规则(离线,<1s)",
     "network: 需要访问 HuggingFace 下载模型(在线,30-90s;默认跳过)",
-    "compat: 与 1.0.x wheel 用户的兼容性 smoke(默认跳过,release-prep 手动触发)",
-]
-
-[tool.coverage.run]
-source = ["skills/mneme/scripts/mneme"]
-branch = true
-# 跳过 L2 索引中 sqlite-vec 的 C 扩展边界 —— 那是上游代码,不是 mneme 的责任。
-omit = ["*/mneme/__main__.py"]
-
-[tool.coverage.report]
-# 不设 fail_under —— 观察期,先建立基线(见
-# docs/superpowers/reports/2026-07-12-mneme-test-coverage-baseline.md)。
-show_missing = true
-skip_covered = false
-exclude_lines = [
-    "pragma: no cover",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
 ]

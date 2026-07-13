@@ -33,7 +33,7 @@ def resolve_bundle(config_path=None):
                 return Path(val)
         except (OSError, ImportError):
             # Missing file -> fall through; import failure is the
-            # user's problem to address via `pip install mneme[validate]`.
+            # user's problem to address via `pip install pyyaml`.
             pass
     env = os.environ.get("MNEME_BUNDLE")
     if env:

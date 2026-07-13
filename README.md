@@ -10,10 +10,10 @@
 [![Version](https://img.shields.io/badge/version-1.1.0-0f766e.svg)](CHANGELOG.md)
 [![OKF](https://img.shields.io/badge/OKF-v0.1-2563eb.svg)](.research/upstream/OKF-SPEC.md)
 [![skills.sh](https://skills.sh/b/Scott1743/mneme)](https://skills.sh/Scott1743/mneme)
-[![Python](https://img.shields.io/badge/python-%E2%89%A53.10-3776ab.svg)](pyproject.toml)
+[![Python](https://img.shields.io/badge/python-%E2%89%A53.11-3776ab.svg)](.research/upstream/OKF-SPEC.md)
 [![Zero--dep core](https://img.shields.io/badge/OKF_core-zero_deps-22c55e.svg)](#-零依赖-okf-核心)
 
-[`npx skills add Scott1743/mneme`](https://skills.sh/Scott1743/mneme) · [`pip install mneme`](https://pypi.org/project/mneme/) · [`OKF v0.1 spec`](.research/upstream/OKF-SPEC.md)
+[`npx skills add Scott1743/mneme`](https://skills.sh/Scott1743/mneme) · [GitHub release .zip](https://github.com/Scott1743/mneme/releases/latest)
 
 </div>
 
@@ -30,55 +30,57 @@
 多数知识工具让模型每次都从头检索、重新理解。Mneme 换了一种思路：让 Agent 像维护源码一样，把原始资料逐步编译成互相链接的 Markdown 概念页。
 
 - **本地优先**：知识留在普通文件和 Git 仓库里
-- **增量维护**：一次摄入，多次查询，持续修订
-- **开放格式**：遵循 Google OKF v0.1，Markdown + YAML 即可互通
 - **零常驻服务**：没有数据库服务、云端后台或专用运行时
+- **零依赖核心**：L1（lint / init / ingest / query）只跑在 Python 标准库上
+- **开放格式**：遵循 Google OKF v0.1，Markdown + YAML 即可互通
 - **Git 原生**：知识可以 diff、branch、review 和 blame
-- **零依赖核心**：L1 lint / init / ingest / query 跑在 stdlib 上
+- **轻量分发**：一个 zip 包——下载、解压、丢进 skills 目录、立刻能用
 
-## 🚀 快速开始
+## 🚀 安装
 
-### 方式一：通过 skills.sh 安装（推荐）
+`mneme` 的发布物**只有一个**：`dist/mneme-<version>.zip`。下载、解压、把它放到你的 agent 的 skills 目录里，就完事了。
+
+### 方式一：通过 skill.sh（推荐）
 
 ```bash
 npx skills add Scott1743/mneme
 ```
 
-落地到 `~/.claude/skills/mneme/`，agent 直接调用：
+落地到 `~/.claude/skills/mneme/`，agent 立刻识别。
+
+### 方式二：手动下载 zip
+
+1. 从 [GitHub Releases](https://github.com/Scott1743/mneme/releases/latest) 下载 `mneme-1.1.0.zip`
+2. 解压：`unzip mneme-1.1.0.zip`
+3. 把解压出来的 `mneme/` 目录放到 agent 的 skills 目录：
+
+```bash
+# Claude Code:
+mv mneme ~/.claude/skills/mneme
+```
+
+4. agent 立刻就能识别。**没有 pip install、没有 wheel、没有 `pip install mneme`，没有任何额外步骤。**
+
+> 为什么是 zip 而不是 wheel / `pip install mneme`？skill 本身就是一组文件。wheel 是 Python 库的分发格式，需要 site-packages 才能跑——跟 agent skill 的工作方式完全不匹配。一个 zip 直接对应 `~/.claude/skills/<name>/` 目录，语义清晰、对用户透明。
+
+## 调用
+
+skill 装好后，agent 通过本地 CLI 调用：
 
 ```bash
 python3 ~/.claude/skills/mneme/scripts/mneme.py init <path>
 python3 ~/.claude/skills/mneme/scripts/mneme.py lint <bundle>
+python3 ~/.claude/skills/mneme/scripts/mneme.py reindex --config <cfg>
+python3 ~/.claude/skills/mneme/scripts/mneme.py search "<query>" --json -k 10
 ```
 
-### 方式二：pip install（wheel）
-
-```bash
-pip install mneme
-mneme init <path>
-```
-
-落地到 `~/.config/mneme/config.toml` 指向的 bundle。第一次跑 `mneme search` / `mneme reindex` 时自动 `pip install 'mneme[index]'`，下载约 90 MB 的 BGE 嵌入模型——只有一次，之后缓存复用。
-
-### 方式三：从 GitHub 源码
-
-```bash
-git clone https://github.com/Scott1743/mneme.git
-cd mneme
-pip install -e '.[dev]'
-```
-
-把 `skills/mneme` 安装或链接到你的 Agent skills 目录后，就可以直接说：
-
-```text
-用 mneme 初始化一个 wiki，然后把这份研究笔记摄入进去。
-```
+四个子命令完整覆盖 OKF v0.1 wiki 的生命周期。
 
 ## 🧠 核心能力
 
 ### Ingest · 摄入
 
-保留不可变的原始资料（自动复制到 `<bundle>/sources/`），再把其中的知识蒸馏为可互链、可追溯的概念页，同时更新 `index.md`（按 type 分 section）、`log.md`（newest-first 顶部插入）与本地语义索引。
+保留不可变的原始资料（自动复制到 `<bundle>/sources/`），再把其中的知识蒸馏为可互链、可追溯的概念页，同时更新 `index.md`（按 type 分 section）、`log.md`（newest-first 顶部插入）。
 
 ### Query · 查询
 
@@ -88,9 +90,15 @@ pip install -e '.[dev]'
 
 检查 OKF v0.1 硬约束（frontmatter 必填 `type`、保留文件结构、YAML 严格校验）、孤儿页、断链和策展问题；未知类型与可选字段缺失只告警，不破坏容错消费契约（OKF §9）。
 
-### Search · 检索
+### Search · 检索（可选）
 
-在资料规模增长后，按需启用 sqlite-vec + FastEmbed 的 L2 本地索引；首次调用触发 **lazy install**（`pip install 'mneme[index]'` + 模型下载），之后缓存复用。Wiki 本体始终是可直接读取的 Markdown。
+`init` / `lint` / `ingest` / `query` 都不需要任何第三方包——纯 stdlib 就跑。**`search` 和 `reindex` 是 L2 增强功能**，依赖 `sqlite-vec` 和 `fastembed`，**需要时再装一次就好**：
+
+```bash
+pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'
+```
+
+装完一次就不用再管了，模型会缓存到本地。**没有自动安装、没有 surprise 网络调用——用户决定装还是不装。**
 
 ## 🏛️ 三层架构
 
@@ -108,17 +116,17 @@ SKILL.md + CLAUDE.md       人与 Agent 共同维护的工作规约
 
 ```text
 mneme/
-├── skills/mneme/          # 唯一交付物（skill.sh layout）
+├── skills/mneme/          # 唯一交付物（直接打成 zip）
 │   ├── SKILL.md           # Agent 工作流与触发说明
 │   ├── scripts/
 │   │   ├── mneme.py       # CLI 入口 shim
-│   │   └── mneme/         # Python 包（okflib / indexlib / lazy_index / ...）
+│   │   └── mneme/         # Python 包（okflib / indexlib / config / toml_writer / ...）
 │   └── references/        # ingest / query / lint / 索引规范
 ├── sample-bundle/         # OKF 合规示范与测试夹具
-├── tests/                 # 143 条分层测试 + 发布门禁
+├── tests/                 # 151 条分层测试 + 发布门禁
 ├── .research/             # 上游规范与设计依据
 ├── docs/superpowers/      # specs / plans / reports
-├── dist/                  # 构建产物（mneme-*.whl；gitignored）
+├── dist/mneme-*.zip       # 发布物（gitignored）
 └── CLAUDE.md              # 项目宪法与维护规约
 ```
 
@@ -132,9 +140,9 @@ mneme/
 | `lint` OKF 校验 | stdlib + 手写 TOML writer（`toml_writer.py`，~60 行） |
 | `ingest` 蒸馏流程 | stdlib + host agent 的 Read/Write/Edit 工具 |
 | `query` 检索综合 | stdlib + host agent |
-| `reindex` / `search`（L2） | 懒装 `sqlite-vec` + `fastembed`（仅首次需要） |
+| `reindex` / `search`（L2，可选） | 用户自行 `pip install sqlite-vec fastembed` |
 
-严格 YAML 校验需要 `PyYAML`（可选 extras `pip install 'mneme[validate]'`）。默认安装走手写子集解析器 + WARN，不破坏容错消费契约。
+`pyproject.toml` 只剩 `[tool.pytest]` 配置——**没有 `[project]`、没有 `[build-system]`、没有 setuptools/wheel**。zip 是唯一分发物。
 
 ## 🏷️ 标签
 
@@ -154,15 +162,28 @@ OKF 协议 v0.1 容错：未知 type 只告警，不断言失败。
 ## 🧑‍💻 开发者指南
 
 ```bash
-pip install -e '.[dev]'
-pytest                          # 143 passed
-pytest -m 'network or compat'   # 跑 L2 模型下载 + 1.0.x wheel 兼容 smoke
-python -m build --wheel         # 构 wheel → dist/mneme-1.1.0-py3-none-any.whl
+pip install pytest
+pytest                          # 151 passed
+pytest -m network               # L2 检索（需要 sqlite-vec + fastembed）
 ```
 
 涉及 OKF 合规性的修改，请先阅读 [上游规范](.research/upstream/OKF-SPEC.md) 与 [约束摘要](.research/constraints.md)。`.research/upstream/` 保存的是只读的上游原文副本。
 
-详细的设计与实施计划：`docs/superpowers/plans/2026-07-13-mneme-1.1.0-implementation.md`。
+构 zip：
+
+```bash
+python3 -c "
+import zipfile
+from pathlib import Path
+ROOT = Path('.')
+src = ROOT / 'skills' / 'mneme'
+out = ROOT / 'dist' / 'mneme-1.1.0.zip'
+with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
+    for path in sorted(src.rglob('*')):
+        if path.is_file() and '__pycache__' not in path.parts:
+            zf.write(path, 'mneme/' + str(path.relative_to(src)))
+"
+```
 
 ## 📜 许可证
 

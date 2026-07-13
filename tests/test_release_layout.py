@@ -31,39 +31,39 @@ REFERENCES_DIR = SKILL_DIR / "references"
 
 
 # ---------------------------------------------------------------------------
-# §3.1 — wheel artifacts present (dist/ is back for v1.1.x hybrid delivery)
+# §3.1 — zip artifact (the only deliverable)
 # ---------------------------------------------------------------------------
 
-def test_dist_directory_with_wheel_present():
-    """dist/ contains the built wheel after `python -m build --wheel`.
+def test_dist_directory_with_zip_present():
+    """dist/ contains mneme-<version>.zip after the build step.
 
-    v1.1.x ships BOTH skill.sh (primary) AND a pip-installable wheel
-    (for users who prefer the standard Python install path). The wheel
-    is built into dist/ and CI keeps it fresh.
+    v1.1.x ships ONLY a plain zip — unzip into ~/.claude/skills/mneme/
+    and the agent picks it up. No wheel, no pip install, no extras.
     """
     assert (ROOT / "dist").is_dir(), (
-        "v1.1.x publishes a wheel; dist/ should exist after build."
+        "v1.1.x publishes a zip; dist/ should exist after build."
     )
-    wheels = list((ROOT / "dist").glob("mneme-*-py3-none-any.whl"))
-    assert wheels, (
-        "dist/ exists but contains no mneme-*-py3-none-any.whl. "
-        "Run `python -m build --wheel`."
+    zips = list((ROOT / "dist").glob("mneme-*.zip"))
+    assert zips, (
+        "dist/ exists but contains no mneme-*.zip. "
+        "Run the zip build (see scripts/build_zip.py or Makefile)."
     )
 
 
-def test_wheel_filename_matches_pyproject_version():
-    """The wheel filename must match pyproject.toml's `version = "..."`.
-
-    Filename and version drift is the #1 release-prep bug in this repo
-    (1.0 readiness §"Install-to-query"). This test catches it.
+def test_zip_filename_matches_version():
+    """The zip filename must match the version reported by SKILL.md /
+    __init__.py (single source of truth = skills/mneme/scripts/mneme/__init__.py
+    `__version__`).
     """
-    pyproject_v = _pyproject_version()
-    wheels = list((ROOT / "dist").glob("mneme-*-py3-none-any.whl"))
-    assert wheels, "no wheel found in dist/"
-    latest = max(wheels, key=lambda p: p.name)
-    assert pyproject_v in latest.name, (
-        f"latest wheel {latest.name} does not match pyproject.toml "
-        f"version {pyproject_v!r}"
+    init = (SKILL_DIR / "scripts" / "mneme" / "__init__.py").read_text(encoding="utf-8")
+    m = re.search(r'^__version__\s*=\s*"([^"]+)"', init, re.MULTILINE)
+    assert m, "could not find __version__ in mneme/__init__.py"
+    pkg_v = m.group(1)
+    zips = list((ROOT / "dist").glob("mneme-*.zip"))
+    assert zips, "no zip found in dist/"
+    latest = max(zips, key=lambda p: p.name)
+    assert pkg_v in latest.name, (
+        f"latest zip {latest.name} does not match __version__ {pkg_v!r}"
     )
 
 
@@ -75,90 +75,39 @@ def test_no_src_mneme_directory():
     )
 
 
-# ---------------------------------------------------------------------------
-# §3.2 — pyproject.toml hybrid setup (wheel + zero-dep core)
-# ---------------------------------------------------------------------------
-
-def _pyproject_text() -> str:
-    return PYPROJECT.read_text(encoding="utf-8")
-
-
-def _pyproject_version() -> str:
-    m = re.search(r'^version\s*=\s*"([^"]+)"', _pyproject_text(), re.MULTILINE)
-    assert m, "could not find `version = ...` in pyproject.toml"
-    return m.group(1)
-
-
-def test_pyproject_has_project_scripts():
-    """[project.scripts] exposes the `mneme` console command for pip installs."""
-    text = _pyproject_text()
-    assert "[project.scripts]" in text, (
-        "v1.1.x hybrid delivery needs the `mneme` console command; "
-        "[project.scripts] should declare `mneme = mneme.cli:main`."
+def test_no_wheel_or_pyproject_build_config():
+    """pyproject.toml must NOT declare any wheel-build config — v1.1.x
+    ships zip-only. No [build-system], no [project.scripts], no
+    [tool.setuptools.*] (those all imply a wheel deliverable)."""
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    forbidden = (
+        "[build-system]",
+        "[project.scripts]",
+        "[tool.setuptools",
+        "setuptools",
+        "wheel",
     )
-    assert re.search(
-        r'^mneme\s*=\s*"mneme\.cli:main"', text, re.MULTILINE
-    ), "expected `mneme = \"mneme.cli:main\"` console-script mapping"
+    for token in forbidden:
+        if token in text:
+            # Allow token in prose (e.g. comments mentioning old state);
+            # but the canonical wheel-build keywords should not appear
+            # in active config.
+            # Just check for the section openers.
+            if token.startswith("["):
+                assert False, (
+                    f"pyproject.toml contains '{token}' — v1.1.x is "
+                    f"zip-only, no wheel/build-system config allowed."
+                )
 
 
-def test_pyproject_has_build_system():
-    """[build-system] is present so `python -m build --wheel` works."""
-    text = _pyproject_text()
-    assert "[build-system]" in text, (
-        "v1.1.x publishes a wheel; [build-system] is required."
-    )
-    assert "setuptools" in text and "wheel" in text, (
-        "[build-system] requires should include setuptools and wheel"
-    )
-
-
-def test_pyproject_setuptools_config_points_at_skills_dir():
-    """[tool.setuptools.packages.find] points at the skill-first layout."""
-    text = _pyproject_text()
-    assert "[tool.setuptools" in text, (
-        "v1.1.x needs [tool.setuptools.packages.find] to discover the package "
-        "at skills/mneme/scripts/mneme/."
-    )
-    # Confirm `where` points at the skill-first directory.
-    m = re.search(
-        r'\[tool\.setuptools\.packages\.find\]\s*\nwhere\s*=\s*\[([^\]]+)\]',
-        text, re.MULTILINE,
-    )
-    assert m, "could not find `where = [...]` in [tool.setuptools.packages.find]"
-    wheres = m.group(1)
-    assert "skills/mneme/scripts" in wheres, (
-        f"[tool.setuptools.packages.find] should point at "
-        f"skills/mneme/scripts; got {wheres!r}"
-    )
-
-
-def test_pyproject_dependencies_empty():
-    """[project].dependencies is empty (zero hard deps for OKF core)."""
-    text = _pyproject_text()
-    m = re.search(
-        r'^dependencies\s*=\s*\[(.*?)\]',
-        text, re.MULTILINE | re.DOTALL,
-    )
-    assert m, "could not find `dependencies = [...]` in pyproject.toml"
-    body = m.group(1).strip()
-    assert body == "", (
-        f"[project].dependencies must be empty for zero-dep OKF core; "
-        f"got {body!r}"
-    )
-
-
-def test_pyproject_optional_extras_index_and_validate_present():
-    """[project.optional-dependencies] keeps `index` (L2 lazy) + `validate`."""
-    text = _pyproject_text()
-    assert "[project.optional-dependencies]" in text, (
-        "optional-dependencies block missing; v1.1.0 keeps `index` + `validate` extras"
-    )
-    # Each extras key is matched on its own line.
-    assert re.search(r"^index\s*=\s*\[", text, re.MULTILINE), (
-        "`index` extra (sqlite-vec + fastembed) missing — L2 lazy install target"
-    )
-    assert re.search(r'^validate\s*=\s*\[', text, re.MULTILINE), (
-        "`validate` extra (PyYAML) missing — strict YAML verification opt-in"
+def test_pyproject_has_no_project_table():
+    """pyproject.toml should NOT declare [project] — no package metadata,
+    no name/version. The version lives in skills/.../mneme/__init__.py
+    `__version__` (single source of truth)."""
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert "[project]" not in text or "test" in text, (
+        "pyproject.toml must not declare [project]; zip-only delivery "
+        "needs no package metadata."
     )
 
 
@@ -179,7 +128,6 @@ def test_skills_mneme_scripts_layout():
         SCRIPTS_PKG / "config.py",
         SCRIPTS_PKG / "tools_helpers.py",
         SCRIPTS_PKG / "toml_writer.py",
-        SCRIPTS_PKG / "lazy_index.py",
         SKILL_MD,
         REFERENCES_DIR / "workflow-ingest.md",
         REFERENCES_DIR / "workflow-query.md",
@@ -219,20 +167,17 @@ def test_skills_mneme_scripts_importable_as_module():
 _SKILL_FILES = (SKILL_MD,)
 
 
-def test_skill_md_documents_both_delivery_paths():
-    """SKILL.md mentions BOTH the `mneme` console command (pip install)
-    AND the skill.sh path (skill-first delivery). The two paths are
-    interchangeable for the user; SKILL.md should make that explicit.
+def test_skill_md_documents_zip_only_delivery():
+    """SKILL.md teaches the skill.sh shim path AND mentions that the
+    only delivery is a plain zip (no wheel, no PyPI). Lightweight.
     """
     text = SKILL_MD.read_text(encoding="utf-8")
     assert "~/.claude/skills/mneme/scripts/mneme.py" in text, (
-        "SKILL.md is missing the skill.sh shim path; the skill-first "
-        "delivery needs it for users who didn't pip install."
+        "SKILL.md is missing the skill.sh shim path"
     )
-    # The console command is mentioned in the L2 lazy-install note.
-    assert "mneme[index]" in text, (
-        "SKILL.md should mention `pip install 'mneme[index]'` as the "
-        "offline fallback for L2 lazy install."
+    # No pip-install-mneme whole-package install anywhere.
+    assert not re.search(r"pip install mneme(?!\w)", text), (
+        "SKILL.md should NOT teach `pip install mneme`; v1.1.x is zip-only"
     )
 
 
@@ -266,42 +211,44 @@ def test_skill_md_no_repo_relative_paths():
             )
 
 
-def test_skill_md_documents_l2_lazy_install():
-    """SKILL.md mentions L2 lazy install (so first-time users aren't surprised)."""
+def test_skill_md_documents_l2_as_opt_in():
+    """SKILL.md mentions L2 is opt-in (sqlite-vec + fastembed manual install).
+    No auto-install / no surprise network calls — keep it lightweight.
+    """
     for path in _SKILL_FILES:
-        text = path.read_text(encoding="utf-8")
-        assert "ensure_index_deps" in text or "lazy" in text.lower() or "lazy-installed" in text.lower(), (
-            f"{path} should document L2 lazy install (ensure_index_deps / "
-            "lazy install behaviour) so first-time users aren't surprised."
+        text = path.read_text(encoding="utf-8").lower()
+        assert "sqlite-vec" in text and "fastembed" in text, (
+            f"{path} should mention sqlite-vec + fastembed for L2 users "
+            "(manual install — no auto-install)"
         )
 
 
-def test_skill_md_no_pip_install_mneme_whole_package():
-    """SKILL.md does NOT teach `pip install mneme` (whole-package install).
-
-    `pip install mneme[index]` is ALLOWED — it's the offline fallback
-    for the L2 lazy install, not a full install instruction.
+def test_skill_md_no_pip_install_mneme_anywhere():
+    """SKILL.md must NOT mention `pip install mneme` at all. v1.1.x is
+    zip-only — no PyPI release, no wheel, no extras. `pip install
+    sqlite-vec fastembed` (raw packages, not mneme) IS allowed because
+    that's how the user opts into L2.
     """
     for path in _SKILL_FILES:
         text = path.read_text(encoding="utf-8")
-        # Match `pip install mneme` NOT followed by `[`.
-        hits = re.findall(r"pip install mneme(?!\[\w)", text)
+        hits = re.findall(r"pip install mneme(?!\w)", text)
         assert not hits, (
-            f"{path} still teaches `pip install mneme` (whole-package install): "
-            f"{hits!r}. v1.1.0 ships via skill.sh, not PyPI."
+            f"{path} still teaches `pip install mneme`: {hits!r}. "
+            "v1.1.x is zip-only, no PyPI release."
         )
 
 
 def test_skill_md_no_wheel_or_dist_references():
-    """SKILL.md does not mention wheel / build / pyproject in active scenarios."""
+    """SKILL.md does not mention wheel / build / pyproject / dist."""
     for path in _SKILL_FILES:
         text = path.read_text(encoding="utf-8").lower()
         forbidden = (
             "wheel", "pyproject.toml", "setup.py",
             "python -m build", "python -m pip wheel",
+            "build/", "dist/",
         )
         hits = [w for w in forbidden if w in text]
         assert not hits, (
-            f"{path} still references build/packaging: {hits!r}. "
-            "v1.1.0 is skill-first; build references belong in CLAUDE.md / docs/."
+            f"{path} still references build/packaging artifacts: {hits!r}. "
+            "v1.1.x is zip-only; the deliverable is just `mneme-<v>.zip`."
         )

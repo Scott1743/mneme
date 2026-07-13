@@ -56,12 +56,24 @@ def cmd_reindex(args: argparse.Namespace) -> int:
     if bundle is None:
         print("no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init", file=sys.stderr)
         return 1
-    from . import lazy_index
-    lazy_index.ensure_index_deps()  # may os.execvp on first call; never returns if install succeeds
     try:
         from . import indexlib
 
         result = indexlib.reindex_bundle(str(bundle), indexlib.default_embed_fn())
+    except ImportError as exc:
+        # L2 deps (sqlite-vec + fastembed) are NOT bundled with the skill.
+        # OKF core stays zero-dep; L2 is opt-in. Tell the user plainly
+        # what to install — no auto-install, no surprise network calls.
+        print(
+            "L2 indexing needs sqlite-vec + fastembed, which are not part "
+            "of the skill bundle.\n"
+            "Install them once with:\n"
+            "  pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'\n"
+            f"(then re-run this command)\n\n"
+            f"Underlying error: {exc}",
+            file=sys.stderr,
+        )
+        return 1
     except Exception as exc:
         print(f"reindex failed: {exc}", file=sys.stderr)
         return 1
@@ -82,8 +94,6 @@ def cmd_search(args: argparse.Namespace) -> int:
     if bundle is None:
         print("no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init", file=sys.stderr)
         return 1
-    from . import lazy_index
-    lazy_index.ensure_index_deps()  # may os.execvp on first call; never returns if install succeeds
     try:
         from . import indexlib
 
@@ -93,6 +103,17 @@ def cmd_search(args: argparse.Namespace) -> int:
             k=args.limit,
             concept_type=args.concept_type,
         )
+    except ImportError as exc:
+        print(
+            "L2 search needs sqlite-vec + fastembed, which are not part "
+            "of the skill bundle.\n"
+            "Install them once with:\n"
+            "  pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'\n"
+            f"(then re-run this command)\n\n"
+            f"Underlying error: {exc}",
+            file=sys.stderr,
+        )
+        return 1
     except Exception as exc:
         print(f"search failed: {exc}", file=sys.stderr)
         return 1

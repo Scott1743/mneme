@@ -1,20 +1,11 @@
 """TOML config read/write for mneme.
 
-`read_config(path)` returns a `dict` from the config file. `write_config(path,
-data)` writes a dict back as TOML. Both use stdlib (or stdlib-equivalent)
-TOML where possible:
+Read uses stdlib `tomllib` (Python 3.11+). Write uses an in-house
+~60-line hand-rolled writer (`toml_writer.py`) that handles exactly
+the types mneme writes (str / int / float / bool / list).
 
-- Read: ``tomllib`` on Python 3.11+; ``tomli`` (from the ``toml10`` extras)
-  on 3.10. We try the fallback lazily because tomllib is bytecode-stable
-  and not all installs share a .pth with tomli.
-- Write: in-house hand-rolled writer (~60 lines, see ``toml_writer.py``).
-  Replaces ``tomli_w`` so the OKF core stays zero-third-party-dep per
-  ``CLAUDE.md`` §"分层依赖". The writer covers exactly the types mneme
-  writes (``str`` / ``int`` / ``float`` / ``bool`` / ``list``); unknown
-  types raise ``TypeError`` rather than emit invalid TOML.
-
-A round-trip is the contract of ``read_config ∘ write_config``: any value
-written through ``write_config`` must read back equal.
+Zero third-party deps; this module + the writer cover the full
+mneme config round-trip with stdlib only.
 """
 from __future__ import annotations
 
@@ -22,16 +13,14 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping
 
-if sys.version_info >= (3, 11):
-    import tomllib as _toml_read  # type: ignore[import-not-found]
-else:  # pragma: no cover — fallback path on Python 3.10
-    try:
-        import tomli as _toml_read  # type: ignore[import-nottyped]
-    except ImportError as exc:  # pragma: no cover
-        raise ImportError(
-            "Reading mneme config on Python 3.10 requires the 'toml10' "
-            "extras: `pip install 'mneme[toml10]'`."
-        ) from exc
+if sys.version_info < (3, 11):
+    sys.stderr.write(
+        "mneme requires Python 3.11 or newer (uses stdlib tomllib). "
+        f"You have Python {sys.version_info.major}.{sys.version_info.minor}.\n"
+    )
+    sys.exit(1)
+
+import tomllib as _toml_read  # type: ignore[import-not-found]
 
 # In-house hand-rolled writer (replaces tomli_w as of v1.1.0).
 from . import toml_writer as _toml_write  # noqa: E402
