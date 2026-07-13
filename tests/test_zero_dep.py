@@ -225,14 +225,12 @@ def test_clean_venv_lint_works_without_index(clean_venv, tmp_path):
     assert "orphan" in r.stderr.lower()
 
 
-def test_clean_venv_search_falls_back_to_lazy_install(clean_venv, tmp_path):
-    """`mneme search` in a clean venv (no [index]) triggers the lazy-install
-    flow. Without network it will fail with a clear SystemExit, NOT a
-    stack trace from a missing sqlite_vec import.
-
-    This is the user-facing safety net for v1.1.0: a skill.sh user with
-    no [index] installed gets `ensure_index_deps()` prompting instead of
-    a raw ModuleNotFoundError on first search.
+def test_clean_venv_search_fails_cleanly_without_index(clean_venv, tmp_path):
+    """`mneme search` in a clean venv (no L2 deps installed) must report a
+    plain error message — never a raw traceback from a missing module.
+    The skill itself does not auto-install sqlite-vec / fastembed; the user
+    opts in by running `pip install ...` themselves. This test pins that
+    contract for the clean-venv path.
     """
     import shutil
     bundle = tmp_path / "wiki"
@@ -242,31 +240,34 @@ def test_clean_venv_search_falls_back_to_lazy_install(clean_venv, tmp_path):
     # need to walk up to find it.
     cfg.write_text(f'bundle_path = "{bundle}"\n', encoding="utf-8")
 
-    # We can't easily assert "pip install was called" without a real
-    # network in CI. The minimum we can assert offline: search either
-    # triggers install (and fails cleanly when offline) OR raises a clear
-    # SystemExit mentioning the install command. Either way, NOT a raw
-    # stack trace from the missing module.
-    r = subprocess.run(
+    result = subprocess.run(
         [str(clean_venv), "-m", "mneme", "search", "okf",
          "--config", str(cfg)],
         cwd=str(ROOT / "skills" / "mneme" / "scripts"),
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
         env={**__import__("os").environ,
              "PYTHONPATH": str(ROOT / "skills" / "mneme" / "scripts")},
         timeout=60,
     )
-    # The behavior depends on whether the venv has internet access.
-    # Acceptable outcomes:
-    #   rc=0: search succeeded (network available, install worked)
-    #   rc!=0 with clear stderr mentioning [index] install OR pip install
-    combined = r.stdout + r.stderr
+    combined = result.stdout + result.stderr
+    # Should NOT be a raw traceback from a missing optional module.
+    assert "Traceback (most recent call last)" not in combined, (
+        f"`mneme search` in clean venv emitted a raw traceback:\n"
+        f"rc={result.returncode}\nstdout={result.stdout!r}\nstderr={result.stderr!r}"
+    )
+    # The clean venv cannot satisfy L2 search, so non-zero is expected.
+    assert result.returncode != 0, (
+        "clean venv unexpectedly indexed a bundle without L2 deps installed"
+    )
+    # The message should tell the user what to do next, not promise auto-install.
+    # Either point at the missing L2 deps or at the missing index — both are
+    # valid clean-venv outcomes; the contract is "plain message, no traceback".
     assert (
-        r.returncode == 0
-        or "[index]" in combined
-        or "pip install" in combined
-        or "Failed to install" in combined
+        "pip install" in combined
+        or "L2" in combined
+        or "index" in combined
     ), (
-        f"`mneme search` in clean venv did not behave as expected:\n"
-        f"rc={r.returncode}\nstdout={r.stdout!r}\nstderr={r.stderr!r}"
+        f"`mneme search` in clean venv should report a plain next-step message:\n"
+        f"rc={result.returncode}\nstdout={result.stdout!r}\nstderr={result.stderr!r}"
     )

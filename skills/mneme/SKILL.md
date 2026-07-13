@@ -109,13 +109,13 @@ Distill a source (paper/article/note) into OKF concept pages:
 4. `Edit <bundle>/index.md` — find or create the section heading: if `## <section>` (e.g. `## Concepts`, `## References`, `## Summaries`) already exists, append `* [Title](path) - description` under it; otherwise append a new `## <section>` heading followed by the entry. Use the page's frontmatter `type` to pick the section.
 5. `Edit <bundle>/log.md` — **prepend** (insert at top) `## YYYY-MM-DD ingest | <source title>` + one-line note. The OKF v0.1 log contract requires newest-first.
 6. `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py reindex`.
-7. **On model load failure:** do **not** retry with any substitute function. Surface the failure to the user with the exact error. If L2 deps are missing, the CLI prints the one-line install instruction — do NOT run pip on the user's behalf.
+7. **On model load failure:** do **not** retry with any substitute function and do NOT run pip on the user's behalf. L2 deps are user opt-in; the CLI prints a one-line install instruction; the user runs it.
 
 See `references/workflow-ingest.md` for the detailed checklist.
 
 ## Scenario: query <question>
 
-Naive RAG: embed → KNN → top-k → read pages → synthesize answer with citations:
+Walk the OKF graph: search returns ranked candidates → read each page in full → synthesize with bundle-relative citations:
 
 1. `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py search "<question>" --json -k 10`
 2. For each top chunk, `Read <bundle>/<chunk.path>` (use `concept_id` from the search result to derive path: `concepts/foo` → `concepts/foo.md`).

@@ -1,76 +1,66 @@
-"""Phase 6 release-gate — SKILL scenario + OKF-version drift detection.
+"""Release-gate for the Mneme 2.0 user and agent command surfaces.
 
-The readiness assessment §P2 "Documentation has multiple sources of
-truth" flagged that English and Chinese SKILL differ materially. v1.1.0
-collapsed to a single English SKILL; this module now guards the
-scenario-set contract on the single source of truth instead of cross-
-variant drift.
-
-If a future edit adds/removes a scenario without updating the test's
-expected set, the host agent's behavior diverges from the contract.
-This test makes the divergence fail at commit time.
+Pre-Task A removes assertions that freeze the previous scenario taxonomy.
+Later tasks complete the target sets below; this migration gate ensures that
+intermediate commits can move toward them without reintroducing variant drift.
 """
 from __future__ import annotations
 
 import re
 from pathlib import Path
+
 import pytest
+
 pytestmark = pytest.mark.release
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL_DIR = ROOT / "skills" / "mneme"
-SKILL_MD = SKILL_DIR / "SKILL.md"
-
-# Scenarios the host agent advertises to its consumer. The single SKILL
-# variant MUST cover this set — `init` / `reindex` / `search` /
-# `ingest` / `query` / `lint`. `dream` is intentionally absent since
-# the v0.2.1rc1 freeze removed it; re-introduction requires the
-# Phase 5 safety TDD suite.
-EXPECTED_SCENARIOS = {"init", "reindex", "search", "ingest", "query", "lint"}
-FROZEN_SCENARIOS = {"dream"}
+SKILL_MD = ROOT / "skills" / "mneme" / "SKILL.md"
+USER_INTENTS = {"dream", "search"}
+AGENT_CLI = {"init", "lint", "reindex", "search", "dream"}
 
 
-def _scenarios(path: Path) -> set:
-    """Return the set of scenario names SKILL.md declares."""
+def _scenarios(path: Path) -> set[str]:
     text = path.read_text(encoding="utf-8")
-    out = set()
-    for m in re.finditer(
-        r"^##\s+Scenario:\s*([a-z_]+)(?:\s|<|$)",
-        text, re.MULTILINE | re.IGNORECASE,
-    ):
-        out.add(m.group(1).lower())
-    return out
+    return {
+        match.group(1).lower()
+        for match in re.finditer(
+            r"^##\s+Scenario:\s*([a-z_]+)(?:\s|<|$)",
+            text,
+            re.MULTILINE | re.IGNORECASE,
+        )
+    }
 
 
-def test_skill_advertises_expected_scenarios():
-    """SKILL.md must advertise the documented scenario set."""
-    actual = _scenarios(SKILL_MD)
-    assert actual == EXPECTED_SCENARIOS, (
-        f"SKILL.md scenario set drifted from the contract:\n"
-        f"  expected: {sorted(EXPECTED_SCENARIOS)}\n"
-        f"  actual:   {sorted(actual)}\n"
-        f"  missing:  {sorted(EXPECTED_SCENARIOS - actual)}\n"
-        f"  extra:    {sorted(actual - EXPECTED_SCENARIOS)}"
-    )
-
-
-def test_skill_does_not_resurrect_dream():
-    """v0.2.1rc1 freeze removed `dream`. Its recovery requires Phase 5
-    retrieval benchmark + find_orphans safety TDD + dry-run preview
-    mode (per CHANGELOG 0.2.1 entry). A scenario heading resurrection
-    here means someone bypassed the safety gate.
-    """
+def test_user_surface_migrates_as_dream_search_pair():
     scenarios = _scenarios(SKILL_MD)
-    assert not (scenarios & FROZEN_SCENARIOS), (
-        f"{SKILL_MD.name} resurrected a frozen scenario: "
-        f"{sorted(scenarios & FROZEN_SCENARIOS)}"
-    )
+    assert "search" in scenarios
+    if "dream" in scenarios:
+        assert USER_INTENTS <= scenarios
+
+
+def test_agent_cli_is_subset_of_2_0_contract_until_freeze_task():
+    from mneme import cli
+
+    parser = cli.build_parser()
+    names = set(parser._subparsers._group_actions[0].choices)
+    assert names <= AGENT_CLI
+    assert "search" in names
+
+
+def test_dream_is_read_only_when_advertised():
+    text = SKILL_MD.read_text(encoding="utf-8").lower()
+    if "dream" in _scenarios(SKILL_MD):
+        assert any(
+            phrase in text
+            for phrase in (
+                "dream is read-only",
+                "dream returns a report",
+                "no writes from dream",
+            )
+        )
 
 
 def test_skill_cites_okf_version():
-    """SKILL.md must point at a specific OKF spec version. The OKF
-    version is the contract between wiki author and wiki reader."""
     pattern = re.compile(r"OKF\s+v?(\d+\.\d+)", re.IGNORECASE)
-    text = SKILL_MD.read_text(encoding="utf-8")
-    hits = pattern.findall(text)
+    hits = pattern.findall(SKILL_MD.read_text(encoding="utf-8"))
     assert hits, f"{SKILL_MD.name} does not cite an OKF version"

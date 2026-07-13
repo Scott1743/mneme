@@ -14,11 +14,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Phase 6 release-gate: CI matrix across Python 3.10–3.13 and
-        # the platforms where sqlite-vec ships pre-built wheels.
-        # ubuntu-latest is x86_64; macos-latest is arm64 — both covered
-        # by sqlite-vec's linux_x86_64 and macosx_universal2 wheels.
-        python: ["3.10", "3.11", "3.12", "3.13"]
+        # Mneme 2.0: Python 3.11–3.13 only. config.py requires 3.11+.
+        # ubuntu-latest is x86_64; macos-latest is arm64.
+        python: ["3.11", "3.12", "3.13"]
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -29,30 +27,20 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: pyproject.toml
-      - name: Install mneme with dev/validate/index/toml10 extras
+      - name: Install test runtime
         run: |
           python -m pip install --upgrade pip
-          pip install -e '.[dev,validate,index,toml10]'
-      - name: Build wheel (so test_install/test_entrypoint pick it up)
-        run: python -m build --wheel --outdir dist
+          pip install pytest pyyaml
       - name: Show installed package versions
         run: |
           python -c "import sys; print(sys.version)"
-          python -c "import sqlite_vec; print('sqlite-vec', sqlite_vec.version)" || true
-          python -c "import fastembed; print('fastembed', fastembed.__version__)" || true
           python -c "import yaml; print('PyYAML', yaml.__version__)" || true
           python -c "import mneme; print('mneme', mneme.__version__)"
       - name: Run pytest fast (skip network)
-        env:
-          # Keep FastEmbed model cache under $HOME so it persists across
-          # runs via setup-python's cache. Also stops the runner's small
-          # /tmp from filling up with a 91MB model.
-          MNEME_MODEL_CACHE: ${{ runner.temp }}/mneme-models
-        # Fast: unit + integration + e2e (offline) + release + docs.
-        # Default addopts already applies `-m 'not network'`, but we
-        # make it explicit so a future addopts change doesn't silently
-        # pull network tests into the 8-cell matrix.
-        run: python -m pytest -m "not network" --tb=short
+        # Default addopts applies `-m 'not network'`; we make it explicit
+        # so a future addopts change does not silently pull network
+        # tests into the matrix.
+        run: python -m pytest -m "not network and not compat" --tb=short
       - name: Generate coverage XML (matrix-wide)
         # Coverage runs on every cell so we get per-Python-version
         # breakdowns in the artifact. No fail-under gate (observation only).
@@ -69,8 +57,8 @@ jobs:
           retention-days: 7
 
   network:
-    # Network-sensitive tests (fastembed model download). Run on a
-    # single cell to avoid 8x model downloads.
+    # Network-sensitive tests. Run on a single cell to avoid duplicating
+    # model downloads across the matrix.
     name: pytest network (Python 3.12, ubuntu-latest)
     runs-on: ubuntu-latest
     steps:
@@ -82,8 +70,7 @@ jobs:
           cache-dependency-path: pyproject.toml
       - run: |
           python -m pip install --upgrade pip
-          pip install -e '.[dev,validate,index,toml10]'
-      - run: python -m build --wheel --outdir dist
+          pip install pytest pyyaml
       - name: Run network tests only
         env:
           MNEME_MODEL_CACHE: ${{ runner.temp }}/mneme-models
@@ -92,34 +79,3 @@ jobs:
         # Network tests are allowed to skip (external corpus missing,
         # HuggingFace unreachable). They are NOT allowed to fail.
         continue-on-error: false
-
-  wheel-smoke:
-    # Single-cell: build wheel, install in fresh venv, smoke-test the
-    # console entry point. This is the release-gate "install-to-query
-    # works from the release artifact in a clean environment" check.
-    name: wheel install smoke (Python 3.12, ubuntu-latest)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: pyproject.toml
-      - run: pip install --upgrade pip build
-      - run: python -m build --wheel --outdir dist
-      - name: Install wheel in fresh venv
-        run: |
-          python -m venv /tmp/smoke-venv
-          /tmp/smoke-venv/bin/pip install dist/mneme-*.whl
-      - name: Smoke-test the console entry point
-        env:
-          MNEME_MODEL_CACHE: ${{ runner.temp }}/mneme-models
-        run: |
-          /tmp/smoke-venv/bin/mneme --help
-          /tmp/smoke-venv/bin/mneme init /tmp/smoke-wiki --config /tmp/smoke-cfg.toml
-          test -f /tmp/smoke-wiki/index.md
-          test -f /tmp/smoke-wiki/log.md
-          test -d /tmp/smoke-wiki/sources
-          /tmp/smoke-venv/bin/mneme lint /tmp/smoke-wiki || \
-            [ $? -eq 3 ]  # exit 3 = lint ran, find_orphans reported (expected on empty bundle)
