@@ -84,22 +84,24 @@
       max-width: var(--max-w-wide);
     }
 
-    h1, h2, h3, h4 { font-family: var(--display); font-weight: 500; line-height: 1.1; letter-spacing: -0.012em; margin: 0; color: var(--ink); }
+    h1, h2, h3, h4 { font-family: var(--display); font-weight: 500; line-height: 1.18; letter-spacing: -0.012em; margin: 0; color: var(--ink); }
     h1 {
       font-size: clamp(4.5rem, 12vw, 9rem);
       font-style: italic;
       font-weight: 500;
       line-height: 0.92;
       letter-spacing: -0.04em;
-      margin: 0.4em 0 0.7em;
+      margin: 0.45em 0 0.75em;
       text-align: center;
     }
     h2 {
       font-size: clamp(1.6rem, 3.2vw, 2.2rem);
       font-weight: 500;
       font-style: italic;
-      margin-top: 0.2em;
+      margin: 0 0 0.95em;
+      line-height: 1.28;
     }
+    h2 + p:first-of-type { margin-top: 0; }   /* the h2 already supplies the air */
     h3 {
       font-family: var(--body);
       font-size: 1.05rem;
@@ -340,6 +342,11 @@
       color: var(--ink);
     }
 
+    /* No-JS baseline: every section is visible (the prefers-reduced-motion
+       block above also forces this). JS adds an .is-revealed class once
+       a section scrolls into view — that triggers the cascade. */
+    .no-js section { opacity: 1 !important; transform: none !important; }
+
     /* Quick jump nav — small, restrained, hairline-separated. */
     .quick {
       display: flex;
@@ -361,21 +368,106 @@
     }
     .quick a:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
 
-    /* ── Motion (cascade reveal; respects prefers-reduced-motion) ── */
+    /* ── Motion (orchestrated; respects prefers-reduced-motion) ───────────
+     *  - On first paint: hero cascades in from below.
+     *  - The H1 underline draws itself from 0% width.
+     *  - Each section fades in once, on viewport entry (IntersectionObserver).
+     *  - Lift-blockquotes collapse their letter-spacing on entry.
+     *  - Hover micro-motion: link underline grows, install pill lifts.
+     *  - prefers-reduced-motion: no-preference gates the whole show.
+     * ───────────────────────────────────────────────────────── */
     @media (prefers-reduced-motion: no-preference) {
-      .hero > *, section > * { opacity: 0; transform: translateY(8px); animation: mneme-rise 720ms ease-out forwards; }
-      section > *:nth-child(2) { animation-delay: 80ms; }
-      section > *:nth-child(3) { animation-delay: 160ms; }
-      section > *:nth-child(4) { animation-delay: 240ms; }
-      section > *:nth-child(5) { animation-delay: 320ms; }
-      section > *:nth-child(6) { animation-delay: 400ms; }
+      /* ── First paint cascade ── */
+      .hero > * {
+        opacity: 0;
+        transform: translateY(10px);
+        animation: mneme-rise 900ms cubic-bezier(.2,.65,.25,1) forwards;
+      }
+      .hero > *:nth-child(1) { animation-delay: 60ms; }
+      .hero > *:nth-child(2) { animation-delay: 220ms; }
+      .hero > *:nth-child(3) { animation-delay: 360ms; }
+      .hero > *:nth-child(4) { animation-delay: 540ms; }
+      .hero > *:nth-child(5) { animation-delay: 720ms; }
+      .hero > *:nth-child(6) { animation-delay: 820ms; }
+
+      /* ── H1 underline draws from centre ── */
+      .hero h1::after {
+        transform: scaleX(0);
+        animation: mneme-draw 1100ms 600ms cubic-bezier(.2,.65,.25,1) forwards;
+        transform-origin: center;
+      }
+      /* Tiny rotate-in on the kicker label */
+      .hero .kicker {
+        animation: mneme-kicker 800ms 60ms cubic-bezier(.2,.65,.25,1) backwards;
+      }
+
+      /* ── Section reveal — fires once when scrolled into view ── */
+      section { opacity: 0; transform: translateY(12px); }
+      section.is-revealed {
+        animation: mneme-rise 700ms cubic-bezier(.2,.65,.25,1) forwards;
+      }
+      section > * { opacity: 0; transform: translateY(8px); }
+      section.is-revealed > * {
+        animation: mneme-rise 700ms cubic-bezier(.2,.65,.25,1) forwards;
+      }
+      section.is-revealed > *:nth-child(2) { animation-delay: 100ms; }
+      section.is-revealed > *:nth-child(3) { animation-delay: 200ms; }
+      section.is-revealed > *:nth-child(4) { animation-delay: 300ms; }
+      section.is-revealed > *:nth-child(5) { animation-delay: 400ms; }
+      section.is-revealed > *:nth-child(6) { animation-delay: 480ms; }
+      section.is-revealed > *:nth-child(7) { animation-delay: 560ms; }
+
+      /* ── A lift-blockquote tightens its letter-spacing on entry ── */
+      blockquote.lift { letter-spacing: 0.18em; opacity: 0; }
+      section.is-revealed blockquote.lift {
+        animation: mneme-tighten 1100ms 380ms cubic-bezier(.2,.65,.25,1) forwards;
+      }
+
+      /* ── Hover micro-motion ── */
+      a.install:hover { transform: translateY(-1px); box-shadow: 0 4px 18px -8px var(--dream); }
+      a.install { transition: transform 220ms ease, box-shadow 220ms ease, background 220ms ease; }
+      a {
+        transition: text-decoration-color 220ms ease, text-decoration-thickness 220ms ease;
+      }
+      aside.gloss {
+        opacity: 0;
+        transform: translateX(6px);
+      }
+      section.is-revealed aside.gloss {
+        animation: mneme-rise 700ms 360ms cubic-bezier(.2,.65,.25,1) forwards;
+      }
+      @media (min-width: 861px) {
+        aside.gloss { transform: translateX(10px); }
+      }
+
       @keyframes mneme-rise {
         to { opacity: 1; transform: translateY(0); }
       }
+      @keyframes mneme-draw {
+        to { transform: scaleX(1); }
+      }
+      @keyframes mneme-kicker {
+        from { opacity: 0; transform: translateY(8px); letter-spacing: 0.32em; }
+        to   { opacity: 1; transform: translateY(0); letter-spacing: 0.16em; }
+      }
+      @keyframes mneme-tighten {
+        to { opacity: 1; letter-spacing: -0.005em; }
+      }
     }
-    /* Skip animation when the page is printed. */
+    /* No motion for reduced motion users. */
+    @media (prefers-reduced-motion: reduce) {
+      .hero > * { opacity: 1; transform: none; animation: none; }
+      .hero h1::after { transform: none; animation: none; }
+      section, section > * { opacity: 1; transform: none; animation: none; }
+      blockquote.lift { opacity: 1; letter-spacing: -0.005em; }
+      aside.gloss { opacity: 1; transform: none; animation: none; }
+    }
+    /* Print keeps everything visible. */
     @media print {
-      .hero > *, section > *, .signature, .friends { opacity: 1 !important; transform: none !important; animation: none !important; }
+      .hero > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+      section, section > *, aside.gloss, blockquote.lift {
+        opacity: 1 !important; transform: none !important; animation: none !important;
+      }
     }
 
     @media (max-width: 540px) {
@@ -391,6 +483,29 @@
       outline-offset: 3px;
     }
   </style>
+  <script>
+    // Reveal each section once it scrolls into view. No library; ~12 lines.
+    (() => {
+      if (!('IntersectionObserver' in window)) {
+        document.documentElement.classList.add('no-js');
+        return;
+      }
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) {
+              e.target.classList.add('is-revealed');
+              io.unobserve(e.target);   // one-shot
+            }
+          }
+        },
+        { rootMargin: '0px 0px -12% 0px', threshold: 0.05 },
+      );
+      for (const s of document.querySelectorAll('main section')) {
+        io.observe(s);
+      }
+    })();
+  </script>
 </head>
 <body>
   <main>
