@@ -152,7 +152,7 @@ def test_failed_reindex_preserves_previous_index(tmp_path):
 def test_search_bundle_missing_index_does_not_create_database(tmp_path):
     with pytest.raises(IndexNotFoundError):
         search_bundle(tmp_path, "anything", embed_fn=_E)
-    assert not (tmp_path / ".mneme" / "index.db").exists()
+    assert not (tmp_path / ".mneme" / "l2.db").exists()
 
 
 def test_search_bundle_closes_and_returns_hits(tmp_path):

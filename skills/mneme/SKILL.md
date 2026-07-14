@@ -1,7 +1,7 @@
 ---
 name: mneme
-version: 3.2.0
-description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki. Use when the user wants to dream (capture or curate knowledge) or search (recall and synthesize it). Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', '查 wiki', '搜索知识库', '梦', '记住这个'. v3.2 defaults to SQLite FTS5 and offers explicit opt-in semantic search with `--l2`."
+version: 3.3.0
+description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki. Use when the user wants to dream (capture or curate knowledge) or search (recall and synthesize it). Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', '查 wiki', '搜索知识库', '梦', '记住这个'. v3.3 defaults to SQLite FTS5 and persists an explicitly activated L2 semantic mode."
 allowed-tools:
   - Read
   - Write
@@ -89,12 +89,14 @@ candidates only; the agent produces the answer.
 
 1. Read the root `index.md` first and expand through titles, tags, links, and
    local text matches.
-2. When ranked candidates are useful, use default FTS5:
+2. When ranked candidates are useful, run:
    `python3 ~/.claude/skills/mneme/scripts/mneme.py search "<question>" --json -k 10`.
-3. Use `search --l2` only when the user explicitly requests semantic recall and
-   an L2 index has been explicitly built. Never install dependencies, download
-   a model, switch modes, or fall back silently on the user's behalf. Load
-   `references/index-design.md` before any L2 setup or troubleshooting.
+3. When the user explicitly requests semantic recall, load
+   `references/index-design.md`. After the user installs the optional
+   dependencies, run `reindex --l2` once to build and activate L2. Later plain
+   `search` commands use the persisted L2 mode; never add `--l2` to each
+   search, install dependencies, download a model, or switch modes on the
+   user's behalf. L2 failures never silently fall back to FTS5.
 4. Always read each relevant Markdown page in full. Snippets, chunks, distances,
    and the derived SQLite index are never authoritative.
 5. Synthesize the answer with inline bundle-relative citations such as
@@ -111,11 +113,13 @@ require it.
 
 - `init <path>` scaffolds an OKF bundle and records its location.
 - `lint [--bundle <path>]` validates and diagnoses without changing pages.
-- `reindex [--bundle <path>] [--l2]` atomically rebuilds the selected disposable
-  index; FTS5 is the default and L2 is explicit opt-in.
+- `reindex [--bundle <path>] [--l2 | --fts5]` atomically rebuilds the active
+  disposable index. `--l2` explicitly builds and persists semantic mode;
+  `--fts5` explicitly switches back. Bare `reindex` uses the persisted mode.
 - `dream [--bundle <path>] --json` audits without writing. Its optional
   schedule flags print scheduler snippets only and never install them.
-- `search <query> [--bundle <path>] [--l2] --json` returns ranked candidates.
+- `search <query> [--bundle <path>] --json` returns candidates from the
+  persisted mode.
 - `convert <source> --output <path>` creates derived readable text with an
   already-installed compatible converter; it never installs software and
   refuses overwrite unless the user explicitly requests `--force`.

@@ -1,4 +1,4 @@
-"""Mneme 3.2.0 CLI matrix and bundle-resolution contract."""
+"""Mneme 3.3.0 CLI matrix and bundle-resolution contract."""
 from __future__ import annotations
 
 import argparse
@@ -148,10 +148,10 @@ def test_search_exit_code_is_zero_for_empty_candidates(tmp_path, monkeypatch, ca
         "search",
         lambda query, db, k: {"query": query, "candidates": []},
     )
-    # Drop a sentinel index.db so cmd_search takes the FTS5 path
+    # Drop a sentinel fts.db so cmd_search takes the FTS5 path
     # rather than the L0 grep fallback.
     (bundle / ".mneme").mkdir()
-    (bundle / ".mneme" / "index.db").write_bytes(b"")
+    (bundle / ".mneme" / "fts.db").write_bytes(b"")
 
     assert cli.main(["search", "absent", "--bundle", str(bundle), "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)

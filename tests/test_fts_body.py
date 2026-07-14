@@ -10,7 +10,7 @@ code blocks, embedded prose) and not in `title` / `description` /
 `reindex_paths(paths, bundle)` is the atomic snapshot rebuild entry
 point: it writes the new index into a temp database, fsyncs it, and
 renames it into place so a crash mid-build never leaves the live
-`bundle/.mneme/index.db` in a torn state.
+`bundle/.mneme/fts.db` in a torn state.
 """
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def test_snippet_finds_body_only_word(tmp_path):
     (bundle / "index.md").write_text("# Index\n")
     indexed = indexlib.reindex_paths([bundle / "concepts" / "a.md"], bundle)
     assert indexed == 1, "reindex_paths should report one page indexed"
-    conn = sqlite3.connect(bundle / ".mneme" / "index.db")
+    conn = sqlite3.connect(bundle / ".mneme" / "fts.db")
     try:
         # FTS5 snippet() uses 0-based column indexing. With the schema
         # `title, description, tags, body`, `body` is column 3. The plan

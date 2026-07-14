@@ -22,7 +22,7 @@ def test_init_scaffolds_bundle_and_config(tmp_path):
 def test_reindex_reports_indexed_page_count(tmp_path, monkeypatch, capsys):
     """v2.0 `mneme reindex` runs Task 3's `reindex_paths` (FTS5).
 
-    Stdout shape: ``indexed N page(s) into <bundle>/.mneme/index.db``.
+    Stdout shape: ``indexed N page(s) into <bundle>/.mneme/fts.db (FTS5)``.
     The v1.1.0 "concepts/chunks/skipped" framing does NOT exist in v2.0
     — L2 (sqlite-vec + FastEmbed) is deferred to v2.1.
     """
@@ -34,7 +34,7 @@ def test_reindex_reports_indexed_page_count(tmp_path, monkeypatch, capsys):
     assert mneme.main(["reindex", "--config", str(cfg)]) == 0
     out = capsys.readouterr().out
     assert "indexed 4 page(s)" in out
-    assert str(bundle / ".mneme" / "index.db") in out
+    assert str(bundle / ".mneme" / "fts.db") in out
 
 
 def _search_candidate(query):
@@ -62,10 +62,10 @@ def test_search_json_is_stable_and_passes_query_as_data(tmp_path, monkeypatch, c
         return {"query": query, "candidates": [_search_candidate(query)]}
 
     monkeypatch.setattr(indexlib, "search", fake_search)
-    # Drop a sentinel index.db so cmd_search takes the FTS5 path
+    # Drop a sentinel fts.db so cmd_search takes the FTS5 path
     # rather than the L0 grep fallback.
     (bundle / ".mneme").mkdir()
-    (bundle / ".mneme" / "index.db").write_bytes(b"")
+    (bundle / ".mneme" / "fts.db").write_bytes(b"")
     rc = mneme.main(["search", query, "-k", "5", "--json", "--config", str(cfg)])
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
@@ -90,7 +90,7 @@ def test_search_human_output(tmp_path, monkeypatch, capsys):
         lambda query, db, k: {"query": query, "candidates": [_search_candidate("body")]},
     )
     (bundle / ".mneme").mkdir()
-    (bundle / ".mneme" / "index.db").write_bytes(b"")
+    (bundle / ".mneme" / "fts.db").write_bytes(b"")
     assert mneme.main(["search", "body", "--config", str(cfg)]) == 0
     output = capsys.readouterr().out
     assert "concepts/a.md" in output
@@ -108,7 +108,7 @@ def test_search_zero_hits_is_success(tmp_path, monkeypatch, capsys):
         indexlib, "search", lambda query, db, k: {"query": query, "candidates": []}
     )
     (bundle / ".mneme").mkdir()
-    (bundle / ".mneme" / "index.db").write_bytes(b"")
+    (bundle / ".mneme" / "fts.db").write_bytes(b"")
     assert mneme.main(["search", "none", "--json", "--config", str(cfg)]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload == {"query": "none", "candidates": []}
@@ -121,7 +121,7 @@ def test_search_runtime_error_returns_1(tmp_path, monkeypatch, capsys):
     bundle.mkdir()
     cfg.write_text(f'bundle_path = "{bundle}"\n')
     (bundle / ".mneme").mkdir()
-    (bundle / ".mneme" / "index.db").write_bytes(b"")
+    (bundle / ".mneme" / "fts.db").write_bytes(b"")
 
     def fail(*_args, **_kwargs):
         raise RuntimeError("index metadata is missing; run mneme reindex")

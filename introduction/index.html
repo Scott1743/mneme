@@ -530,14 +530,14 @@
          Hero
          ═══════════════════════════════════════════════════ -->
     <header class="hero">
-      <p class="kicker">An agent skill · MIT · v3.2</p>
+      <p class="kicker">An agent skill · MIT · v3.3</p>
       <h1>Mneme</h1>
       <p class="tagline">让 agent 替你记着点的本地 Markdown 知识库。<br/>两个动词——<span class="v-dream">dream</span> 写，<span class="v-search">search</span> 读。</p>
 
       <a class="install" href="https://www.skills.sh">
         <span class="verb">$</span> npx skills add Scott1743/mneme
       </a>
-      <p class="byline"><a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip">v2.2.0 基础版下载</a> · <a href="https://github.com/Scott1743/mneme/releases/download/v3.2.0/mneme-3.2.0.zip">v3.2.0 语义版下载</a></p>
+      <p class="byline"><a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip">v2.2.0 基础版下载</a> · <a href="https://github.com/Scott1743/mneme/releases/download/v3.3.0/mneme-3.3.0.zip">v3.3.0 语义版下载</a></p>
 
       <p class="byline">— μνήμη · 记忆女神 —</p>
 
@@ -607,7 +607,7 @@
 
       <aside class="gloss">不能反过来用：<code>type</code> 在 frontmatter 里有协议语义（OKF §4.1）；<code>tags</code> 是你想给它什么语义就是什么——OKF 留给写者的自由。</aside>
 
-      <p>wiki 小于几百页时，<code>grep</code> 与 <code>Read</code> 已经够用。大一点之后，<code>mneme reindex</code> 会建一个本地 SQLite FTS5 索引（零依赖、零网络）。<code>.mneme/index.db</code> 是可删的派生缓存——它从来没拥有事实，只是帮 agent 走快两步。</p>
+      <p>wiki 小于几百页时，<code>grep</code> 与 <code>Read</code> 已经够用。大一点之后，<code>mneme reindex</code> 会建一个本地 SQLite FTS5 索引（零依赖、零网络）。<code>.mneme/fts.db</code> 是可删的派生缓存；需要语义召回时，明确运行一次 <code>reindex --l2</code>，它会单独建 <code>.mneme/l2.db</code> 并记住选择。它们从来没拥有事实，只是帮 agent 走快两步。</p>
 
       <p>召回的下一步留给另一段路：默认<strong>不</strong>下载任何外部模型，也<strong>不</strong>装额外依赖。wiki 本身、agent 的工作流、<code>dream</code> 与 <code>search</code> 的契约都和那段加法无关。</p>
 
@@ -654,7 +654,7 @@
          ═══════════════════════════════════════════════════ -->
     <footer class="signature">
       <span class="press-mark">μνήμη — Mneme</span>
-      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases/tag/v3.2.0">v3.2.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
+      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases/tag/v3.3.0">v3.3.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
     </footer>
 
   </main>

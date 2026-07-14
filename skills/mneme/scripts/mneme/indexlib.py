@@ -20,6 +20,16 @@ INDEX_SCHEMA_VERSION = "1"
 DEFAULT_MODEL = "BAAI/bge-small-zh-v1.5"
 
 
+def fts_index_path(bundle_path: Path | str) -> Path:
+    """Return the independent zero-dependency FTS5 cache path."""
+    return Path(bundle_path) / ".mneme" / "fts.db"
+
+
+def l2_index_path(bundle_path: Path | str) -> Path:
+    """Return the independent optional semantic cache path."""
+    return Path(bundle_path) / ".mneme" / "l2.db"
+
+
 class IndexErrorBase(RuntimeError):
     """Base class for L2 operational errors; the OKF bundle may still be valid."""
 
@@ -425,7 +435,7 @@ def reindex_bundle(
     from . import okflib
 
     root = Path(bundle_path)
-    live_path = Path(db_path) if db_path is not None else root / ".mneme" / "index.db"
+    live_path = Path(db_path) if db_path is not None else l2_index_path(root)
     live_path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = live_path.with_name(f"{live_path.name}.tmp")
     _remove_sqlite_sidecars(temp_path)
@@ -489,7 +499,7 @@ def search_bundle(
     embed_fn: EmbedFn | Embedder | None = None,
 ) -> List[Dict]:
     root = Path(bundle_path)
-    db_path = root / ".mneme" / "index.db"
+    db_path = l2_index_path(root)
     if not db_path.is_file():
         raise IndexNotFoundError(f"index not found at {db_path}; run mneme reindex")
     conn = open_index(db_path, require_vector=True)
@@ -505,8 +515,8 @@ def search_bundle(
 def reindex_paths(paths, bundle) -> int:
     """Atomic snapshot rebuild of the v2.0 L1 (FTS5) index for `paths`.
 
-    Writes the new index into ``<bundle>/.mneme/index.db.tmp``, fsyncs
-    it, then ``os.replace``s it into the live ``index.db`` path. A
+    Writes the new index into ``<bundle>/.mneme/fts.db.tmp``, fsyncs
+    it, then ``os.replace``s it into the live ``fts.db`` path. A
     crash mid-build never leaves the live db torn — the temp file is
     unlinked on any error and the previous live db (if any) stays in
     place untouched.
@@ -524,7 +534,7 @@ def reindex_paths(paths, bundle) -> int:
     from . import okflib
 
     root = Path(bundle)
-    live_path = root / ".mneme" / "index.db"
+    live_path = fts_index_path(root)
     live_path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = live_path.with_name(f"{live_path.name}.tmp")
     _remove_sqlite_sidecars(temp_path)

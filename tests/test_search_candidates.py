@@ -9,14 +9,14 @@ retrieval oracle).
 
 Two paths:
 
-1. **FTS5 (default)**: when ``<bundle>/.mneme/index.db`` exists,
+1. **FTS5 (default)**: when ``<bundle>/.mneme/fts.db`` exists,
    ``indexlib.search`` runs an FTS5 MATCH against the L1 schema
    that Task 3 (``reindex_paths``) populates. Column indices are
    ``title=0, description=1, tags=2, body=3`` — Task 3 corrected
    the original plan (which had body at column 4). Snippets pull
    from ``body`` (column 3).
 
-2. **L0 grep fallback**: when ``index.db`` is missing, walk
+2. **L0 grep fallback**: when ``fts.db`` is missing, walk
    ``*.md`` files in the bundle (skipping ``.mneme/`` and
    ``sources/``), parse frontmatter for the title, and case-
    insensitively scan the body for the query. Each hit becomes a
@@ -76,7 +76,7 @@ def test_search_returns_candidates_only(tmp_path):
     """`indexlib.search` returns ``{"query": ..., "candidates": [...]}``
     and each candidate carries ``path``, ``title``, and ``snippet``."""
     bundle = _seed_bundle_with_index(tmp_path)
-    db = bundle / ".mneme" / "index.db"
+    db = bundle / ".mneme" / "fts.db"
     out = indexlib.search("rareword", db, k=5)
     assert "candidates" in out and out["candidates"], (
         f"expected non-empty candidates; got {out!r}"
@@ -98,7 +98,7 @@ def test_search_uses_body_column_3_for_snippet(tmp_path):
     a future schema change can't silently shift snippets off body.
     """
     bundle = _seed_bundle_with_index(tmp_path)
-    db = bundle / ".mneme" / "index.db"
+    db = bundle / ".mneme" / "fts.db"
     out = indexlib.search("rareword", db, k=1)
     assert out["candidates"]
     snippet = out["candidates"][0]["snippet"]
@@ -164,12 +164,12 @@ def test_search_fts5_path_does_not_import_l2(tmp_path):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# L0 grep fallback (when index.db missing)
+# L0 grep fallback (when fts.db is missing)
 # ─────────────────────────────────────────────────────────────────────────
 
 
 def test_search_falls_back_to_grep_when_no_index(tmp_path, capsys):
-    """When ``<bundle>/.mneme/index.db`` is missing, ``mneme search``
+    """When ``<bundle>/.mneme/fts.db`` is missing, ``mneme search``
     falls back to walking ``*.md`` files for title/body matches — no
     crash, no L2 import."""
     bundle = tmp_path / "wiki"
@@ -221,12 +221,12 @@ def test_search_grep_fallback_excludes_mneme_and_sources(tmp_path, capsys):
     )
     (bundle / "sources").mkdir(parents=True)
     (bundle / "sources" / "raw.md").write_text("needle in raw source\n", encoding="utf-8")
-    # Create .mneme/ but WITHOUT index.db so we exercise the L0 grep
+    # Create .mneme/ but WITHOUT fts.db so we exercise the L0 grep
     # path. If grep descended into .mneme/, it would pick up stray
     # files; we want to confirm the rglob filter excludes the dir
     # entirely.
     (bundle / ".mneme").mkdir(parents=True)
-    (bundle / ".mneme" / "index.db.notes").write_text(
+    (bundle / ".mneme" / "fts.db.notes").write_text(
         "needle in metadata blob\n", encoding="utf-8"
     )
     (bundle / "index.md").write_text("# Index\n", encoding="utf-8")

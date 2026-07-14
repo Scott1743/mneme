@@ -27,6 +27,14 @@ import tomllib as _toml_read  # type: ignore[import-not-found]
 from . import toml_writer as _toml_write  # noqa: E402
 
 
+DEFAULT_RETRIEVAL_MODE = "fts5"
+RETRIEVAL_MODES = frozenset({"fts5", "l2"})
+
+
+class ConfigError(ValueError):
+    """Raised when Mneme's own config contains an unsupported value."""
+
+
 def resolve_config_dir(*, env: Mapping[str, str] | None = None) -> Path:
     """Return ``MNEME_CONFIG_DIR`` or the default ``~/.config/mneme``."""
     environment = os.environ if env is None else env
@@ -58,3 +66,34 @@ def write_config(path: Path, data: Mapping[str, Any]) -> None:
     Round-tripping through ``read_config`` yields the same dict.
     """
     _toml_write.write_config(Path(path), data)
+
+
+def retrieval_mode(path: Path) -> str:
+    """Return the persisted retrieval mode, defaulting to zero-dependency FTS5.
+
+    Old configurations have no mode field and therefore retain their v2/v3.2
+    behavior. An invalid explicit value is a local configuration error, not a
+    property of the OKF bundle.
+    """
+    config_path = Path(path)
+    if not config_path.is_file():
+        return DEFAULT_RETRIEVAL_MODE
+    mode = read_config(config_path).get("active_retrieval_mode", DEFAULT_RETRIEVAL_MODE)
+    if not isinstance(mode, str) or mode not in RETRIEVAL_MODES:
+        expected = ", ".join(sorted(RETRIEVAL_MODES))
+        raise ConfigError(
+            f"active_retrieval_mode must be one of {expected}; got {mode!r}"
+        )
+    return mode
+
+
+def set_retrieval_mode(path: Path, mode: str) -> None:
+    """Persist ``mode`` without discarding bundle_path or unknown config keys."""
+    if mode not in RETRIEVAL_MODES:
+        expected = ", ".join(sorted(RETRIEVAL_MODES))
+        raise ConfigError(f"unsupported retrieval mode {mode!r}; expected {expected}")
+    config_path = Path(path)
+    current = read_config(config_path) if config_path.is_file() else {}
+    current["active_retrieval_mode"] = mode
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    write_config(config_path, current)

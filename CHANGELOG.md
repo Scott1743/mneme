@@ -9,6 +9,19 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [3.3.0] — 2026-07-15 — persistent retrieval mode and independent caches
+
+- `mneme reindex --l2` now explicitly builds and activates L2 once, recording
+  `active_retrieval_mode = "l2"` in the local config only after a successful
+  rebuild. Subsequent bare `search` and `reindex` commands use that mode, so
+  agents do not need to remember a per-command semantic flag.
+- Split derived caches into `<bundle>/.mneme/fts.db` and
+  `<bundle>/.mneme/l2.db`. Switching modes never overwrites or deletes the
+  other cache; `mneme reindex --fts5` explicitly returns to FTS5.
+- A configured L2 mode with a missing or unavailable L2 cache fails clearly and
+  never silently substitutes FTS5. Existing 3.2 `index.db` files are
+  disposable and rebuilt on the first 3.3 reindex.
+
 ## [3.2.0] — 2026-07-14 — contract-aligned workflows and conversion adapter
 
 - Finished the dream/search migration: `SKILL.md` now exposes exactly those two

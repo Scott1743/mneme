@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 pytestmark = pytest.mark.unit
 
-from mneme.config import read_config, write_config
+from mneme.config import ConfigError, read_config, retrieval_mode, set_retrieval_mode, write_config
 
 
 def test_roundtrip_simple(tmp_path):
@@ -67,3 +67,24 @@ def test_write_then_read_byte_matches_original_intent(tmp_path):
     weird = '/tmp/mixed "quoted" \\b/笔记/wiki'
     write_config(cfg, {"bundle_path": weird})
     assert read_config(cfg) == {"bundle_path": weird}
+
+
+def test_retrieval_mode_defaults_to_fts5_for_existing_configs(tmp_path):
+    cfg = tmp_path / "config.toml"
+    write_config(cfg, {"bundle_path": "/tmp/wiki", "unknown_key": "kept"})
+
+    assert retrieval_mode(cfg) == "fts5"
+    set_retrieval_mode(cfg, "l2")
+    assert read_config(cfg) == {
+        "bundle_path": "/tmp/wiki",
+        "unknown_key": "kept",
+        "active_retrieval_mode": "l2",
+    }
+
+
+def test_retrieval_mode_rejects_invalid_config_value(tmp_path):
+    cfg = tmp_path / "config.toml"
+    write_config(cfg, {"active_retrieval_mode": "hybrid"})
+
+    with pytest.raises(ConfigError, match="active_retrieval_mode"):
+        retrieval_mode(cfg)
