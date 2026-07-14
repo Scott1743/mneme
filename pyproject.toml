@@ -10,7 +10,7 @@
 testpaths = ["tests"]
 # Skip network tests by default. Developers run all markers explicitly
 # with `pytest -m ""`.
-addopts = "-m 'not network'"
+addopts = "-m 'not network and not l2'"
 markers = [
     "unit: 单函数/单模块的纯逻辑测试,无外部 IO(离线,<1s)",
     "integration: 跨模块组合,仍进程内 + 无网络(离线,1-3s)",

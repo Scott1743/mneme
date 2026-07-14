@@ -2,7 +2,8 @@ import hashlib
 from pathlib import Path
 
 import pytest
-pytestmark = pytest.mark.unit
+
+pytestmark = [pytest.mark.unit, pytest.mark.l2]
 
 from mneme.indexlib import (
     CorruptIndexError,

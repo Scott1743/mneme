@@ -9,9 +9,9 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
-## [2.1.0] — 2026-07-14 — `--l2` opt-in flag for sqlite-vec + FastEmbed + BGE
+## [3.0.0] — 2026-07-14 — optional semantic search
 
-v2.1 把 v2.0 推迟的 L2（语义召回）作为**显式 opt-in**带回：`mneme reindex --l2` 与 `mneme search --l2` 通过 `--l2` 标志走 v1.x 的 `indexlib.reindex_bundle`（`sqlite-vec` + `FastEmbed` + `BAAI/bge-small-zh-v1.5`）路径。L2 依赖（`sqlite-vec>=0.1.9,<0.2` 与 `fastembed>=0.8.0,<0.9`）**仍然**是用户自装——v2.1 不打包、不自动装、不静默回退 FTS5。FTS5 仍是默认路径；`--l2` 显式打开才会触碰 vec0 + BGE，v2.0 的 L0/L1 零依赖基线**未被破坏**。
+v3.0 在 v2.0 零依赖基础版之上，把 L2（语义召回）作为**显式 opt-in**带回：`mneme reindex --l2` 与 `mneme search --l2` 通过 `--l2` 标志走 `indexlib.reindex_bundle`（`sqlite-vec` + `FastEmbed` + `BAAI/bge-small-zh-v1.5`）路径。依赖仍由用户自行安装；FTS5 仍是默认路径。
 
 ### Added
 

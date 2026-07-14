@@ -1,7 +1,7 @@
 ---
 name: mneme
-version: 2.1.0
-description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki. Use when the user wants to dream (capture knowledge) or search (recall it). Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', '查 wiki', '搜索知识库', '梦', '记住这个'. v2.1 ships skill-first delivery, OKF + tags writer rule, sqlite3 + FTS5 default, `mneme dream` as a read-only audit CLI, and `--l2` opt-in flag for sqlite-vec + FastEmbed + BGE semantic search (FTS5 remains default)."
+version: 3.0.0
+description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki. Use when the user wants to dream (capture knowledge) or search (recall it). Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', '查 wiki', '搜索知识库', '梦', '记住这个'. v3.0 ships skill-first delivery, SQLite FTS5 default, and `--l2` opt-in semantic search through sqlite-vec + FastEmbed + BGE."
 allowed-tools:
   - Read
   - Write
@@ -52,7 +52,7 @@ Helper:
 Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py --help
 ```
 
-> **L2 (semantic search) is opt-in via `--l2`.** v2.1 reintroduces the L2 path (sqlite-vec + FastEmbed + BAAI/bge-small-zh-v1.5) as an **explicit flag** on `reindex` and `search`. Default `reindex` / `search` are still FTS5-only — they require NO third-party deps. Adding `--l2` opts into the L2 path; `reindex --l2` builds the vec0 index with BGE embeddings, `search --l2` queries it. If the L2 deps are missing when `--l2` is used, the CLI prints a one-line install hint (no ImportError traceback): `pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'`. **No auto-install, no surprise network calls.** `search --l2` on an FTS5-only index errors out — it never silently falls back to FTS5.
+> **L2 (semantic search) is opt-in via `--l2`.** v3.0 introduces the L2 path (sqlite-vec + FastEmbed + BAAI/bge-small-zh-v1.5) as an **explicit flag** on `reindex` and `search`. Default `reindex` / `search` are still FTS5-only — they require NO third-party deps. Adding `--l2` opts into the L2 path; `reindex --l2` builds the vec0 index with BGE embeddings, `search --l2` queries it. If the L2 deps are missing when `--l2` is used, the CLI prints a one-line install hint (no ImportError traceback): `pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'`. **No auto-install, no surprise network calls.** `search --l2` on an FTS5-only index errors out — it never silently falls back to FTS5.
 
 ## OKF v0.1 conformance (hard rules — never violate on write)
 

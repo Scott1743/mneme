@@ -1,6 +1,6 @@
-"""v2.1 --l2 opt-in flag — surface contract.
+"""v3.0 --l2 opt-in flag — surface contract.
 
-v2.1 reintroduces L2 (sqlite-vec + FastEmbed + BGE-small-zh-v1.5)
+v3.0 introduces L2 (sqlite-vec + FastEmbed + BGE-small-zh-v1.5)
 as an **explicit opt-in** flag on `reindex` and `search`. The FTS5
 default path stays untouched. These tests pin:
 
