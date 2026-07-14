@@ -18,7 +18,7 @@ You drive all mneme operations through native tools (Read/Write/Edit/Bash/Glob/G
 
 ## Skill installation
 
-This skill is delivered via [skill.sh](https://skill.sh) and lands at:
+This skill is delivered via [skills.sh](https://www.skills.sh) and lands at:
 
 ```text
 ~/.claude/skills/mneme/
