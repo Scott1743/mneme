@@ -16,7 +16,7 @@ npx skills add Scott1743/mneme
 
 落地到 `~/.claude/skills/mneme/`，重启 agent 会话即可。该命令始终安装默认分支上的最新版本（v3.0.0）。**没有 wheel、没有 `pip install` 全包、没有 setuptools——一个 zip，解压即用。**
 
-需要固定在零依赖基础版时，下载 [v2.0.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v2.0.0/mneme-2.0.0.zip)。最新主分支的可选语义版下载地址是 [v3.0.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v3.0.0/mneme-3.0.0.zip)。
+需要固定在零依赖基础版时，下载 [v2.0.1 skill zip](https://github.com/Scott1743/mneme/releases/download/v2.0.1/mneme-2.0.1.zip)。最新主分支的可选语义版下载地址是 [v3.0.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v3.0.0/mneme-3.0.0.zip)。
 
 更多说明书：[scott1743.github.io/mneme](https://scott1743.github.io/mneme/) —— 产品初衷、安装与原理的图文介绍。
 
@@ -55,6 +55,16 @@ mneme reindex       # 全量重建一次；幂等
 mneme search "X"    # FTS5 候选 + snippet；agent 读完整页综合
 ```
 
+## 外部资料转换（可选）
+
+`dream` 的原件仍是不可变资料。遇到 agent 不能直接读取的本地 PDF、DOCX 或 PPTX，可让 agent 在预览阶段调用后台适配器；它只使用你已安装的转换器，**不会下载或安装任何软件**：
+
+```bash
+mneme convert report.pdf --output /tmp/report.md
+```
+
+输出路径必须显式给出，默认拒绝覆盖。PDF 会优先使用已安装的 MarkItDown 或 `pdftotext`；扫描件需要 OCR。Pandoc 只用于 DOCX 输入，不被错误地宣传为 PDF/PPTX 转换器。转换得到的是供 agent 阅读的派生文本，原文件仍应原样保留到 `sources/`。
+
 ## 零依赖基础版
 
 v2.0 不含可选语义召回加速器，也不打包任何相关依赖。需要该能力时选择主分支上的 v3.0.0。
@@ -87,7 +97,7 @@ docs/superpowers/           ←   specs + plans + reports
 ```bash
 pip install pytest
 pytest                          # 离线分层测试
-python scripts/build_zip.py     # 产 dist/mneme-2.0.0.zip
+python scripts/build_zip.py     # 产 dist/mneme-2.0.1.zip
 ```
 
 v2.0 不含语义召回实现或相关依赖。CI 在 Python 3.11 / 3.12 / 3.13 三档矩阵上跑。

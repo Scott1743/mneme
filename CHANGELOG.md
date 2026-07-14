@@ -9,6 +9,18 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [2.0.1] — 2026-07-14 — optional local conversion adapter
+
+- Added `mneme convert <source> --output <path>` for explicit preprocessing
+  of `.pdf`, `.docx`, and `.pptx` with a converter the user already has.
+  It never installs software, never overwrites an output without `--force`,
+  and keeps conversion outside the OKF source-of-truth model.
+- `auto` selects installed format-appropriate backends only: MarkItDown for
+  PDF/DOCX/PPTX, `pdftotext` for text PDFs, and Pandoc for DOCX. Pandoc is
+  deliberately not presented as a PDF or PPTX input converter.
+- Missing PDF tools now give actionable text-PDF and OCR guidance instead of
+  treating image-only PDFs as a normal text extraction case.
+
 ## [2.0.0] — 2026-07-14 — zero-dependency dream + search surface
 
 v2.0 是零依赖的基础版本：`dream` 写、`search` 读，一座 OKF 合规的本地 Markdown 知识库。SQLite FTS5 是唯一索引层；没有语义检索实现或第三方索引依赖。语义版另行发布为 v3.0.0。

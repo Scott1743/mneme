@@ -1,6 +1,6 @@
 ---
 name: mneme
-version: 2.0.0
+version: 2.0.1
 description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki. Use when the user wants to dream (capture knowledge) or search (recall it). Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', '查 wiki', '搜索知识库', '梦', '记住这个'. v2.0 is the zero-dependency edition: sqlite3 + FTS5 default and `mneme dream` as a read-only audit CLI."
 allowed-tools:
   - Read
@@ -142,6 +142,22 @@ See `references/workflow-lint.md`.
 `dream` does not shell `git`, never modifies the bundle, and the CLI exposes no `--apply` flag. The write-side workflow (what to do with the report after the user explicitly approves it) lives in `references/workflow-dream.md`; the agent performs those writes with its own `Write` / `Edit` tools, never from the CLI. The contract is enforced by `tests/test_dream_readonly.py`.
 
 See `references/workflow-dream.md` for the full write-side workflow.
+
+### Preparing an unreadable local document
+
+When a user explicitly gives a local `.pdf`, `.docx`, or `.pptx` that the
+host cannot read, offer a preview-only conversion before `dream` writes any
+wiki content:
+
+1. Preserve the original unchanged; conversion produces a separate derived
+   text file, not a replacement for the source.
+2. Use an explicit temporary output path: `python3 ~/.claude/skills/mneme/scripts/mneme.py convert <source> --output /tmp/<name>.md`.
+3. Mneme detects only tools already on `PATH` (`markitdown`, `pdftotext`, or
+   Pandoc for DOCX). It never runs an installer. If none is available, show
+   the command's format-specific diagnostic and let the user choose how to
+   proceed.
+4. A scanned PDF needs OCR; do not present normal text extraction as a
+   substitute. Pandoc is not a PDF or PPTX input converter.
 
 ## references (load on demand)
 

@@ -77,7 +77,7 @@ def test_readme_states_v2_is_zero_dependency() -> None:
 
 def test_introduction_links_both_release_assets() -> None:
     text = _read(INTRO)
-    assert "releases/download/v2.0.0/mneme-2.0.0.zip" in text
+    assert "releases/download/v2.0.1/mneme-2.0.1.zip" in text
     assert "releases/download/v3.0.0/mneme-3.0.0.zip" in text
 
 

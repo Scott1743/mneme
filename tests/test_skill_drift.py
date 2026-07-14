@@ -16,7 +16,7 @@ pytestmark = pytest.mark.release
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_MD = ROOT / "skills" / "mneme" / "SKILL.md"
 USER_INTENTS = {"dream", "search"}
-AGENT_CLI = {"init", "lint", "reindex", "search", "dream"}
+AGENT_CLI = {"init", "lint", "reindex", "search", "dream", "convert"}
 
 
 def _scenarios(path: Path) -> set[str]:

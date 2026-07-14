@@ -88,7 +88,7 @@
       <p class="lede">一座由 Agent 增量维护的本地 Markdown 知识库。</p>
       <p class="lede">不是每次提问都重新检索——让 Agent 把读过的资料编译进一棵可以反复行走的概念树。</p>
       <a class="cta" href="https://skill.sh/?q=mneme" target="_blank" rel="noopener">npx skills add Scott1743/mneme</a>
-      <p class="meta">~/.claude/skills/mneme/ · MIT · 2.0.0</p>
+      <p class="meta">~/.claude/skills/mneme/ · MIT · 2.0.1</p>
     </header>
 
     <nav class="quick" aria-label="跳转">
@@ -122,15 +122,15 @@ wiki/            ← 你读什么;你 git 什么</div>
       <pre><code>npx skills add Scott1743/mneme</code></pre>
 
       <h3>选择版本</h3>
-      <p><code>npx skills add</code> 始终跟随仓库默认分支，也就是最新的 v3.0.0 语义版。要固定在这个零依赖版本，请直接下载 v2.0.0 的 skill zip。</p>
+      <p><code>npx skills add</code> 始终跟随仓库默认分支，也就是最新的 v3.0.0 语义版。要固定在这个零依赖版本，请直接下载 v2.0.1 的 skill zip。</p>
       <div class="release-links">
-        <a href="https://github.com/Scott1743/mneme/releases/download/v2.0.0/mneme-2.0.0.zip"><strong>v2.0.0 · 基础版</strong>SQLite FTS5，零第三方运行时依赖</a>
+        <a href="https://github.com/Scott1743/mneme/releases/download/v2.0.1/mneme-2.0.1.zip"><strong>v2.0.1 · 基础版</strong>SQLite FTS5，零第三方运行时依赖</a>
         <a href="https://github.com/Scott1743/mneme/releases/download/v3.0.0/mneme-3.0.0.zip"><strong>v3.0.0 · 语义版</strong>最新主分支；可选语义检索能力</a>
       </div>
 
       <p>安装到 <code>~/.claude/skills/mneme/</code> 之后，重启会话即可。Mneme 没有独立窗口、没有常驻服务、没有命令行仪表——你和你的 Agent 聊天就是了。</p>
 
-      <p><strong>dream</strong> 收集你读过的资料，把它们编译成本地的 OKF Markdown 概念页；Agent 写 page、写 link、写 tag，你说了算。</p>
+      <p><strong>dream</strong> 收集你读过的资料，把它们编译成本地的 OKF Markdown 概念页；Agent 写 page、写 link、写 tag，你说了算。遇到本地 PDF、DOCX 或 PPTX 不能直接读时，它只会调用你已经安装的转换器生成派生文本，从不自行安装软件。</p>
 
       <p><strong>search</strong> 在你的 wiki 里走——按 index / tags / 链接 / FTS5 召回；找不到就说没找到，不编。</p>
 
