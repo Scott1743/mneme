@@ -530,9 +530,9 @@
          Hero
          ═══════════════════════════════════════════════════ -->
     <header class="hero">
-      <p class="kicker">An agent skill · MIT · 2.1</p>
+      <p class="kicker">An agent skill · MIT · v2.1</p>
       <h1>Mneme</h1>
-      <p class="tagline">一个由你的 agent 帮你记着的本地 Markdown 知识库。<br/>两个动词——<span class="v-dream">dream</span> 写，<span class="v-search">search</span> 读。</p>
+      <p class="tagline">让 agent 替你记着点的本地 Markdown 知识库。<br/>两个动词——<span class="v-dream">dream</span> 写，<span class="v-search">search</span> 读。</p>
 
       <a class="install" href="https://skill.sh/Scott1743/mneme">
         <span class="verb">$</span> npx skills add Scott1743/mneme
@@ -555,7 +555,7 @@
     <section id="初衷" aria-labelledby="初衷-h">
       <p class="kicker"><span class="num">I.</span> Why this exists</p>
 
-      <h2 id="初衷-h">把读过的东西编译一次，别再每次重新检索。</h2>
+      <h2 id="初衷-h">我为什么不想再让 LLM "重新检索"了。</h2>
 
       <p>RAG 是冷的缓存。你三周前读过的论文里那句话，跟你今天写的那段代码——它不知道。除非那句话被你写进过某个属于你的地方。<span class="v-dream">Dream</span> 把读过的资料编译进一棵本地 Markdown 树；<span class="v-search">search</span> 在那棵树上走，agent 不用每次从零开始。</p>
 
@@ -568,7 +568,7 @@
     <section id="安装" aria-labelledby="安装-h">
       <p class="kicker"><span class="num">II.</span> First prompts</p>
 
-      <h2 id="安装-h">装上它，然后和你的 agent 聊。</h2>
+      <h2 id="安装-h">一行命令，然后去跟你的 agent 聊。</h2>
 
       <p>重启 agent 会话。从这一秒起，你丢任何想法进来，它都会维护你的树。</p>
 
@@ -598,7 +598,7 @@
     <section id="原理" aria-labelledby="原理-h">
       <p class="kicker"><span class="num">III.</span> The walk</p>
 
-      <h2 id="原理-h">knowledge 是引用，不是索引——它在 graph 里被 walk 到。</h2>
+      <h2 id="原理-h">知识是 graph，不是向量近邻——它得被人走过来。</h2>
 
       <p>一张页面要先被写出来，再能被<em>找到</em>。Mneme 把"被找到"这件事分给三个不同形态的标记：</p>
 
@@ -621,7 +621,7 @@
     <section id="为什么" aria-labelledby="为什么-h">
       <p class="kicker"><span class="num">IV.</span> Why this is what it is</p>
 
-      <h2 id="为什么-h">留下来的，刚好是让你不再需要运维的那些东西。</h2>
+      <h2 id="为什么-h">我没有写的那些功能，正是它有用的原因。</h2>
 
       <p>没有 GUI，没有 web 应用，没有服务端进程，没有云同步。装它的那一秒它就在；不装它的那一秒它就不在——这没什么损失。整个运行时是 Python 标准库加一份 <code>~/.claude/skills/mneme/</code> 目录下的 Markdown。</p>
 
@@ -636,7 +636,7 @@
     <section id="朋友" aria-labelledby="朋友-h">
       <p class="kicker"><span class="num">V.</span> Friends of Mneme</p>
 
-      <h2 id="朋友-h">同一个方法论，另一个落点。</h2>
+      <h2 id="朋友-h">同门师兄弟：森林密语。</h2>
 
       <div class="friends">
         <span class="tag">朋友项目</span>
