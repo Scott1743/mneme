@@ -22,14 +22,14 @@ npx skills add Scott1743/mneme
 
 固定安装零依赖基础版： [v2.0.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v2.0.0/mneme-2.0.0.zip)。最新版语义版： [v3.0.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v3.0.0/mneme-3.0.0.zip)。
 
-**更多**：图文版介绍（产品初衷 + 娓娓道来 + 安装示例）见仓库内 [`introduction/index.html`](introduction/index.html)，下载后可在浏览器中离线阅读。本地预览：
+**更多**：图文版介绍（产品初衷 + 娓娓道来 + 安装示例）已上线项目主页 **[scott1743.github.io/mneme](https://scott1743.github.io/mneme/)**，直接访问，无需下载安装。
+
+仓库内同时保留自包含的 [`introduction/index.html`](introduction/index.html) 可供离线阅读；如需本地预览，可临时起一个静态服务器：
 
 ```bash
 cd introduction && python -m http.server 8000
-# 然后浏览器打开 http://localhost:8000/
+# 浏览器打开 http://localhost:8000/
 ```
-
-或等 GitHub Pages 启用后访问 `https://scott1743.github.io/mneme/`（仓库 Settings → Pages → Source = GitHub Actions）。
 
 ## 两件事（用户表面）
 
