@@ -1,7 +1,7 @@
 # Mneme
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/Scott1743/mneme/releases/tag/v3.0.0)
+[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)](https://github.com/Scott1743/mneme/releases/tag/v3.2.0)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab.svg)](.research/upstream/OKF-SPEC.md)
 
 > 一座由 Agent 增量维护的本地 Markdown 知识库。
@@ -20,7 +20,7 @@ npx skills add Scott1743/mneme
 
 落地到 `~/.claude/skills/mneme/`，重启 agent 会话即可。**没有 wheel、没有 `pip install` 全包、没有 setuptools——一个 zip，解压即用。**
 
-固定安装零依赖基础版： [v2.0.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v2.0.0/mneme-2.0.0.zip)。最新版语义版： [v3.0.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v3.0.0/mneme-3.0.0.zip)。
+固定安装零依赖基础版： [v2.2.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip)。最新版语义版： [v3.2.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v3.2.0/mneme-3.2.0.zip)。
 
 **更多**：图文版介绍（产品初衷 + 娓娓道来 + 安装示例）已上线项目主页 **[scott1743.github.io/mneme](https://scott1743.github.io/mneme/)**，直接访问，无需下载安装。
 
@@ -36,7 +36,7 @@ cd introduction && python -m http.server 8000
 - **dream** —— 你丢资料进来，agent 写成 OKF 概念页，加 tag、互相链接，更新 `index.md` 与 `log.md`。默认先出预览，等你点头才落盘。
 - **search** —— 你问问题，agent 在你的 wiki 里走。默认按 `index.md` / tags / 链接 / grep 走；wiki 大的时候按 L1（SQLite FTS5）召回。最终答案由 agent 读完整页面综合，引用是 bundle 内路径。
 
-`init` / `lint` / `reindex` / `dream` 是 agent 在后台跑的确定性脚本，不出现在用户叙事里。v3.0 可通过 `--l2` 显式启用语义召回；索引永远可删除。
+`init` / `lint` / `reindex` / `dream` / `search` / `convert` 是 agent 在后台调用的确定性脚本，不增加用户动词。v3.2.0 可通过 `--l2` 显式启用语义召回；索引永远可删除。
 
 ### 夜巡 `dream`（可选）
 
@@ -71,7 +71,15 @@ mneme reindex       # 全量重建一次；幂等
 mneme search "X"    # FTS5 候选 + snippet；agent 读完整页综合
 ```
 
-## 可选 L2（v3.0）
+## 外部资料转换（可选）
+
+遇到 agent 不能直接读取的本地 PDF、DOCX 或 PPTX，可在 dream 预览阶段调用 `mneme convert`。它只使用用户已经安装的兼容转换器，不自动安装软件，也不会用派生文本替换原始资料。
+
+```bash
+mneme convert report.pdf --output /tmp/report.md
+```
+
+## 可选 L2（v3.2.0）
 
 默认仍是 FTS5。需要语义召回时，在用户自行安装 `sqlite-vec` 与 `FastEmbed` 后，显式使用 `reindex --l2` / `search --l2`；不会自动安装或静默回退。
 
@@ -103,10 +111,10 @@ docs/superpowers/           ←   specs + plans + reports
 ```bash
 pip install pytest
 pytest                          # 离线分层测试
-python scripts/build_zip.py     # 产 dist/mneme-3.0.0.zip
+python scripts/build_zip.py     # 产 dist/mneme-3.2.0.zip
 ```
 
-L2（语义召回）是 v3.0 的显式可选路径；默认 FTS5 不引入相关依赖。CI 在 Python 3.11 / 3.12 / 3.13 三档矩阵上跑。
+L2（语义召回）是 v3.2.0 的显式可选路径；默认 FTS5 不引入相关依赖。CI 在 Python 3.11 / 3.12 / 3.13 三档矩阵上跑。
 
 ## 朋友项目
 

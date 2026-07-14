@@ -9,6 +9,23 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [3.2.0] — 2026-07-14 — contract-aligned workflows and conversion adapter
+
+- Finished the dream/search migration: `SKILL.md` now exposes exactly those two
+  user scenarios. Legacy ingest behavior is part of the approved dream write
+  workflow, and query synthesis is part of search.
+- Added explicit reference loading conditions. Detailed dream instructions load
+  only after approval; search reads complete Markdown pages before synthesizing
+  cited answers.
+- Added `mneme convert` for explicit preprocessing with compatible converters
+  already installed by the user. Mneme never installs a converter or replaces
+  the immutable source.
+- Preserved FTS5 as the default and `--l2` as explicit opt-in. Semantic search
+  changes candidate retrieval only; it does not change Markdown authority or
+  dream approval rules.
+- Added strict release gates for scenario/CLI sets, approval-before-write,
+  dream log prefixes, reference layout, and L2 non-fallback behavior.
+
 ## [3.0.0] — 2026-07-14 — optional semantic search
 
 v3.0 在 v2.0 零依赖基础版之上，把 L2（语义召回）作为**显式 opt-in**带回：`mneme reindex --l2` 与 `mneme search --l2` 通过 `--l2` 标志走 `indexlib.reindex_bundle`（`sqlite-vec` + `FastEmbed` + `BAAI/bge-small-zh-v1.5`）路径。依赖仍由用户自行安装；FTS5 仍是默认路径。

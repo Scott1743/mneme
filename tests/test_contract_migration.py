@@ -29,11 +29,18 @@ def test_skill_no_bilingual_skill_cn():
 
 def test_skill_state_dream_is_read_only_when_advertised():
     lower = SKILL.lower()
-    if "scenario: dream" in lower:
-        assert any(
-            line in lower
-            for line in ("dream is read-only", "dream returns a report", "no writes from dream")
-        )
+    assert "scenario: dream" in lower
+    assert "read-only audit step" in lower
+    assert "before every bundle write" in lower
+
+
+def test_skill_exposes_only_dream_and_search_scenarios():
+    import re
+
+    scenarios = set(
+        re.findall(r"^## scenario: ([a-z_]+)", SKILL, re.MULTILINE | re.IGNORECASE)
+    )
+    assert scenarios == {"dream", "search"}
 
 
 def test_release_layout_no_wheel_no_project_block():

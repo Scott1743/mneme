@@ -72,9 +72,10 @@ def test_skills_mneme_scripts_layout():
         SCRIPTS_PKG / "config.py",
         SCRIPTS_PKG / "tools_helpers.py",
         SCRIPTS_PKG / "toml_writer.py",
+        SCRIPTS_PKG / "convert.py",
         SKILL_MD,
-        REFERENCES_DIR / "workflow-ingest.md",
-        REFERENCES_DIR / "workflow-query.md",
+        REFERENCES_DIR / "workflow-dream.md",
+        REFERENCES_DIR / "workflow-search.md",
         REFERENCES_DIR / "workflow-lint.md",
         REFERENCES_DIR / "type-vocab.md",
         REFERENCES_DIR / "wiki-structure.md",
@@ -84,6 +85,8 @@ def test_skills_mneme_scripts_layout():
     assert not missing, "skill layout is missing files:\n" + "\n".join(
         f"  - {path}" for path in missing
     )
+    assert not (REFERENCES_DIR / "workflow-ingest.md").exists()
+    assert not (REFERENCES_DIR / "workflow-query.md").exists()
 
 
 def test_skills_mneme_scripts_importable_as_module():

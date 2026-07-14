@@ -1,4 +1,4 @@
-"""Frozen Mneme 2.0 CLI matrix and bundle-resolution contract."""
+"""Mneme 3.2.0 CLI matrix and bundle-resolution contract."""
 from __future__ import annotations
 
 import argparse
@@ -12,14 +12,14 @@ from mneme import cli, indexlib, tools_helpers
 pytestmark = pytest.mark.unit
 
 
-EXPECTED_COMMANDS = {"init", "lint", "reindex", "search", "dream"}
+EXPECTED_COMMANDS = {"init", "lint", "reindex", "search", "dream", "convert"}
 
 
 def _subcommands(parser: argparse.ArgumentParser) -> dict[str, argparse.ArgumentParser]:
     return parser._subparsers._group_actions[0].choices
 
 
-def test_build_parser_exposes_only_frozen_subcommands():
+def test_build_parser_exposes_only_supported_subcommands():
     parser = cli.build_parser()
     assert isinstance(parser, argparse.ArgumentParser)
     assert set(_subcommands(parser)) == EXPECTED_COMMANDS

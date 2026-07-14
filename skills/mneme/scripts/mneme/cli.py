@@ -391,6 +391,33 @@ def cmd_lint(args: argparse.Namespace) -> int:
     return 1 if errors_count else 0
 
 
+def cmd_convert(args: argparse.Namespace) -> int:
+    """Run an explicitly selected, user-installed document converter."""
+    from . import convert
+
+    source = Path(args.source).expanduser()
+    output = Path(args.output).expanduser()
+    if not source.is_file():
+        print(f"source file not found: {source}", file=sys.stderr)
+        return 1
+    if output.resolve() == source.resolve():
+        print("output must not replace the source file", file=sys.stderr)
+        return 1
+    if output.exists() and not args.force:
+        print(f"refusing to overwrite existing output: {output}", file=sys.stderr)
+        return 1
+    if not output.parent.is_dir():
+        print(f"output directory does not exist: {output.parent}", file=sys.stderr)
+        return 1
+    try:
+        backend = convert.convert(source, output, args.backend)
+    except convert.ConvertError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(f"converted via {backend.name} -> {output}")
+    return 0
+
+
 def cmd_dream(args: argparse.Namespace) -> int:
     """`mneme dream` — read-only audit; ``--schedule`` / ``--unschedule``
     print platform-specific scheduler snippets for the user to install.
@@ -680,6 +707,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="local run time HH:MM for --schedule (default: 02:00)",
     )
     dream_parser.set_defaults(handler=cmd_dream)
+
+    convert_parser = subparsers.add_parser(
+        "convert",
+        help="use an installed converter to extract Markdown; never installs software",
+    )
+    convert_parser.add_argument("source")
+    convert_parser.add_argument("--output", "-o", required=True)
+    convert_parser.add_argument(
+        "--backend",
+        choices=("auto", "markitdown", "pdftotext", "pandoc"),
+        default="auto",
+    )
+    convert_parser.add_argument("--force", action="store_true")
+    convert_parser.set_defaults(handler=cmd_convert)
     return parser
 
 
