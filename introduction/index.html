@@ -369,15 +369,19 @@
     .quick a:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
 
     /* ── Motion (orchestrated; respects prefers-reduced-motion) ───────────
-     *  - On first paint: hero cascades in from below.
+     *  - Hero cascades in from below on first paint.
      *  - The H1 underline draws itself from 0% width.
-     *  - Each section fades in once, on viewport entry (IntersectionObserver).
+     *  - Each section fades in once, on viewport entry (JS only).
      *  - Lift-blockquotes collapse their letter-spacing on entry.
      *  - Hover micro-motion: link underline grows, install pill lifts.
-     *  - prefers-reduced-motion: no-preference gates the whole show.
+     *  - prefers-reduced-motion: no-preference gates the show.
+     *
+     *  IMPORTANT: sections are visible BY DEFAULT. JS adds body.mn-reveal,
+     *  which is what actually hides pre-revealed elements. This keeps the
+     *  page readable even if JS is slow, blocked, or the user has JS off.
      * ───────────────────────────────────────────────────────── */
     @media (prefers-reduced-motion: no-preference) {
-      /* ── First paint cascade ── */
+      /* ── First paint cascade (hero only — always loaded on page open) ── */
       .hero > * {
         opacity: 0;
         transform: translateY(10px);
@@ -401,25 +405,25 @@
         animation: mneme-kicker 800ms 60ms cubic-bezier(.2,.65,.25,1) backwards;
       }
 
-      /* ── Section reveal — fires once when scrolled into view ── */
-      section { opacity: 0; transform: translateY(12px); }
-      section.is-revealed {
+      /* ── Section reveal — JS opts in via body.mn-reveal ── */
+      body.mn-reveal section { opacity: 0; transform: translateY(12px); }
+      body.mn-reveal section.is-revealed {
         animation: mneme-rise 700ms cubic-bezier(.2,.65,.25,1) forwards;
       }
-      section > * { opacity: 0; transform: translateY(8px); }
-      section.is-revealed > * {
+      body.mn-reveal section > * { opacity: 0; transform: translateY(8px); }
+      body.mn-reveal section.is-revealed > * {
         animation: mneme-rise 700ms cubic-bezier(.2,.65,.25,1) forwards;
       }
-      section.is-revealed > *:nth-child(2) { animation-delay: 100ms; }
-      section.is-revealed > *:nth-child(3) { animation-delay: 200ms; }
-      section.is-revealed > *:nth-child(4) { animation-delay: 300ms; }
-      section.is-revealed > *:nth-child(5) { animation-delay: 400ms; }
-      section.is-revealed > *:nth-child(6) { animation-delay: 480ms; }
-      section.is-revealed > *:nth-child(7) { animation-delay: 560ms; }
+      body.mn-reveal section.is-revealed > *:nth-child(2) { animation-delay: 100ms; }
+      body.mn-reveal section.is-revealed > *:nth-child(3) { animation-delay: 200ms; }
+      body.mn-reveal section.is-revealed > *:nth-child(4) { animation-delay: 300ms; }
+      body.mn-reveal section.is-revealed > *:nth-child(5) { animation-delay: 400ms; }
+      body.mn-reveal section.is-revealed > *:nth-child(6) { animation-delay: 480ms; }
+      body.mn-reveal section.is-revealed > *:nth-child(7) { animation-delay: 560ms; }
 
       /* ── A lift-blockquote tightens its letter-spacing on entry ── */
-      blockquote.lift { letter-spacing: 0.18em; opacity: 0; }
-      section.is-revealed blockquote.lift {
+      body.mn-reveal blockquote.lift { letter-spacing: 0.18em; opacity: 0; }
+      body.mn-reveal section.is-revealed blockquote.lift {
         animation: mneme-tighten 1100ms 380ms cubic-bezier(.2,.65,.25,1) forwards;
       }
 
@@ -429,15 +433,15 @@
       a {
         transition: text-decoration-color 220ms ease, text-decoration-thickness 220ms ease;
       }
-      aside.gloss {
+      body.mn-reveal aside.gloss {
         opacity: 0;
         transform: translateX(6px);
       }
-      section.is-revealed aside.gloss {
+      body.mn-reveal section.is-revealed aside.gloss {
         animation: mneme-rise 700ms 360ms cubic-bezier(.2,.65,.25,1) forwards;
       }
       @media (min-width: 861px) {
-        aside.gloss { transform: translateX(10px); }
+        body.mn-reveal aside.gloss { transform: translateX(10px); }
       }
 
       @keyframes mneme-rise {
@@ -458,9 +462,10 @@
     @media (prefers-reduced-motion: reduce) {
       .hero > * { opacity: 1; transform: none; animation: none; }
       .hero h1::after { transform: none; animation: none; }
-      section, section > * { opacity: 1; transform: none; animation: none; }
-      blockquote.lift { opacity: 1; letter-spacing: -0.005em; }
-      aside.gloss { opacity: 1; transform: none; animation: none; }
+      body, body.mn-reveal section, body.mn-reveal section > *,
+      blockquote.lift, aside.gloss {
+        opacity: 1 !important; transform: none !important; animation: none !important;
+      }
     }
     /* Print keeps everything visible. */
     @media print {
@@ -484,26 +489,37 @@
     }
   </style>
   <script>
-    // Reveal each section once it scrolls into view. No library; ~12 lines.
+    /*  Reveal-mode rule:
+     *  - Default: section content is visible. (Zero-JS users see everything.)
+     *  - On JS load: flip body.mn-reveal so CSS hides unrevealed sections.
+     *  - IntersectionObserver immediately marks in-view sections as
+     *    .is-revealed; off-view sections stay hidden until the user
+     *    scrolls them in, then reveal.
+     */
     (() => {
-      if (!('IntersectionObserver' in window)) {
-        document.documentElement.classList.add('no-js');
-        return;
-      }
-      const io = new IntersectionObserver(
-        (entries) => {
-          for (const e of entries) {
-            if (e.isIntersecting) {
-              e.target.classList.add('is-revealed');
-              io.unobserve(e.target);   // one-shot
+      const sections = Array.from(document.querySelectorAll('main section'));
+      // Step 1: mark visible-now so next paint is not blank.
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) {
+              if (e.isIntersecting) {
+                e.target.classList.add('is-revealed');
+                io.unobserve(e.target);
+              }
             }
-          }
-        },
-        { rootMargin: '0px 0px -12% 0px', threshold: 0.05 },
-      );
-      for (const s of document.querySelectorAll('main section')) {
-        io.observe(s);
+          },
+          { rootMargin: '0px 0px -8% 0px', threshold: 0.01 },
+        );
+        for (const s of sections) io.observe(s);
+      } else {
+        // No IO: just show everything. Clear fallback.
+        for (const s of sections) s.classList.add('is-revealed');
       }
+      // Step 2: opt into the CSS reveal-mode AFTER observers are set up
+      // so any section that is already in viewport has already been
+      // marked .is-revealed (CSS rule does not hide it).
+      document.body.classList.add('mn-reveal');
     })();
   </script>
 </head>
