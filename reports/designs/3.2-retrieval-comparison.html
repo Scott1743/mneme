@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Mneme 检索比较实验设计 | 0.5 · 2.2 · 3.2</title>
+  <style>
+    :root {
+      --paper: #f6f7f2;
+      --ink: #172421;
+      --forest: #1f5a4a;
+      --moss: #527166;
+      --mist: #dce7df;
+      --rule: #b9cbc0;
+      --signal: #a83d2a;
+      --signal-pale: #f5e2db;
+      --blue: #2e637d;
+      --code: #eaf0eb;
+      --max: 1160px;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--paper); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Iowan Old Style", "Songti SC", "STSong", serif;
+      font-size: 17px;
+      line-height: 1.7;
+    }
+    a { color: var(--forest); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    code, .mono, .eyebrow, th, .label {
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+    .wrap { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+    header { border-top: 8px solid var(--forest); padding: 42px 0 34px; }
+    .eyebrow { margin: 0 0 12px; color: var(--forest); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    h1, h2, h3 { font-weight: 700; letter-spacing: 0; line-height: 1.16; }
+    h1 { max-width: 900px; margin: 0; font-size: clamp(42px, 6vw, 76px); }
+    h2 { margin: 0; font-size: clamp(28px, 3.8vw, 42px); }
+    h3 { margin: 0 0 8px; font-size: 21px; }
+    .dek { max-width: 760px; margin: 22px 0 0; color: #385047; font-size: 21px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 30px; color: var(--moss); font-size: 14px; }
+    .meta span { padding-left: 12px; border-left: 2px solid var(--rule); }
+    main { padding-bottom: 76px; }
+    section { padding: 46px 0; border-top: 1px solid var(--rule); }
+    .intro-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 42px; align-items: start; }
+    .thesis { margin: 0; font-size: 24px; line-height: 1.5; }
+    .note { padding: 20px 22px; border-left: 5px solid var(--signal); background: var(--signal-pale); }
+    .note p { margin: 0; }
+    .number { color: var(--forest); font-size: 15px; font-variant-numeric: tabular-nums; }
+    .systems { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 25px; }
+    .system { min-height: 210px; padding: 22px; border: 1px solid var(--rule); background: #fbfcf9; }
+    .system:nth-child(1) { border-top: 5px solid var(--blue); }
+    .system:nth-child(2) { border-top: 5px solid var(--forest); }
+    .system:nth-child(3) { border-top: 5px solid var(--signal); }
+    .system p { margin: 10px 0 0; color: #42564e; font-size: 15px; }
+    .system .label { color: var(--moss); font-size: 12px; }
+    table { width: 100%; margin-top: 22px; border-collapse: collapse; font-size: 15px; }
+    th, td { padding: 13px 12px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+    th { color: var(--forest); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+    tr:nth-child(even) td { background: rgb(220 231 223 / .32); }
+    .chain { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin-top: 27px; overflow: hidden; border: 1px solid var(--rule); }
+    .step { position: relative; min-height: 175px; padding: 18px 16px; border-right: 1px solid var(--rule); background: #fbfcf9; }
+    .step:last-child { border-right: 0; }
+    .step .label { color: var(--forest); font-size: 12px; }
+    .step p { margin: 8px 0 0; font-size: 14px; line-height: 1.55; }
+    .step::after { content: "→"; position: absolute; right: -11px; top: 72px; z-index: 1; color: var(--signal); font-family: ui-monospace, monospace; font-size: 21px; }
+    .step:last-child::after { content: none; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 38px; }
+    ul { margin: 14px 0 0; padding-left: 22px; }
+    li + li { margin-top: 7px; }
+    .formula { margin-top: 18px; padding: 16px 18px; overflow-x: auto; background: var(--code); color: #244438; font-size: 14px; }
+    .gate { margin-top: 28px; padding: 22px; border: 1px solid var(--forest); background: #e5eee8; }
+    .gate h3 { color: var(--forest); }
+    .deliverables { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 22px; border: 1px solid var(--rule); background: var(--rule); }
+    .deliverables div { padding: 18px; background: #fbfcf9; }
+    footer { padding: 28px 0 48px; border-top: 1px solid var(--rule); color: var(--moss); font-size: 14px; }
+    @media (max-width: 760px) {
+      .wrap { width: min(var(--max), calc(100% - 28px)); }
+      .intro-grid, .two-col, .systems { grid-template-columns: 1fr; }
+      .chain { grid-template-columns: 1fr; }
+      .step { min-height: 0; border-right: 0; border-bottom: 1px solid var(--rule); }
+      .step:last-child { border-bottom: 0; }
+      .step::after { right: 18px; top: auto; bottom: -15px; transform: rotate(90deg); }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <p class="eyebrow">Mneme Research Protocol · Design 01</p>
+      <h1>检索不是一个分数：<br>0.5、2.2 与 3.2 的受控比较</h1>
+      <p class="dek">为 Mneme 3.2.0 预先定义一项可复现的比较实验。它把历史向量检索、当前零依赖 FTS5 与未来语义/混合检索放进同一证据链，回答“提升在哪里，代价是什么”。</p>
+      <div class="meta"><span>状态：实验前设计</span><span>日期：2026-07-15</span><span>实验运行：待 3.2.0 完成</span><span>产物：HTML + JSONL + 图表数据</span></div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="intro-grid">
+      <div>
+        <p class="number">01 / 研究问题</p>
+        <h2>3.2 的语义能力，是否在真实中文资料上带来可证明的净收益？</h2>
+        <p class="thesis">不预设“向量一定优于全文检索”。本实验区分精确术语、改写表达与无答案请求，并同时测量检索质量、延迟、索引成本和可复现性。</p>
+      </div>
+      <aside class="note"><p><strong>核心约束。</strong> 三个系统必须使用同一份冻结语料、同一份概念页表示和同一套相关性标注。不得把更好的页面拆分、更多的资料或不同的 qrels 误当成检索器提升。</p></aside>
+    </section>
+
+    <section>
+      <p class="number">02 / 系统矩阵</p>
+      <h2>三个明确角色，而非三个模糊版本号</h2>
+      <div class="systems">
+        <article class="system"><p class="label">历史语义基线</p><h3>0.5.0</h3><p>BGE `bge-small-zh-v1.5` 与当时向量检索路径。旧报告仅有 5 条手选 query；本次将尽可能以锁定依赖重新运行，而非直接引用历史分数。</p></article>
+        <article class="system"><p class="label">词法/零依赖基线</p><h3>2.2.0</h3><p>SQLite FTS5 与 BM25 排序。用于量化精确术语、标题、标签、缩写和 ID 的可靠性，以及零依赖所换来的启动与资源优势。</p></article>
+        <article class="system"><p class="label">候选系统</p><h3>3.2.0</h3><p>未来实现的 embedding、向量或混合检索。实验开始前写入实际模型、向量库、chunk、过滤和重排配置；不得在结果出来后改变主指标。</p></article>
+      </div>
+    </section>
+
+    <section>
+      <p class="number">03 / 可比性证据链</p>
+      <h2>先冻结输入，再运行检索器</h2>
+      <div class="chain">
+        <div class="step"><span class="label">A · corpus</span><p>从飞书 Markdown 导出建立只读快照；记录文件清单、SHA-256、总字符数、语言比例与许可/隐私边界。</p></div>
+        <div class="step"><span class="label">B · representation</span><p>生成一份规范 concept-page corpus。三个系统读取同一份页面，排除 raw source 与系统文件的规则完全一致。</p></div>
+        <div class="step"><span class="label">C · qrels</span><p>独立标注 query 与相关页面。至少两位标注者；记录分歧和裁决，不让检索结果反向塑造答案。</p></div>
+        <div class="step"><span class="label">D · runners</span><p>每个系统输出同构 JSONL：query、rank、path、score、耗时、版本与配置哈希。固定 seed 与离线模型 revision。</p></div>
+        <div class="step"><span class="label">E · analysis</span><p>由同一分析脚本计算指标、置信区间、显著性与图表。原始结果和派生图表均可追溯。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <p class="number">04 / 检索任务与标注</p>
+      <h2>把 0.5 的五题保留为历史组，但不让它主导结论</h2>
+      <table>
+        <thead><tr><th>query 组</th><th>最低数量</th><th>目的</th><th>例子</th></tr></thead>
+        <tbody>
+          <tr><td>历史回归</td><td>5</td><td>复核 0.5 报告中的已知 query</td><td><code>gstack</code>、<code>银行回单</code>、<code>录音</code></td></tr>
+          <tr><td>精确词项</td><td>10</td><td>检验 FTS5 的优势边界</td><td>产品名、缩写、标题、ID</td></tr>
+          <tr><td>短语与改写</td><td>15</td><td>检验 embedding 对非字面表达的收益</td><td>“如何规范阅读流程”</td></tr>
+          <tr><td>跨表达/长问句</td><td>10</td><td>检验多概念、中文措辞变化与噪声</td><td>带上下文的自然语言问题</td></tr>
+          <tr><td>无答案</td><td>10</td><td>检验是否错误地伪造相关性</td><td>语料明确不覆盖的主题</td></tr>
+        </tbody>
+      </table>
+      <p>目标为至少 <strong>50 条</strong> query。每条给出分级相关性：<code>2 = 直接回答</code>，<code>1 = 有用支持</code>，<code>0 = 不相关</code>；主分析在 page level 进行，并单独报告 source level 聚合。</p>
+    </section>
+
+    <section class="two-col">
+      <div>
+        <p class="number">05 / 预注册指标</p>
+        <h2>质量与成本同等重要</h2>
+        <ul>
+          <li><strong>主指标：</strong>nDCG@10，处理分级相关性。</li>
+          <li><strong>召回：</strong>Recall@1、@3、@5、@10。</li>
+          <li><strong>排序：</strong>MRR@10。</li>
+          <li><strong>拒答：</strong>无答案 query 的 false-positive rate。</li>
+          <li><strong>工程：</strong>索引时长、索引字节数、冷启动、P50/P95 查询延迟、峰值 RSS、模型下载与第三方依赖。</li>
+        </ul>
+      </div>
+      <div>
+        <p class="number">06 / 统计规则</p>
+        <h2>不用单一漂亮数字取代不确定性</h2>
+        <ul>
+          <li>以 query 为重采样单位，计算 <strong>bootstrap 95% CI</strong>。</li>
+          <li>以同一 query 的系统结果做配对比较；主检验为 <strong>paired randomization test</strong>。</li>
+          <li>报告效应量与 CI，不以 <code>p &lt; 0.05</code> 单独作结论。</li>
+          <li>对 0.5、2.2、3.2 的三组比较进行 Holm 校正。</li>
+        </ul>
+        <div class="formula mono">Δ nDCG@10 = mean(nDCG@10<sub>3.2</sub> − nDCG@10<sub>baseline</sub>)</div>
+      </div>
+    </section>
+
+    <section>
+      <p class="number">07 / 图表与报告</p>
+      <h2>图表必须回答一个问题</h2>
+      <div class="deliverables">
+        <div><h3>质量总览</h3><p>nDCG@10、Recall@k、MRR 的分组点图与 95% CI。显示每个 query 的散点，不只显示均值柱。</p></div>
+        <div><h3>任务类型热图</h3><p>按 query 组比较三个系统的效果差异，指出 FTS5 与语义检索各自真正的边界。</p></div>
+        <div><h3>质量 - 成本前沿</h3><p>横轴 P95 延迟，纵轴 nDCG@10，点面积代表索引大小；标注冷启动与模型下载成本。</p></div>
+        <div><h3>错误审计附录</h3><p>逐条列出 top-k、相关页、漏检/误检类型和系统配置，支持人工复核与后续改进。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <p class="number">08 / 3.2 发布门禁</p>
+      <h2>先定义何时值得引入复杂度</h2>
+      <div class="gate">
+        <h3>最低结论门槛</h3>
+        <p>3.2 不需要在每一类 query 上击败 2.2；但发布报告必须证明其在“短语与改写 + 跨表达”集合上相对 2.2 有正向效应量及 95% CI，并说明精确词项是否退化。若总体收益不明显，报告仍可得出“FTS5 更适合默认路径”的结论。任何结论必须同时呈现代价：下载、依赖、索引时长和延迟。</p>
+      </div>
+    </section>
+
+    <section>
+      <p class="number">09 / 运行后交付物</p>
+      <h2>未来实验报告应放在 <code>reports/experiments/</code></h2>
+      <ul>
+        <li>一份自包含 HTML 报告，嵌入所有最终图表和方法版本。</li>
+        <li>不可变 <code>manifest.json</code>：corpus hashes、qrels 版本、代码 commit、依赖锁定、模型 revision、硬件与操作系统。</li>
+        <li>每个系统一份原始 <code>results.jsonl</code>，以及生成指标与图表的脚本输出。</li>
+        <li>明确标记“历史 0.5 原始数字”和“本次受控复跑结果”；两者不可混用。</li>
+      </ul>
+    </section>
+  </main>
+  <footer><div class="wrap">Mneme retrieval research protocol · This document is a preregistered design, not an experimental result.</div></footer>
+</body>
+</html>
