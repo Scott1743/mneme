@@ -70,17 +70,15 @@ def test_readme_surfaces_dream_and_search() -> None:
     )
 
 
-def test_readme_states_l2_defers_to_v2_1() -> None:
+def test_readme_states_v2_is_zero_dependency() -> None:
     text = _read(README)
-    assert "v2.1" in text, "README must note that L2 defers to v2.1"
+    assert "v2.0 不含语义召回" in text
 
 
-def test_introduction_states_l2_defers_to_v2_1() -> None:
+def test_introduction_links_both_release_assets() -> None:
     text = _read(INTRO)
-    assert "v2.1" in text, (
-        "introduction page must mention the v2.1 horizon for the optional "
-        "semantic recall layer"
-    )
+    assert "releases/download/v2.0.0/mneme-2.0.0.zip" in text
+    assert "releases/download/v3.0.0/mneme-3.0.0.zip" in text
 
 
 def test_introduction_no_naive_rag() -> None:

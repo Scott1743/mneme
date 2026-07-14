@@ -9,9 +9,9 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
-## [2.0.0] — 2026-07-14 — dream + search surface; OKF + tags; L2 deferred to 2.1
+## [2.0.0] — 2026-07-14 — zero-dependency dream + search surface
 
-v2.0 是 **LLM-Wiki-not-RAG** 的里程碑：把 mneme 的产品叙事从「CLI + 可选 L2 向量检索」收回到「`dream` 写、`search` 读、一座 OKF 合规的本地 Markdown 知识库」。OKF 仍是 wiki 本体的格式契约；L1（SQLite FTS5）取代 1.1.0 的 L2（语义召回）成为默认导航层；语义召回推迟到 v2.1。CLI 仍是 `init / lint / reindex / search / dream`，`dream` 是只读审计、写盘由 agent 在 SKILL.md 工作流里完成。
+v2.0 是零依赖的基础版本：`dream` 写、`search` 读，一座 OKF 合规的本地 Markdown 知识库。SQLite FTS5 是唯一索引层；没有语义检索实现或第三方索引依赖。语义版另行发布为 v3.0.0。
 
 ### Breaking changes
 
@@ -19,7 +19,7 @@ v2.0 是 **LLM-Wiki-not-RAG** 的里程碑：把 mneme 的产品叙事从「CLI 
 - **`init` 退出码改为 `1` 表示 bundle 已存在**（取代 1.x 的「幂等覆盖」语义）。bundle 已存在时仍按原值返回，**不会**静默覆盖；想做覆盖必须显式 `--force`。
 - **`lint` 退出码简化为 `0/1`，用 `1` 表示存在 ERROR。** 取代 1.x 的 `LINT_GUARD_RC=3` 信号；CI / shell 脚本请把 `rc == 3` 改为 `rc != 0`。
 - **`dream` 子命令只读。** 无 `--apply` 标志（v1.x 草案中的 `--apply` 已删除）；dream 出的报告由 agent 在 SKILL.md 工作流里、用 `Write` / `Edit` 工具落盘，且必须**先得到用户明确点头**。`git add -A` / `git commit` / `git push` 永不自动触发。
-- **删除 L2 子命令与 `--l2` 标志。** `reindex` / `search` 在 v2.0 不再支持语义召回路径。可选语义召回层**推迟到 v2.1**——v2.0 不引入、不打包、不自动装相关依赖。
+- **不包含语义检索路径。** `reindex` / `search` 只走 FTS5；v2.0 不引入、不打包相关依赖。
 - **删除「Naive RAG」叙事。** SKILL.md / README / introduction 全部明确为「compile-once / walk-the-graph」；语义召回不再是默认叙事。
 - **bilingual `SKILL cn.md` 删除。** v2.0 只保留下单份英文 `SKILL.md`（取代 1.1.0 起的 `SKILL cn.md` 镜像）。中文读者由 `introduction/index.html` 承担。
 

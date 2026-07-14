@@ -64,6 +64,9 @@
     .card  { padding: 18px 20px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper-dim); }
     .card h3 { margin-top: 0; font-family: var(--font-b); }
     .card p  { margin-bottom: 0; }
+    .release-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 18px 0; }
+    .release-links a { display: block; padding: 16px 18px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper-dim); }
+    .release-links strong { display: block; color: var(--ink); margin-bottom: 4px; }
 
     .friend-card { margin-top: 12px; padding: 22px 24px; border-radius: var(--radius); background: linear-gradient(135deg, rgba(7,15,13,.04), rgba(15,118,110,.10)), var(--paper-dim); border: 1px solid var(--hairline); }
     .friend-card .tag  { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--ink); color: var(--paper); font-size: 0.78em; margin-bottom: 8px; }
@@ -117,6 +120,13 @@ wiki/            ← 你读什么;你 git 什么</div>
 
       <p>一行命令，把 skill 安装到你的 Agent skills 目录：</p>
       <pre><code>npx skills add Scott1743/mneme</code></pre>
+
+      <h3>选择版本</h3>
+      <p><code>npx skills add</code> 始终跟随仓库默认分支，也就是最新的 v3.0.0 语义版。要固定在这个零依赖版本，请直接下载 v2.0.0 的 skill zip。</p>
+      <div class="release-links">
+        <a href="https://github.com/Scott1743/mneme/releases/download/v2.0.0/mneme-2.0.0.zip"><strong>v2.0.0 · 基础版</strong>SQLite FTS5，零第三方运行时依赖</a>
+        <a href="https://github.com/Scott1743/mneme/releases/download/v3.0.0/mneme-3.0.0.zip"><strong>v3.0.0 · 语义版</strong>最新主分支；可选语义检索能力</a>
+      </div>
 
       <p>安装到 <code>~/.claude/skills/mneme/</code> 之后，重启会话即可。Mneme 没有独立窗口、没有常驻服务、没有命令行仪表——你和你的 Agent 聊天就是了。</p>
 

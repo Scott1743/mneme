@@ -8,13 +8,15 @@
 
 ## 安装
 
-一行命令，从 [skill.sh](https://skill.sh/Scott1743/mneme)：
+最新版一行命令，从 [skill.sh](https://skill.sh/Scott1743/mneme)：
 
 ```bash
 npx skills add Scott1743/mneme
 ```
 
-落地到 `~/.claude/skills/mneme/`，重启 agent 会话即可。**没有 wheel、没有 `pip install` 全包、没有 setuptools——一个 zip，解压即用。**
+落地到 `~/.claude/skills/mneme/`，重启 agent 会话即可。该命令始终安装默认分支上的最新版本（v3.0.0）。**没有 wheel、没有 `pip install` 全包、没有 setuptools——一个 zip，解压即用。**
+
+需要固定在零依赖基础版时，下载 [v2.0.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v2.0.0/mneme-2.0.0.zip)。最新主分支的可选语义版下载地址是 [v3.0.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v3.0.0/mneme-3.0.0.zip)。
 
 更多说明书：[scott1743.github.io/mneme](https://scott1743.github.io/mneme/) —— 产品初衷、安装与原理的图文介绍。
 
@@ -23,7 +25,7 @@ npx skills add Scott1743/mneme
 - **dream** —— 你丢资料进来，agent 写成 OKF 概念页，加 tag、互相链接，更新 `index.md` 与 `log.md`。默认先出预览，等你点头才落盘。
 - **search** —— 你问问题，agent 在你的 wiki 里走。默认按 `index.md` / tags / 链接 / grep 走；wiki 大的时候按 L1（SQLite FTS5）召回。最终答案由 agent 读完整页面综合，引用是 bundle 内路径。
 
-`init` / `lint` / `reindex` / `dream` 是 agent 在后台跑的确定性脚本，不出现在用户叙事里。L2（语义召回）v2.0 不在，v2.1 才有；索引永远可删除。
+`init` / `lint` / `reindex` / `dream` 是 agent 在后台跑的确定性脚本，不出现在用户叙事里。v2.0 不含语义召回；索引永远可删除。
 
 ## 4 层架构
 
@@ -53,9 +55,9 @@ mneme reindex       # 全量重建一次；幂等
 mneme search "X"    # FTS5 候选 + snippet；agent 读完整页综合
 ```
 
-## L2 推迟到 v2.1
+## 零依赖基础版
 
-可选的语义召回加速器**不在 v2.0 里**。规模大、想要语义召回时，请等到 v2.1；本仓库不引入、也不打包任何可选加速器依赖。
+v2.0 不含可选语义召回加速器，也不打包任何相关依赖。需要该能力时选择主分支上的 v3.0.0。
 
 ## OKF v0.1 + tags 写作纪律
 
@@ -88,7 +90,7 @@ pytest                          # 离线分层测试
 python scripts/build_zip.py     # 产 dist/mneme-2.0.0.zip
 ```
 
-L2（语义召回）推迟到 v2.1；本仓库不引入相关依赖。CI 在 Python 3.11 / 3.12 / 3.13 三档矩阵上跑。
+v2.0 不含语义召回实现或相关依赖。CI 在 Python 3.11 / 3.12 / 3.13 三档矩阵上跑。
 
 ## 朋友项目
 

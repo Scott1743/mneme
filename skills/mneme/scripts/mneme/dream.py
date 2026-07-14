@@ -55,7 +55,7 @@ def dream_audit(bundle: Path) -> Dict[str, Any]:
     agent can answer by listing candidate paths + rules. There are no
     similarity scores or thresholds — only "raw distance" candidates
     (currently: candidate paths + rule codes + count). Anything more
-    numerical / semantic ships in v2.1 alongside L2.
+    numerical comparison is intentionally outside this release.
     """
     bundle = Path(bundle)
     report: Dict[str, Any] = {

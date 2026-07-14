@@ -34,8 +34,7 @@ The agent must NEVER:
 
 - shell `git add -A`, `git commit`, or `git push` automatically — the dream
   audit is **not** a commit trigger.
-- merge or archive pages on a vector-distance threshold (sqlite-vec /
-  FastEmbed are NOT in v2.0; they ship in v2.1).
+- merge or archive pages from an automated similarity threshold.
 - skip `mneme lint` after writing.
 - mutate the bundle based on `dream`'s audit alone — user approval is
   required for every change.

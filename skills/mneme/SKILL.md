@@ -1,7 +1,7 @@
 ---
 name: mneme
 version: 2.0.0
-description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki. Use when the user wants to dream (capture knowledge) or search (recall it). Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', '查 wiki', '搜索知识库', '梦', '记住这个'. v2.0 ships skill-first delivery, OKF + tags writer rule, sqlite3 + FTS5 default, and `mneme dream` as a read-only audit CLI; L2 (sqlite-vec + FastEmbed) is deferred to v2.1."
+description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki. Use when the user wants to dream (capture knowledge) or search (recall it). Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', '查 wiki', '搜索知识库', '梦', '记住这个'. v2.0 is the zero-dependency edition: sqlite3 + FTS5 default and `mneme dream` as a read-only audit CLI."
 allowed-tools:
   - Read
   - Write
@@ -53,7 +53,7 @@ Helper:
 Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py --help
 ```
 
-> **L2 (semantic search) is opt-in.** `search` and `reindex` subcommands require `sqlite-vec` + `fastembed`. The OKF core (init/lint/ingest/query) does NOT need them — the skill works out of the box for non-L2 use. If a user wants L2, they install once: `pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'`. No auto-install, no surprise network calls. The first `search`/`reindex` prints a clear one-line instruction if the deps are missing.
+> This v2.0 skill uses only Python's standard library and SQLite FTS5. It never downloads a model or loads third-party search extensions.
 
 ## OKF v0.1 conformance (hard rules — never violate on write)
 
@@ -77,20 +77,20 @@ Scaffold an OKF bundle + record its location:
 
 ## Scenario: reindex [--config <cfg>]
 
-Rebuild the L2 sqlite-vec index from scratch:
+Rebuild the local SQLite FTS5 index from scratch:
 
 1. `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py reindex [--config <cfg>]`
-2. **First-time L2 use only:** if `sqlite-vec` / `fastembed` are not installed, the CLI prints a one-line instruction: `pip install 'sqlite-vec>=0.1.9,<0.2' 'fastembed>=0.8.0,<0.9'`. The user runs that once; the model download (~90MB) follows on first index. **No auto-install, no surprise network calls.**
+2. The index is built with the Python standard library; no dependency installation or model download is involved.
 3. Confirm the output: `indexed N concepts into <bundle>/.mneme/index.db`.
 
 After every `ingest` that adds/removes/merges pages, run `reindex`.
 
 ## Scenario: search <query>
 
-Return ranked L2 retrieval hits without synthesizing an answer or modifying the bundle:
+Return ranked full-text candidates without synthesizing an answer or modifying the bundle:
 
 1. `Bash: python3 ~/.claude/skills/mneme/scripts/mneme.py search "<query>" --json [--type <type>] [-k <limit>]`
-2. **First-time L2 use only:** same as reindex — if `sqlite-vec` / `fastembed` are not installed, the CLI prints the one-line install instruction.
+2. With no index, the command falls back to a local Markdown scan and explains how to build FTS5.
 3. Present the matching titles, bundle-relative paths, types, and snippets.
 4. Do not auto-reindex. If the index is absent or incompatible, report the CLI remedy (`python3 ~/.claude/skills/mneme/scripts/mneme.py reindex`).
 

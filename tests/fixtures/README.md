@@ -6,7 +6,6 @@
 
 | 目录 | 用途 | 使用者 | 可改? |
 |---|---|---|---|
-| `blackbox_news/` | 10 篇多领域新闻 `.md`,端到端黑盒测试输入 | `test_blackbox_news.py` | 加文件需同步改 `EXPECTED_CONCEPTS`;改内容需同步改 keyword 列表 |
 | `e2e_ingest/` | 单源 ingest 流水线 fixture(1 个 `source.md`) | `test_e2e_ingest.py` | 改 `source.md` 内容会改 slug 派生,需同步测试断言 |
 | `e2e_lint/` | `clean_bundle/`(0 error)+ `dirty_bundle/`(每条 OKF 规则触发一次) | `test_e2e_lint.py` | 改 `dirty_bundle/` 结构需同步 `test_e2e_lint.py` 的断言矩阵 |
 | `e2e_query/` | 5 个概念页 + index + log,query 布线测试 | `test_e2e_query.py` | 改概念页会改 search 期望,需同步断言 |
@@ -20,5 +19,3 @@
 4. **不要放二进制文件**:OKF/Mneme 中图片不是一等公民(AGENTS.md §7)。
 
 ## 外部语料(不在仓库内)
-
-`test_retrieval_bench.py` 依赖 `/Users/scott1743/Desktop/佳都/飞书文档库/` 的 141 个 `.md`。该路径是用户私有数据,不进仓库;测试在找不到时 `pytest.skip`。

@@ -118,9 +118,8 @@ def test_search_fts5_path_does_not_import_l2(tmp_path):
     from mneme import indexlib as _indexlib
 
     assert hasattr(_indexlib, "search"), "v2.0 FTS5 search must be exported"
-    assert hasattr(_indexlib, "search_semantic"), (
-        "L2 vector search should be retained as `search_semantic` for "
-        "v2.1 deferred work"
+    assert not hasattr(_indexlib, "search_semantic"), (
+        "v2.0 must not ship a semantic/vector search API"
     )
     # Confirm the FTS5 search module is importable without L2 deps
     # present. We import sqlite_vec / fastembed under sentinel names
@@ -150,17 +149,12 @@ def test_search_fts5_path_does_not_import_l2(tmp_path):
     assert "from fastembed" not in src, (
         "v2.0 search must not import fastembed"
     )
-    # And the module as a whole should reference L2 only inside the
-    # deferred helpers — at most a handful of times.
+    # The v2.0 module must remain free of optional vector dependencies.
     module_src = (
         ROOT / "skills" / "mneme" / "scripts" / "mneme" / "indexlib.py"
     ).read_text()
-    assert module_src.count("import sqlite_vec") <= 1, (
-        "sqlite_vec must be imported at most once (the deferred L2 helper)"
-    )
-    assert module_src.count("from fastembed") <= 1, (
-        "fastembed must be imported at most once (the deferred L2 helper)"
-    )
+    assert "sqlite_vec" not in module_src
+    assert "fastembed" not in module_src
 
 
 # ─────────────────────────────────────────────────────────────────────────

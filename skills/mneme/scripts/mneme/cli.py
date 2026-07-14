@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Thin mneme CLI for bundle setup and deterministic L2 operations."""
+"""Thin mneme CLI for bundle setup and deterministic local operations."""
 from __future__ import annotations
 
 import argparse
@@ -74,8 +74,7 @@ def cmd_reindex(args: argparse.Namespace) -> int:
     Walks ``*.md`` under the bundle (excluding ``.mneme/``, ``sources/``,
     and ``external-sources/``), parses each page's frontmatter, and writes
     one ``pages`` row + ``pages_fts`` insertion per page via Task 3's
-    atomic snapshot rebuild. L2 (sqlite-vec + FastEmbed) is deferred to
-    v2.1 — no auto-install, no surprise network calls.
+    atomic snapshot rebuild using Python's built-in SQLite FTS5 support.
     """
     bundle = _resolve_bundle(args)
     if bundle is None:
@@ -114,8 +113,6 @@ def cmd_reindex(args: argparse.Namespace) -> int:
 #   1. FTS5 against <bundle>/.mneme/index.db (default; built by
 #      `mneme reindex` via Task 3's reindex_paths).
 #   2. L0 grep fallback over *.md when index.db is missing.
-# No L2 deps (sqlite-vec + fastembed) are imported here; those land
-# in v2.1.
 
 _L0_GREP_CONTEXT = 60  # chars of context around the matched line
 
@@ -405,7 +402,7 @@ def main(argv=None) -> int:
     """CLI entry point.
 
     Accepts an optional ``argv`` list so callers can drive it from Python
-    (tests, embedding hosts). When invoked as a console script via the
+    (tests and host integrations). When invoked as a console script via the
     ``[project.scripts]`` entry point, setuptools generates a stub that
     calls ``main()`` with no arguments — ``argv=None`` resolves that case
     to ``sys.argv[1:]``.
