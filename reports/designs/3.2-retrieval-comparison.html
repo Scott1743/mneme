@@ -92,7 +92,7 @@
     <div class="wrap">
       <p class="eyebrow">Mneme Research Protocol · Design 01</p>
       <h1>检索不是一个分数：<br>0.5、2.2 与 3.2 的受控比较</h1>
-      <p class="dek">为 Mneme 3.2.0 预先定义一项可复现的比较实验。它把历史向量检索、当前零依赖 FTS5 与未来语义/混合检索放进同一证据链，回答“提升在哪里，代价是什么”。</p>
+      <p class="dek">为 Mneme 3.2.0 预先定义一项可复现的比较实验。它把历史 dense、当前零依赖 FTS5 与未来 hybrid + rerank 管线放进同一证据链，回答“提升在哪里，代价是什么”。</p>
       <div class="meta"><span>状态：实验前设计</span><span>日期：2026-07-15</span><span>实验运行：待 3.2.0 完成</span><span>产物：HTML + JSONL + 图表数据</span></div>
     </div>
   </header>
@@ -101,20 +101,30 @@
     <section class="intro-grid">
       <div>
         <p class="number">01 / 研究问题</p>
-        <h2>3.2 的语义能力，是否在真实中文资料上带来可证明的净收益？</h2>
-        <p class="thesis">不预设“向量一定优于全文检索”。本实验区分精确术语、改写表达与无答案请求，并同时测量检索质量、延迟、索引成本和可复现性。</p>
+        <h2>3.2 的 hybrid 检索，是否在真实中文资料上带来可证明的净收益？</h2>
+        <p class="thesis">不预设“向量一定优于全文检索”。本实验区分 lexical、dense、fusion 与 rerank 的增益；同时测量检索质量、回答可归因性、延迟、索引成本和可复现性。</p>
       </div>
-      <aside class="note"><p><strong>核心约束。</strong> 三个系统必须使用同一份冻结语料、同一份概念页表示和同一套相关性标注。不得把更好的页面拆分、更多的资料或不同的 qrels 误当成检索器提升。</p></aside>
+      <aside class="note"><p><strong>核心约束。</strong> 三个系统必须使用同一份冻结语料、同一份概念页表示和同一套相关性标注。不得把更好的页面拆分、更多的资料或不同的 qrels 误当成检索器提升；本地 corpus 得分也不得外推成 BEIR、MTEB 或 CMTEB 的 SOTA 声明。</p></aside>
     </section>
 
     <section>
       <p class="number">02 / 系统矩阵</p>
-      <h2>三个明确角色，而非三个模糊版本号</h2>
+      <h2>三个版本，四个可归因阶段</h2>
       <div class="systems">
         <article class="system"><p class="label">历史语义基线</p><h3>0.5.0</h3><p>BGE `bge-small-zh-v1.5` 与当时向量检索路径。旧报告仅有 5 条手选 query；本次将尽可能以锁定依赖重新运行，而非直接引用历史分数。</p></article>
         <article class="system"><p class="label">词法/零依赖基线</p><h3>2.2.0</h3><p>SQLite FTS5 与 BM25 排序。用于量化精确术语、标题、标签、缩写和 ID 的可靠性，以及零依赖所换来的启动与资源优势。</p></article>
-        <article class="system"><p class="label">候选系统</p><h3>3.2.0</h3><p>未来实现的 embedding、向量或混合检索。实验开始前写入实际模型、向量库、chunk、过滤和重排配置；不得在结果出来后改变主指标。</p></article>
+        <article class="system"><p class="label">候选系统</p><h3>3.2.0</h3><p>以 2.2 的 FTS5 为 lexical leg，增加 dense leg，优先测 RRF fusion；若 3.2 交付 reranker，再测其 top-k 重排。实验开始前锁定模型、向量库、chunk、融合权重和 rerank 配置。</p></article>
       </div>
+      <table>
+        <thead><tr><th>运行 ID</th><th>检索阶段</th><th>目的</th><th>是否主比较</th></tr></thead>
+        <tbody>
+          <tr><td><code>V0</code></td><td>0.5 dense 历史复跑</td><td>复现实验可行时的历史语义基线；不可复现时只作档案数字</td><td>是，标记可复现状态</td></tr>
+          <tr><td><code>L1</code></td><td>2.2 FTS5 / BM25</td><td>零依赖 lexical 基线</td><td>是</td></tr>
+          <tr><td><code>D1</code></td><td>3.2 dense only</td><td>隔离 embedding 与向量索引的净效果</td><td>是</td></tr>
+          <tr><td><code>H1</code></td><td>FTS5 + dense + RRF</td><td>检验 hybrid 是否弥补 lexical / paraphrase 的互补漏召回</td><td>是，3.2 主候选</td></tr>
+          <tr><td><code>R1</code></td><td>H1 top-k + cross-encoder rerank</td><td>检验最后一公里排序是否值得额外成本</td><td>仅在 3.2 实装 reranker 时</td></tr>
+        </tbody>
+      </table>
     </section>
 
     <section>
@@ -123,9 +133,9 @@
       <div class="chain">
         <div class="step"><span class="label">A · corpus</span><p>从飞书 Markdown 导出建立只读快照；记录文件清单、SHA-256、总字符数、语言比例与许可/隐私边界。</p></div>
         <div class="step"><span class="label">B · representation</span><p>生成一份规范 concept-page corpus。三个系统读取同一份页面，排除 raw source 与系统文件的规则完全一致。</p></div>
-        <div class="step"><span class="label">C · qrels</span><p>独立标注 query 与相关页面。至少两位标注者；记录分歧和裁决，不让检索结果反向塑造答案。</p></div>
-        <div class="step"><span class="label">D · runners</span><p>每个系统输出同构 JSONL：query、rank、path、score、耗时、版本与配置哈希。固定 seed 与离线模型 revision。</p></div>
-        <div class="step"><span class="label">E · analysis</span><p>由同一分析脚本计算指标、置信区间、显著性与图表。原始结果和派生图表均可追溯。</p></div>
+        <div class="step"><span class="label">C · qrels</span><p>独立双人标注 query 与相关页面；先报告 weighted κ，再记录分歧和裁决，绝不让检索结果反向塑造答案。</p></div>
+        <div class="step"><span class="label">D · runners</span><p>每个阶段输出同构 JSONL：query、rank、path、stage score、耗时、版本与配置哈希。固定 seed、离线模型 revision 与 RRF 参数。</p></div>
+        <div class="step"><span class="label">E · analysis</span><p>由同一分析脚本计算指标、置信区间、显著性与图表。原始结果、人工判断和派生图表均可追溯。</p></div>
       </div>
     </section>
 
@@ -136,24 +146,25 @@
         <thead><tr><th>query 组</th><th>最低数量</th><th>目的</th><th>例子</th></tr></thead>
         <tbody>
           <tr><td>历史回归</td><td>5</td><td>复核 0.5 报告中的已知 query</td><td><code>gstack</code>、<code>银行回单</code>、<code>录音</code></td></tr>
-          <tr><td>精确词项</td><td>10</td><td>检验 FTS5 的优势边界</td><td>产品名、缩写、标题、ID</td></tr>
-          <tr><td>短语与改写</td><td>15</td><td>检验 embedding 对非字面表达的收益</td><td>“如何规范阅读流程”</td></tr>
-          <tr><td>跨表达/长问句</td><td>10</td><td>检验多概念、中文措辞变化与噪声</td><td>带上下文的自然语言问题</td></tr>
+          <tr><td>精确词项</td><td>20</td><td>检验 FTS5 的优势边界</td><td>产品名、缩写、标题、ID</td></tr>
+          <tr><td>短语与改写</td><td>20</td><td>检验 dense / hybrid 对非字面表达的收益</td><td>“如何规范阅读流程”</td></tr>
+          <tr><td>跨表达/多跳</td><td>15</td><td>检验多概念问题与跨页证据</td><td>需要两页共同支撑的问题</td></tr>
+          <tr><td>长上下文排序</td><td>10</td><td>检验 rerank 是否把关键证据放到 answer context 顶部</td><td>相关段落被干扰文档包围</td></tr>
           <tr><td>无答案</td><td>10</td><td>检验是否错误地伪造相关性</td><td>语料明确不覆盖的主题</td></tr>
         </tbody>
       </table>
-      <p>目标为至少 <strong>50 条</strong> query。每条给出分级相关性：<code>2 = 直接回答</code>，<code>1 = 有用支持</code>，<code>0 = 不相关</code>；主分析在 page level 进行，并单独报告 source level 聚合。</p>
+      <p>目标为至少 <strong>80 条</strong> query。每条给出分级相关性：<code>2 = 直接回答</code>，<code>1 = 有用支持</code>，<code>0 = 不相关</code>；主分析在 page level 进行，并单独报告 source level 聚合。标注先于运行；应报告标注者 weighted Cohen's κ、裁决规则和无法裁决的样本数。</p>
     </section>
 
     <section class="two-col">
       <div>
         <p class="number">05 / 预注册指标</p>
-        <h2>质量与成本同等重要</h2>
+        <h2>检索、回答与成本分开报告</h2>
         <ul>
           <li><strong>主指标：</strong>nDCG@10，处理分级相关性。</li>
-          <li><strong>召回：</strong>Recall@1、@3、@5、@10。</li>
-          <li><strong>排序：</strong>MRR@10。</li>
-          <li><strong>拒答：</strong>无答案 query 的 false-positive rate。</li>
+          <li><strong>召回与排序：</strong>Recall@1、@3、@5、@10，Hit Rate@k，MRR@10 与 MAP@10。</li>
+          <li><strong>拒答：</strong>无答案 query 的 false-positive rate，以及阈值可用时的 AUROC / AUPRC。</li>
+          <li><strong>端到端（单独实验）：</strong>若比较生成回答，固定同一 generator、prompt、token 上限和 top-k，测 EM / token-F1（有参考答案时）及 RAGAS Faithfulness、Answer Relevancy、Context Precision、Context Recall。</li>
           <li><strong>工程：</strong>索引时长、索引字节数、冷启动、P50/P95 查询延迟、峰值 RSS、模型下载与第三方依赖。</li>
         </ul>
       </div>
@@ -165,6 +176,8 @@
           <li>以同一 query 的系统结果做配对比较；主检验为 <strong>paired randomization test</strong>。</li>
           <li>报告效应量与 CI，不以 <code>p &lt; 0.05</code> 单独作结论。</li>
           <li>对 0.5、2.2、3.2 的三组比较进行 Holm 校正。</li>
+          <li>索引构建至少重复 5 次；每个 query 的 warm/cold 查询重复 30 次，报告中位数与 P95。禁止把模型下载时间混入 steady-state latency。</li>
+          <li>LLM judge 若启用，随机 A/B 位置、隐藏系统身份、统一回答长度上限，使用与被评答案不同的 judge；每组至少人工抽查 20 条。</li>
         </ul>
         <div class="formula mono">Δ nDCG@10 = mean(nDCG@10<sub>3.2</sub> − nDCG@10<sub>baseline</sub>)</div>
       </div>
@@ -174,10 +187,10 @@
       <p class="number">07 / 图表与报告</p>
       <h2>图表必须回答一个问题</h2>
       <div class="deliverables">
-        <div><h3>质量总览</h3><p>nDCG@10、Recall@k、MRR 的分组点图与 95% CI。显示每个 query 的散点，不只显示均值柱。</p></div>
-        <div><h3>任务类型热图</h3><p>按 query 组比较三个系统的效果差异，指出 FTS5 与语义检索各自真正的边界。</p></div>
-        <div><h3>质量 - 成本前沿</h3><p>横轴 P95 延迟，纵轴 nDCG@10，点面积代表索引大小；标注冷启动与模型下载成本。</p></div>
-        <div><h3>错误审计附录</h3><p>逐条列出 top-k、相关页、漏检/误检类型和系统配置，支持人工复核与后续改进。</p></div>
+        <div><h3>阶段瀑布图</h3><p>从 L1 → D1 → H1 → R1 展示 nDCG@10、Recall@10 的增量和 95% CI，直接归因 dense、RRF 与 rerank。</p></div>
+        <div><h3>任务类型热图</h3><p>按 query 组比较 lexical、dense、hybrid、rerank 的效果，指出各阶段真正的边界。</p></div>
+        <div><h3>质量 - 成本前沿</h3><p>横轴 P95 延迟，纵轴 nDCG@10，点面积代表索引大小；分开标注 cold-start、steady-state 与模型下载。</p></div>
+        <div><h3>证据排序与错误审计</h3><p>对长上下文题展示正确证据所处 rank；逐条列出 top-k、qrels、漏检/误检类型和系统配置。</p></div>
       </div>
     </section>
 
@@ -186,7 +199,7 @@
       <h2>先定义何时值得引入复杂度</h2>
       <div class="gate">
         <h3>最低结论门槛</h3>
-        <p>3.2 不需要在每一类 query 上击败 2.2；但发布报告必须证明其在“短语与改写 + 跨表达”集合上相对 2.2 有正向效应量及 95% CI，并说明精确词项是否退化。若总体收益不明显，报告仍可得出“FTS5 更适合默认路径”的结论。任何结论必须同时呈现代价：下载、依赖、索引时长和延迟。</p>
+        <p>3.2 不需要在每一类 query 上击败 2.2；但发布报告必须证明 H1（或 R1）在“短语与改写 + 跨表达/多跳”集合上相对 L1 有正向效应量及 95% CI，并说明精确词项是否退化。若 R1 未带来可解释的排序收益，不应成为默认路径。若总体收益不明显，报告仍可得出“FTS5 更适合默认路径”的结论。任何结论必须同时呈现代价：下载、依赖、索引时长和延迟。</p>
       </div>
     </section>
 
@@ -195,9 +208,10 @@
       <h2>未来实验报告应放在 <code>reports/experiments/</code></h2>
       <ul>
         <li>一份自包含 HTML 报告，嵌入所有最终图表和方法版本。</li>
-        <li>不可变 <code>manifest.json</code>：corpus hashes、qrels 版本、代码 commit、依赖锁定、模型 revision、硬件与操作系统。</li>
-        <li>每个系统一份原始 <code>results.jsonl</code>，以及生成指标与图表的脚本输出。</li>
+        <li>不可变 <code>manifest.json</code>：corpus hashes、qrels 版本、代码 commit、依赖锁定、模型 / reranker revision、RRF 参数、硬件与操作系统。</li>
+        <li>每个系统与阶段一份原始 <code>results.jsonl</code>，以及生成指标与图表的脚本输出。</li>
         <li>明确标记“历史 0.5 原始数字”和“本次受控复跑结果”；两者不可混用。</li>
+        <li>端到端答案与 LLM judge 结果单独存档，附 prompt、随机化顺序和人工 spot-check 表；不得替代 retriever-only 主结论。</li>
       </ul>
     </section>
   </main>
