@@ -532,13 +532,13 @@
     <header class="hero">
       <p class="kicker">An agent skill · MIT · 2.1</p>
       <h1>Mneme</h1>
-      <p class="tagline">一座你的 Agent 帮你记着的本地知识树。<br/>两个动词，<span class="v-dream">dream</span> 与 <span class="v-search">search</span>。</p>
+      <p class="tagline">一个由你的 agent 帮你记着的本地 Markdown 知识库。<br/>两个动词——<span class="v-dream">dream</span> 写，<span class="v-search">search</span> 读。</p>
 
       <a class="install" href="https://skill.sh/Scott1743/mneme">
         <span class="verb">$</span> npx skills add Scott1743/mneme
       </a>
 
-      <p class="byline">— 记忆女神, μνήμη —</p>
+      <p class="byline">— μνήμη · 记忆女神 —</p>
 
       <nav class="quick" aria-label="Page navigation">
         <a href="#初衷">I · Why this exists</a>
@@ -555,13 +555,11 @@
     <section id="初衷" aria-labelledby="初衷-h">
       <p class="kicker"><span class="num">I.</span> Why this exists</p>
 
-      <h2 id="初衷-h">把读过的东西编译一遍，让它在每一行回答里继续长出来。</h2>
+      <h2 id="初衷-h">把读过的东西编译一次，别再每次重新检索。</h2>
 
-      <p>每次提问都重新检索，等于每次都在空仓库里重新发现知识。RAG 是冷的缓存；它不知道你三周前读过的论文里那句话跟你今天写的那段代码相关——除非那句话已经被记进某个属于你的地方。<span class="v-dream">Dream</span> 把读过的资料编译进一棵可以反复行走的本地 Markdown 树；<span class="v-search">search</span> 在那棵树上走；AI 不是每次都从零开始，而是访问已经在那里的东西。</p>
+      <p>RAG 是冷的缓存。你三周前读过的论文里那句话，跟你今天写的那段代码——它不知道。除非那句话被你写进过某个属于你的地方。<span class="v-dream">Dream</span> 把读过的资料编译进一棵本地 Markdown 树；<span class="v-search">search</span> 在那棵树上走，agent 不用每次从零开始。</p>
 
-      <p>这棵树只有三种规则（YAML frontmatter、一个 <code>type</code> 字段、保留 <code>index.md</code> 与 <code>log.md</code>），全部出自 <a href="https://github.com/google/open-knowledge-format">OKF v0.1</a>。树根在你手里——一个普通目录，能 <code>cat</code>、能 <code>git clone</code>、能 diff blame branch。能用别人写的工具打开，也能被你自己写的脚本解析。</p>
-
-      <p>当代的 LLM Wiki 思路最早由 Andrej Karpathy 在 2026 年 4 月的 <a href="https://gist.github.com/karpathy/">gist</a> 里摊开：他问过一个朴素得让人不安的问题——<em>为什么没有人把知识像源码一样维护？</em> Mneme 不发明这个想法；它只是想把这个想法做成一个真正能落到你 <code>~/.claude/skills/mneme/</code> 的小工具。</p>
+      <p>这棵树只用三种规则（YAML frontmatter、一个 <code>type</code> 字段、保留 <code>index.md</code> 与 <code>log.md</code>），全部来自 <a href="https://github.com/google/open-knowledge-format">OKF v0.1</a>。普通目录，能 <code>cat</code>、<code>git clone</code>、<code>diff blame branch</code>，能被你写的脚本解析。LLM Wiki 的这个思路最早由 Karpathy 在 2026 年 4 月的 <a href="https://gist.github.com/karpathy/">gist</a> 里摊开——Mneme 只是把它做成一个能落到 <code>~/.claude/skills/mneme/</code> 的小工具。</p>
     </section>
 
     <!-- ═══════════════════════════════════════════════════
@@ -570,28 +568,28 @@
     <section id="安装" aria-labelledby="安装-h">
       <p class="kicker"><span class="num">II.</span> First prompts</p>
 
-      <h2 id="安装-h">落地之后，和你的 Agent 聊。</h2>
+      <h2 id="安装-h">装上它，然后和你的 agent 聊。</h2>
 
-      <p>装上 <code>mneme</code> 技能，重启 agent 会话。从这一秒起，你和你的 agent 之间多了一个默契：你丢任何想法进来，它都会维护你的树。</p>
+      <p>重启 agent 会话。从这一秒起，你丢任何想法进来，它都会维护你的树。</p>
 
       <div class="two">
         <div>
           <p class="dream-kicker"><span class="v-dream">dream</span> · 写</p>
           <h3>把读过的资料编译进树</h3>
-          <p>把论文、网页、对话、PDF——任何 markdown 文本——丢给 agent。agent 调 <code>mneme dream</code>，给你一份预览（哪些页面要新建、哪些要更新、tag 怎么设），你点头之后它落盘。</p>
+          <p>论文、网页、对话、PDF 里的文字——丢给 agent。agent 调 <code>mneme dream</code>，给你一份预览（哪些页面要新建、哪些要更新、tag 怎么设），你点头之后才落盘。</p>
         </div>
         <div>
           <p class="search-kicker"><span class="v-search">search</span> · 读</p>
           <h3>在树里走</h3>
-          <p>你问一个问题，agent 先看 <code>index.md</code>，沿着 tags 与链接走，<em>读完整页</em> 再给答案——而不是把命中的 chunk 拼回来。答案里有引用，哪段来自哪页，bundle-relative 路径。</p>
+          <p>你问一个问题，agent 沿 <code>index.md</code>、tags、链接走，<em>读完整页</em> 再给答案——而不是把命中的 chunk 拼回来。引用是 bundle 内的相对路径。</p>
         </div>
       </div>
 
       <blockquote class="lift">
-        <p>你刚读了一篇关于 <em>OKF v0.1</em> 的文章，<br/>帮我把它编进我的 wiki，按 <em>Source</em> 摘要成概念页。</p>
+        <p>把刚读的这篇 <em>OKF v0.1</em> 编进我的 wiki，<br/>按 <em>Source</em> 摘要成概念页。</p>
       </blockquote>
 
-      <p><code>mneme dream</code> 的输出始终是 read-only 报告，没有任何 <code>--apply</code> 的写入捷径——这个纪律是为了让你，而不是脚本，决定改动是否落盘。</p>
+      <p><code>mneme dream</code> 永远是 read-only 报告，没有 <code>--apply</code> 这种写入捷径——落不落盘由你决定，不是脚本。</p>
     </section>
 
     <!-- ═══════════════════════════════════════════════════
@@ -600,24 +598,20 @@
     <section id="原理" aria-labelledby="原理-h">
       <p class="kicker"><span class="num">III.</span> The walk</p>
 
-      <h2 id="原理-h">knowledge 是引用，不是索引；它在 graph 里被 walk 到。</h2>
+      <h2 id="原理-h">knowledge 是引用，不是索引——它在 graph 里被 walk 到。</h2>
 
-      <p>一张页面要够好，先要被 agent 写出来；下一步要够有用，它要能被其它页面 <em>找到</em>。Mneme 把这个“被找到”这件事分给三个不同形态的标记：</p>
+      <p>一张页面要先被写出来，再能被<em>找到</em>。Mneme 把"被找到"这件事分给三个不同形态的标记：</p>
 
-      <p><code>type</code> 描述<em>这份文档做什么</em>——是 <code>Concept</code>（概念）、<code>Reference</code>（外部资料的蒸馏）、<code>Source</code>（原始资料指针）、还是 <code>Summary</code>（合页）。OKF 不要求 type 注册，所以你能根据自己 wiki 的需要造新的 type。</p>
+      <p><code>type</code> 描述<em>这份文档做什么</em>（<code>Concept</code>、<code>Reference</code>、<code>Source</code>、<code>Summary</code>，或你自己造的新类型）。<code>tags</code> 描述<em>这份文档谈什么</em>（无 schema，由 wiki 自己长出来）。Markdown 链接描述<em>这份文档和哪份文档有关</em>——这是 <span class="v-search">search</span> 的骨头，agent 沿链接在 graph 里走，而不是按近邻相似度从一堆 embedding 里拽回来。</p>
 
-      <p><code>tags</code> 描述<em>这份文档谈什么</em>——是一个无 schema 的标签数组；没有全局 taxonomy，词汇由这座 wiki 自己长出来。</p>
+      <aside class="gloss">不能反过来用：<code>type</code> 在 frontmatter 里有协议语义（OKF §4.1）；<code>tags</code> 是你想给它什么语义就是什么——OKF 留给写者的自由。</aside>
 
-      <p>Markdown 链接描述<em>这份文档和哪份文档有关</em>——具体是谁给谁交代、谁是前提、谁是参考。这是 <span class="v-search">search</span> 的骨头：agent 按 bundle-relative 链接在 graph 里走，而不是按近邻相似度从一堆 embedding 里拽回来。</p>
+      <p>wiki 小于几百页时，<code>grep</code> 与 <code>Read</code> 已经够用。大一点之后，<code>mneme reindex</code> 会建一个本地 SQLite FTS5 索引（零依赖、零网络）。<code>.mneme/index.db</code> 是可删的派生缓存——它从来没拥有事实，只是帮 agent 走快两步。</p>
 
-      <aside class="gloss">vocab 不能反过来用：<code>type</code> 在 frontmatter 的位置上是有协议语义的（OKF §4.1 列在外）；<code>tags</code> 是你想给它什么语义就是什么——这是 OKF 留给写者的自由。</aside>
-
-      <p>当你的 wiki 小于几百页时，<code>grep</code> 与 <code>Read</code> 已经足够。当它更大，Mneme 会在第一次 <code>reindex</code> 时安静地打开一个本地 SQLite FTS5 索引（零依赖、零网络），wiki 越大索引越有用。索引文件 <code>.mneme/index.db</code> 是可删除的派生缓存——它从来没拥有事实，只是帮 agent 走快两步。</p>
-
-      <p>召回的下一步留给另一段路：默认 <strong>不</strong>下载任何外部模型，也 <strong>不</strong>装额外的依赖。wiki 本身、Agent 的工作流、<code>dream</code> 与 <code>search</code> 的契约都和有没有那段加法无关。</p>
+      <p>召回的下一步留给另一段路：默认<strong>不</strong>下载任何外部模型，也<strong>不</strong>装额外依赖。wiki 本身、agent 的工作流、<code>dream</code> 与 <code>search</code> 的契约都和那段加法无关。</p>
 
       <blockquote class="lift">
-        <p>所以 <em>search</em> 没有索引也能跑，<br/>索引烂掉也不会伤到事实。</p>
+        <p><em>search</em> 没有索引也能跑，<br/>索引烂掉也不会伤到事实。</p>
       </blockquote>
     </section>
 
@@ -627,13 +621,13 @@
     <section id="为什么" aria-labelledby="为什么-h">
       <p class="kicker"><span class="num">IV.</span> Why this is what it is</p>
 
-      <h2 id="为什么-h">Mneme 选择留下的，刚好是让你不再需要运维的那些东西。</h2>
+      <h2 id="为什么-h">留下来的，刚好是让你不再需要运维的那些东西。</h2>
 
-      <p>没有 GUI，没有 web 应用，没有服务端进程，没有云同步。装它的那一秒，它就在那里；不装它的那一秒，它就不在——这没什么损失。整个工具的运行时是 Python 标准库加一份 <code>~/.claude/skills/mneme/</code> 目录下的 Markdown。</p>
+      <p>没有 GUI，没有 web 应用，没有服务端进程，没有云同步。装它的那一秒它就在；不装它的那一秒它就不在——这没什么损失。整个运行时是 Python 标准库加一份 <code>~/.claude/skills/mneme/</code> 目录下的 Markdown。</p>
 
-      <p>没有矢量模型自动下载，没有权重在后台跑、没有显卡假设、没有你不知道的"隐式索引"在悄悄长。你不会被提醒"已为您下载 X MB 模型"——因为没有人替你下。你不愿意装那种依赖，那就不装；<code>wiki</code> 与所有 <span class="v-dream">dream</span> / <span class="v-search">search</span> 仍然完整工作。</p>
+      <p>没有矢量模型自动下载，没有权重在后台跑，没有显卡假设，没有你不知道的"隐式索引"在悄悄长。你不会被提醒"已为您下载 X MB 模型"——因为没有人替你下。你不愿意装那种依赖，那就不装；<code>wiki</code> 与 <span class="v-dream">dream</span> / <span class="v-search">search</span> 仍然完整工作。</p>
 
-      <p>定时自动策展（“<code>mneme dream</code> 自动每天跑、自动 commit、自动归档”——v0.1 里曾经存在过的形态）刻意不发货。一个会自己改你的事实页、自动向你 <code>git commit -A</code> 的技能，需要先跨过安全门禁（<em>相似度数学 / find-orphans / git-add-A 时序 / 事务暂存 / rollback 测试</em> 五项 P0），那是另一个项目的事了。在这五项没全被覆盖之前，<code>mneme dream</code> 只输出报告——它把"是否落盘"的决定留给你。</p>
+      <p>定时自动策展（v0.1 时代曾有的形态：<code>mneme dream</code> 每天跑、自动 commit、自动归档）刻意不发货。一个会自己改你事实页、自动 <code>git add -A</code> 的技能，需要先跨过五项安全门禁——那是另一个项目的事。在这之前，<code>mneme dream</code> 只输出报告，落不落盘由你定。</p>
     </section>
 
     <!-- ═══════════════════════════════════════════════════
@@ -647,7 +641,7 @@
       <div class="friends">
         <span class="tag">朋友项目</span>
         <h3>森林密语 / 塔罗树洞 · tarot-confessional</h3>
-        <p>把一次塔罗解读或长会话里有价值的体会，用同一套“本地优先 / Agent 驱动 / 可检查的开放文件”原则整理进你自己的长期 wiki。两边都坚持：本地优先、写入显式——你不主动「保存到 Wiki」，什么都不会被留下。Mneme 提供整理的工具；<em>森林密语</em>提供抽牌码与象征性解读。</p>
+        <p>同一套"本地优先 / Agent 驱动 / 可检查的开放文件"原则，用在塔罗解读与长会话的体会整理上。两边都坚持：本地优先、写入显式——你不主动"保存到 Wiki"，什么都不会被留下。Mneme 提供整理工具；<em>森林密语</em> 提供抽牌码与象征性解读。</p>
         <p>仓库：<a href="https://github.com/Scott1743/tarot-confessional">github.com/Scott1743/tarot-confessional</a><br/>
         落地页：<a href="https://scott1743.github.io/tarot-confessional/">scott1743.github.io/tarot-confessional</a><br/>
         安装：<code>npx skills add Scott1743/tarot-confessional</code></p>
