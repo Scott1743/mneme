@@ -3,207 +3,532 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mneme · 轻量化 LLM Wiki · 介绍</title>
-  <meta name="description" content="一座由 Agent 增量维护的本地 Markdown 知识库。dream 写、search 读；零依赖；OKF v0.1。" />
+  <title>Mneme · 记忆女神 · Mneme 2.1</title>
+  <meta name="description" content="本地优先、agent 增量维护的 Markdown 知识库。两个动词：dream 写，search 读。" />
   <meta name="color-scheme" content="light dark" />
+  <meta property="og:title" content="Mneme — agent 维护的本地 Markdown 知识库" />
+  <meta property="og:description" content="两个动词：dream 写，search 读。其余都是细节。" />
   <style>
+    /* ── Mneme 2.1 — introduction ──────────────────────────────
+     * Designer’s note (for future editors):
+     *  - Two intents (dream + search) are colour-coded throughout
+     *    the prose: dream = oxide red  §  search = slate blue.
+     *  - This is not decoration; it teaches the two verbs by
+     *    association, the way a printer’s mark teaches a press.
+     *  - Keep the page readable when font features fail: no
+     *    feature toggles that change meaning.
+     * ───────────────────────────────────────────────────────── */
+
     :root {
-      --pine-teal: #0f766e;
-      --okf-blue:  #2563eb;
-      --paper:     #f7f5ee;
-      --paper-dim: #ece8d8;
-      --ink:       #0f1f1c;
-      --ink-soft:  #3a4540;
-      --hairline:  rgba(15,31,28,.18);
-      --font-h:    "STKaiti","KaiTi","Songti SC",Georgia,serif;
-      --font-b:    "PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
-      --font-mono: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-      --max-w:     980px;
-      --content:   720px;
-      --radius:    14px;
+      --paper:        #efe9dc;              /* toasted linen, not cream */
+      --paper-dim:   #e7e0d0;              /* one shade deeper, margins */
+      --ink:          #1f1b16;              /* dark warm sepia, not black */
+      --ink-soft:     #6e6356;              /* marginalia gray */
+      --hairline:     rgba(31,27,22,.18);
+      --hairline-soft:rgba(31,27,22,.09);
+      --dream:        #86382c;              /* oxide red — write side */
+      --search:       #244556;              /* faded indigo — read side */
+      --dream-soft:   rgba(134,56,44,.12);
+      --search-soft:  rgba(36,69,86,.10);
+
+      --display:     "Cormorant Garamond", "EB Garamond", "Songti SC", Georgia, serif;
+      --body:         "Newsreader", "Source Han Serif SC", "Noto Serif SC", "Songti SC", Georgia, serif;
+      --mono:         "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+      --max-w:        38rem;
+      --max-w-wide:   56rem;
+      --rule-thin:    1px solid var(--hairline);
+      --rule-soft:    1px solid var(--hairline-soft);
     }
+
     @media (prefers-color-scheme: dark) {
       :root {
-        --paper:     #0e1714;
-        --paper-dim: #14221d;
-        --ink:       #f4f1df;
-        --ink-soft:  #cfd6cf;
-        --hairline:  rgba(244,241,223,.18);
+        --paper:        #1a1714;
+        --paper-dim:    #221d18;
+        --ink:          #ece4cf;
+        --ink-soft:     #a89c88;
+        --hairline:     rgba(236,228,207,.18);
+        --hairline-soft:rgba(236,228,207,.09);
+        --dream:        #d48474;
+        --search:       #88a9bd;
+        --dream-soft:   rgba(212,132,116,.16);
+        --search-soft:  rgba(136,169,189,.14);
       }
     }
+
     *, *::before, *::after { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
-    body { font-family: var(--font-b); line-height: 1.78; font-size: 17px; }
-    main { max-width: var(--max-w); margin: 0 auto; padding: 56px 28px 96px; }
-    main > header, main > section, main > footer, main > nav { max-width: var(--content); margin-left: auto; margin-right: auto; }
-    h1, h2, h3 { font-family: var(--font-h); font-weight: 600; line-height: 1.25; margin: 0 0 0.4em; }
-    h1 { font-size: clamp(3.6rem, 8vw, 5.2rem); margin: 0.3em 0 0.5em; letter-spacing: -0.01em; text-align: center; }
-    h2 { font-size: clamp(1.35rem, 2.3vw, 1.85rem); margin-top: 1.7em; padding-top: 0.9em; border-top: 1px solid var(--hairline); }
-    h3 { font-size: 1.05rem; margin-top: 1.3em; color: var(--pine-teal); font-family: var(--font-b); }
-    p  { margin: 0.7em 0; }
-    a  { color: var(--okf-blue); text-decoration: none; border-bottom: 1px dotted currentColor; }
-    a:hover { border-bottom-style: solid; }
-    code { font-family: var(--font-mono); font-size: 0.92em; padding: 1px 6px; border-radius: 4px; background: var(--paper-dim); }
-    pre { font-family: var(--font-mono); background: var(--paper-dim); padding: 14px 16px; border-radius: var(--radius); overflow-x: auto; font-size: 0.9em; line-height: 1.55; border: 1px solid var(--hairline); }
-    pre code { padding: 0; background: transparent; }
-    blockquote { margin: 1em 0; padding: 0.6em 1em; border-left: 4px solid var(--pine-teal); background: var(--paper-dim); color: var(--ink-soft); border-radius: 0 var(--radius) var(--radius) 0; }
+    body {
+      font-family: var(--body);
+      font-size: 19px;
+      line-height: 1.72;
+      font-feature-settings: "kern", "liga", "onum";
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
 
-    .hero { text-align: center; margin-bottom: 24px; padding-top: 32px; }
-    .hero p.lede { font-size: 1.1em; color: var(--ink-soft); max-width: 600px; margin: 0.7em auto 0.3em; }
-    .hero p.lede + p.lede { font-size: 1em; max-width: 600px; margin: 0.4em auto 1.8em; }
-    .cta { display: inline-block; padding: 14px 26px; border-radius: 999px; background: var(--pine-teal); color: #fff; font-weight: 600; font-family: var(--font-mono); font-size: 1.02em; border-bottom: none; margin-top: 8px; }
-    .cta:hover { background: #0c5a55; color: #fff; }
-    .meta { font-family: var(--font-mono); font-size: 0.86em; color: var(--ink-soft); margin: 14px 0 0; }
+    main {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 7rem 1.5rem 8rem;
+    }
+    @media (min-width: 720px) { main { padding: 9rem 3rem 10rem; } }
 
-    .glyph { float: right; font-family: var(--font-mono); font-size: 0.78em; color: var(--ink-soft); white-space: pre; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper-dim); margin: 4px 0 14px 24px; line-height: 1.55; }
+    /* Hairline above the hero — the top edge of a page of paper. */
+    main::before {
+      content: "";
+      display: block;
+      height: 1px;
+      background: var(--hairline);
+      margin: 0 auto 0;
+      max-width: var(--max-w-wide);
+    }
 
-    nav.quick { margin: 28px 0 8px; padding: 12px 18px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper-dim); font-size: 0.96em; }
-    nav.quick a { margin-right: 14px; }
+    h1, h2, h3, h4 { font-family: var(--display); font-weight: 500; line-height: 1.1; letter-spacing: -0.012em; margin: 0; color: var(--ink); }
+    h1 {
+      font-size: clamp(4.5rem, 12vw, 9rem);
+      font-style: italic;
+      font-weight: 500;
+      line-height: 0.92;
+      letter-spacing: -0.04em;
+      margin: 0.4em 0 0.7em;
+      text-align: center;
+    }
+    h2 {
+      font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+      font-weight: 500;
+      font-style: italic;
+      margin-top: 0.2em;
+    }
+    h3 {
+      font-family: var(--body);
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 0;
+      color: var(--ink-soft);
+      text-transform: none;
+    }
+    p { margin: 0 0 1.1em; hyphens: auto; -webkit-hyphens: auto; orphans: 3; widows: 3; }
+    em { font-style: italic; }
+    strong { font-weight: 600; }
+    a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--hairline); text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+    a:hover { text-decoration-color: var(--ink-soft); }
+    code, kbd, pre { font-family: var(--mono); font-size: 0.86em; }
+    code { padding: 1px 6px; background: var(--paper-dim); border-radius: 3px; }
+    pre { background: var(--paper-dim); padding: 14px 18px; border-radius: 6px; overflow-x: auto; line-height: 1.55; margin: 0.6em 0 1.3em; border: var(--rule-soft); }
+    pre code { padding: 0; background: transparent; font-size: inherit; }
+    hr { border: 0; height: 1px; background: var(--hairline); margin: 0; }
 
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 22px 0 8px; }
-    .card  { padding: 18px 20px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper-dim); }
-    .card h3 { margin-top: 0; font-family: var(--font-b); }
-    .card p  { margin-bottom: 0; }
+    /* ── Hero ─────────────────────────────────────────── */
+    .hero { text-align: center; padding: 1rem 0 3.5rem; }
+    .hero .kicker {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin: 0 0 0.4em;
+    }
+    .hero h1 {
+      position: relative;
+      display: inline-block;
+    }
+    .hero h1::after {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      bottom: -0.18em;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--ink-soft), transparent);
+    }
+    .hero .tagline {
+      font-family: var(--display);
+      font-size: clamp(1.05rem, 2vw, 1.32rem);
+      font-style: italic;
+      color: var(--ink);
+      max-width: 30rem;
+      margin: 0 auto 0.2em;
+      line-height: 1.5;
+    }
+    .hero .byline {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      color: var(--ink-soft);
+      margin-top: 1.6em;
+    }
 
-    .friend-card { margin-top: 12px; padding: 22px 24px; border-radius: var(--radius); background: linear-gradient(135deg, rgba(7,15,13,.04), rgba(15,118,110,.10)), var(--paper-dim); border: 1px solid var(--hairline); }
-    .friend-card .tag  { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--ink); color: var(--paper); font-size: 0.78em; margin-bottom: 8px; }
-    .friend-card h3    { margin-top: 6px; font-family: var(--font-b); }
-    .friend-card .links { margin-top: 12px; font-size: 0.96em; }
+    /* Install one-liner: hand-written-feeling not card. */
+    .install {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6em;
+      font-family: var(--mono);
+      font-size: 0.92em;
+      padding: 0.55em 1.1em;
+      border: var(--rule-thin);
+      border-radius: 999px;
+      color: var(--ink);
+      background: transparent;
+      margin: 1.7em auto 0;
+      text-decoration: none;
+    }
+    .install:hover { background: var(--paper-dim); text-decoration: none; }
+    .install .verb { color: var(--search); font-weight: 500; }   /* "add" is a search-side action */
+    .install .object { color: var(--ink); }
 
-    footer { margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--hairline); text-align: center; color: var(--ink-soft); font-size: 0.94em; }
-    footer a { color: inherit; border-bottom-color: rgba(0,0,0,.2); }
+    /* ── Section framing ──────────────────────────────── */
+    section {
+      margin-top: 9rem;
+      padding-top: 2.4rem;
+      border-top: var(--rule-thin);
+    }
+    section:first-of-type { margin-top: 7rem; }
 
-    @media (max-width: 720px) { .glyph { float: none; margin: 14px auto; } }
-    @media (max-width: 560px) { main { padding: 28px 20px 64px; } h1 { font-size: 3.2rem; } }
+    .kicker {
+      display: flex;
+      align-items: baseline;
+      gap: 0.7em;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 1.6em;
+    }
+    .kicker .num {
+      font-family: var(--display);
+      font-style: italic;
+      font-size: 1.3em;
+      line-height: 1;
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    /* ── "Dream / Search" pair as a stanza, not a feature grid ── */
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      margin: 2.4em 0 1em;
+      border-top: var(--rule-soft);
+      border-bottom: var(--rule-soft);
+    }
+    .two > div {
+      padding: 1.6em 0;
+      border-right: var(--rule-soft);
+    }
+    .two > div:last-child { border-right: 0; padding-left: 1.4em; }
+    .two > div:first-child { padding-right: 1.4em; }
+    @media (max-width: 540px) {
+      .two { grid-template-columns: 1fr; }
+      .two > div { border-right: 0; border-bottom: var(--rule-soft); padding-left: 0 !important; padding-right: 0 !important; }
+      .two > div:last-child { border-bottom: 0; padding-top: 1.4em; }
+    }
+    .two h3 {
+      font-family: var(--display);
+      font-style: italic;
+      font-weight: 500;
+      font-size: 1.4rem;
+      color: var(--ink);
+      letter-spacing: -0.005em;
+      margin: 0 0 0.5em;
+    }
+    .two .dream-kicker { color: var(--dream); }
+    .two .search-kicker { color: var(--search); }
+    .two p:last-child { margin-bottom: 0; }
+
+    /* In-body colour-coding for the two verbs. */
+    .v-dream  { color: var(--dream); }
+    .v-search { color: var(--search); }
+
+    /* A small marginalium signpost to the right of a paragraph. */
+    aside.gloss {
+      float: right;
+      clear: right;
+      width: 12rem;
+      margin: 0 -13rem 1em 1.4em;
+      font-family: var(--body);
+      font-style: italic;
+      font-size: 0.86rem;
+      line-height: 1.55;
+      color: var(--ink-soft);
+      padding: 0.4em 0.9em;
+      border-left: 2px solid var(--dream);
+      background: linear-gradient(to right, transparent, var(--dream-soft));
+    }
+    @media (max-width: 860px) {
+      aside.gloss { float: none; display: block; width: auto; margin: 1em 0 1.4em; }
+    }
+
+    /* Pull-quote used once — only where the prose earns it. */
+    blockquote.lift {
+      margin: 2.4em 0;
+      padding: 0;
+      font-family: var(--display);
+      font-style: italic;
+      font-size: clamp(1.18rem, 2.2vw, 1.45rem);
+      line-height: 1.42;
+      color: var(--ink);
+      letter-spacing: -0.005em;
+      text-align: center;
+    }
+    blockquote.lift::before,
+    blockquote.lift::after {
+      content: "";
+      display: block;
+      width: 4rem;
+      height: 1px;
+      background: var(--ink-soft);
+      margin: 1.3em auto;
+      opacity: 0.5;
+    }
+    blockquote.lift p { margin: 0; }
+    blockquote.lift em { font-style: italic; }
+
+    /* Friends card: the existing one, kept but restrained. */
+    .friends {
+      margin-top: 4rem;
+      padding: 2rem 2.2rem;
+      border: var(--rule-thin);
+      border-radius: 4px;
+      background: var(--paper-dim);
+    }
+    .friends .tag {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.6em;
+    }
+    .friends h3 {
+      font-family: var(--display);
+      font-style: italic;
+      font-weight: 500;
+      font-size: 1.3rem;
+      color: var(--ink);
+      margin: 0.3em 0 0.5em;
+    }
+    .friends p:last-child { margin-bottom: 0; font-size: 0.94rem; }
+
+    /* ── Closing signature ───────────────────────────── */
+    .signature {
+      margin-top: 9rem;
+      padding-top: 2rem;
+      border-top: var(--rule-thin);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0.6em 1.6em;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      color: var(--ink-soft);
+    }
+    .signature .press-mark {
+      font-family: var(--display);
+      font-style: italic;
+      font-size: 1rem;
+      letter-spacing: 0;
+      color: var(--ink);
+    }
+
+    /* Quick jump nav — small, restrained, hairline-separated. */
+    .quick {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.4em 1.4em;
+      margin: 2.6em 0 0;
+      padding-top: 1.6em;
+      border-top: var(--rule-thin);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+    }
+    .quick a {
+      color: var(--ink-soft);
+      text-decoration: none;
+      border-bottom: 1px solid var(--hairline-soft);
+      padding-bottom: 1px;
+    }
+    .quick a:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
+
+    /* ── Motion (cascade reveal; respects prefers-reduced-motion) ── */
+    @media (prefers-reduced-motion: no-preference) {
+      .hero > *, section > * { opacity: 0; transform: translateY(8px); animation: mneme-rise 720ms ease-out forwards; }
+      section > *:nth-child(2) { animation-delay: 80ms; }
+      section > *:nth-child(3) { animation-delay: 160ms; }
+      section > *:nth-child(4) { animation-delay: 240ms; }
+      section > *:nth-child(5) { animation-delay: 320ms; }
+      section > *:nth-child(6) { animation-delay: 400ms; }
+      @keyframes mneme-rise {
+        to { opacity: 1; transform: translateY(0); }
+      }
+    }
+    /* Skip animation when the page is printed. */
+    @media print {
+      .hero > *, section > *, .signature, .friends { opacity: 1 !important; transform: none !important; animation: none !important; }
+    }
+
+    @media (max-width: 540px) {
+      main { padding: 5rem 1.2rem 6rem; }
+      section { margin-top: 6rem; }
+      .hero { padding-top: 0.5rem; padding-bottom: 2rem; }
+      .signature { margin-top: 6rem; }
+    }
+
+    /* Visible keyboard focus, for the one link-style element we have. */
+    a:focus-visible, .install:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 3px;
+    }
   </style>
 </head>
 <body>
   <main>
 
+    <!-- ═══════════════════════════════════════════════════
+         Hero
+         ═══════════════════════════════════════════════════ -->
     <header class="hero">
+      <p class="kicker">An agent skill · MIT · 2.1</p>
       <h1>Mneme</h1>
-      <p class="lede">一座由 Agent 增量维护的本地 Markdown 知识库。</p>
-      <p class="lede">不是每次提问都重新检索——让 Agent 把读过的资料编译进一棵可以反复行走的概念树。</p>
-      <a class="cta" href="https://skill.sh/?q=mneme" target="_blank" rel="noopener">npx skills add Scott1743/mneme</a>
-      <p class="meta">~/.claude/skills/mneme/ · MIT · 2.0.0</p>
+      <p class="tagline">一座你的 Agent 帮你记着的本地知识树。<br/>两个动词，<span class="v-dream">dream</span> 与 <span class="v-search">search</span>。</p>
+
+      <a class="install" href="https://skill.sh/Scott1743/mneme">
+        <span class="verb">$</span> npx skills add Scott1743/mneme
+      </a>
+
+      <p class="byline">— 记忆女神, μνήμη —</p>
+
+      <nav class="quick" aria-label="Page navigation">
+        <a href="#初衷">I · Why this exists</a>
+        <a href="#安装">II · First prompts</a>
+        <a href="#原理">III · The walk</a>
+        <a href="#为什么">IV · Why this is what it is</a>
+        <a href="#朋友">V · Friends of Mneme</a>
+      </nav>
     </header>
 
-    <nav class="quick" aria-label="跳转">
-      <a href="#初衷">§ 1 初衷</a>
-      <a href="#安装">§ 2 安装</a>
-      <a href="#原理">§ 3 原理</a>
-      <a href="#为什么">§ 4 为什么</a>
-      <a href="#朋友">§ 5 朋友项目</a>
-    </nav>
-
-    <!-- § 1 初衷 -->
+    <!-- ═══════════════════════════════════════════════════
+         I.  The thesis · 初衷
+         ═══════════════════════════════════════════════════ -->
     <section id="初衷" aria-labelledby="初衷-h">
-      <h2 id="初衷-h">§ 1 · 初衷</h2>
+      <p class="kicker"><span class="num">I.</span> Why this exists</p>
 
-      <div class="glyph" aria-hidden="true">.mneme/index.db  ← sqlite3 + FTS5 (默认)
-.mneme/cache/    ← agent 记忆;永不是真相源
-wiki/            ← 你读什么;你 git 什么</div>
+      <h2 id="初衷-h">把读过的东西编译一遍，让它在每一行回答里继续长出来。</h2>
 
-      <p>大多数知识工具让 LLM <em>每次</em> 都从头检索、重新理解同一份资料。Mneme 换了一种思路：让 Agent 像维护源码一样，把原始资料逐步编译成互相链接的 Markdown 概念页。</p>
+      <p>每次提问都重新检索，等于每次都在空仓库里重新发现知识。RAG 是冷的缓存；它不知道你三周前读过的论文里那句话跟你今天写的那段代码相关——除非那句话已经被记进某个属于你的地方。<span class="v-dream">Dream</span> 把读过的资料编译进一棵可以反复行走的本地 Markdown 树；<span class="v-search">search</span> 在那棵树上走；AI 不是每次都从零开始，而是访问已经在那里的东西。</p>
 
-      <p>一次摄入、多次查询、持续修订——这是 Karpathy 在 <a href="https://gist.github.com/karpathy/" target="_blank" rel="noopener">LLM Wiki gist</a> 里说的 <em>compile once, read many times</em>。</p>
+      <p>这棵树只有三种规则（YAML frontmatter、一个 <code>type</code> 字段、保留 <code>index.md</code> 与 <code>log.md</code>），全部出自 <a href="https://github.com/google/open-knowledge-format">OKF v0.1</a>。树根在你手里——一个普通目录，能 <code>cat</code>、能 <code>git clone</code>、能 diff blame branch。能用别人写的工具打开，也能被你自己写的脚本解析。</p>
 
-      <p>本地优先意味着：知识留在你手里的普通 Markdown 文件里，能用 <code>git</code> 一样 diff / blame / branch；Agent 仍能用它回答问题；规模上来时打开 SQLite FTS5 加速导航，索引永远是 <em>可丢弃的</em>。</p>
+      <p>当代的 LLM Wiki 思路最早由 Andrej Karpathy 在 2026 年 4 月的 <a href="https://gist.github.com/karpathy/">gist</a> 里摊开：他问过一个朴素得让人不安的问题——<em>为什么没有人把知识像源码一样维护？</em> Mneme 不发明这个想法；它只是想把这个想法做成一个真正能落到你 <code>~/.claude/skills/mneme/</code> 的小工具。</p>
     </section>
 
-    <!-- § 2 安装 -->
+    <!-- ═══════════════════════════════════════════════════
+         II.  First prompts · 安装
+         ═══════════════════════════════════════════════════ -->
     <section id="安装" aria-labelledby="安装-h">
-      <h2 id="安装-h">§ 2 · 先和 Agent 聊</h2>
+      <p class="kicker"><span class="num">II.</span> First prompts</p>
 
-      <p>一行命令，把 skill 安装到你的 Agent skills 目录：</p>
-      <pre><code>npx skills add Scott1743/mneme</code></pre>
+      <h2 id="安装-h">落地之后，和你的 Agent 聊。</h2>
 
-      <p>安装到 <code>~/.claude/skills/mneme/</code> 之后，重启会话即可。Mneme 没有独立窗口、没有常驻服务、没有命令行仪表——你和你的 Agent 聊天就是了。</p>
+      <p>装上 <code>mneme</code> 技能，重启 agent 会话。从这一秒起，你和你的 agent 之间多了一个默契：你丢任何想法进来，它都会维护你的树。</p>
 
-      <p><strong>dream</strong> 收集你读过的资料，把它们编译成本地的 OKF Markdown 概念页；Agent 写 page、写 link、写 tag，你说了算。</p>
+      <div class="two">
+        <div>
+          <p class="dream-kicker"><span class="v-dream">dream</span> · 写</p>
+          <h3>把读过的资料编译进树</h3>
+          <p>把论文、网页、对话、PDF——任何 markdown 文本——丢给 agent。agent 调 <code>mneme dream</code>，给你一份预览（哪些页面要新建、哪些要更新、tag 怎么设），你点头之后它落盘。</p>
+        </div>
+        <div>
+          <p class="search-kicker"><span class="v-search">search</span> · 读</p>
+          <h3>在树里走</h3>
+          <p>你问一个问题，agent 先看 <code>index.md</code>，沿着 tags 与链接走，<em>读完整页</em> 再给答案——而不是把命中的 chunk 拼回来。答案里有引用，哪段来自哪页，bundle-relative 路径。</p>
+        </div>
+      </div>
 
-      <p><strong>search</strong> 在你的 wiki 里走——按 index / tags / 链接 / FTS5 召回；找不到就说没找到，不编。</p>
+      <blockquote class="lift">
+        <p>你刚读了一篇关于 <em>OKF v0.1</em> 的文章，<br/>帮我把它编进我的 wiki，按 <em>Source</em> 摘要成概念页。</p>
+      </blockquote>
 
-      <p>想要夜里自动帮你审一遍？<code>mneme dream --schedule</code> 一行就够——只<em>打印</em>你系统调度器（macOS launchd、Linux cron、Windows schtasks）能直接吃的片段，自己贴进去、默认凌晨两点；不自动装、不后台服务。</p>
-
-      <pre><code>你:    我刚读了几篇关于 OKF 的文章,帮我把它们收进我的 wiki。
-
-Agent: 好。把文章路径发给我吗?我会创建一个新 wiki,按 OKF 协议写
-       摘要页,互相链接,更新 index,最后跑一遍 lint。</code></pre>
-
-      <pre><code>你:    我三周前看过一篇东西,里面讲到 SQLite FTS5 怎么建倒排索引——
-       帮我找回来。
-
-Agent: 让我读你的 wiki 看看。
-       ← 命中「SQLite 内部」「FTS5 vs LIKE」两组概念页
-         它们都引用了一份来源笔记——给你看摘要片段与原始资料路径。</code></pre>
+      <p><code>mneme dream</code> 的输出始终是 read-only 报告，没有任何 <code>--apply</code> 的写入捷径——这个纪律是为了让你，而不是脚本，决定改动是否落盘。</p>
     </section>
 
-    <!-- § 3 原理 -->
+    <!-- ═══════════════════════════════════════════════════
+         III.  The walk · 原理
+         ═══════════════════════════════════════════════════ -->
     <section id="原理" aria-labelledby="原理-h">
-      <h2 id="原理-h">§ 3 · 原理 —— 知识不是每次都被重新检索</h2>
+      <p class="kicker"><span class="num">III.</span> The walk</p>
 
-      <p>这是 Mneme 真正想讲的事：知识不是每次提问都被重新发现——它是被你的 Agent 编译进一棵你看得见、改得了、行得通的树。</p>
+      <h2 id="原理-h">knowledge 是引用，不是索引；它在 graph 里被 walk 到。</h2>
 
-      <p>想象一下你读过的所有笔记、论文摘录、对话笔记——它们被放在一个本地文件夹里，被 Agent 加上 YAML frontmatter，被指向相邻的概念页，被链接、被标记。你可以用 <code>git</code> 一样 diff 它，blame 谁改了哪一行，branch 出一个实验分支。所有你想得起来的「我三周前看的那个东西」都被存在那里，不是被重新检索。</p>
+      <p>一张页面要够好，先要被 agent 写出来；下一步要够有用，它要能被其它页面 <em>找到</em>。Mneme 把这个“被找到”这件事分给三个不同形态的标记：</p>
 
-      <p>RAG 每次都重新发现知识——不持久、不积累、不互相引用。LLM Wiki 把知识编译一次：以后每次提问都是在已经存在的东西上行走的，不是在空仓库里爬的。</p>
+      <p><code>type</code> 描述<em>这份文档做什么</em>——是 <code>Concept</code>（概念）、<code>Reference</code>（外部资料的蒸馏）、<code>Source</code>（原始资料指针）、还是 <code>Summary</code>（合页）。OKF 不要求 type 注册，所以你能根据自己 wiki 的需要造新的 type。</p>
 
-      <p>Mneme 让这件事对个人和团队都变得轻：本地存储、纯 Markdown、零常驻、零云依赖。你用 Agent 维护它；Agent 写、Agent 链、Agent 审 lint，你只是和 Agent 聊。规模上来时打开 SQLite FTS5；想要语义召回就装 [optional] v2.1 才会出现的语义索引。索引是垃圾，你不需要它也能用——它只是帮你走得更快。</p>
+      <p><code>tags</code> 描述<em>这份文档谈什么</em>——是一个无 schema 的标签数组；没有全局 taxonomy，词汇由这座 wiki 自己长出来。</p>
 
-      <div class="cards">
-        <div class="card">
-          <h3>dream</h3>
-          <p>把资料编译进 wiki——增量维护，默认先出预览，等你点头才落盘。</p>
-        </div>
-        <div class="card">
-          <h3>search</h3>
-          <p>在已有的 wiki 里走——读 index / tags / 链接；大 wiki 打开 FTS5 召回。</p>
-        </div>
-        <div class="card">
-          <h3>lint</h3>
-          <p>周期性指出矛盾、孤儿、漂移——只告警，不替你改。</p>
-        </div>
+      <p>Markdown 链接描述<em>这份文档和哪份文档有关</em>——具体是谁给谁交代、谁是前提、谁是参考。这是 <span class="v-search">search</span> 的骨头：agent 按 bundle-relative 链接在 graph 里走，而不是按近邻相似度从一堆 embedding 里拽回来。</p>
+
+      <aside class="gloss">vocab 不能反过来用：<code>type</code> 在 frontmatter 的位置上是有协议语义的（OKF §4.1 列在外）；<code>tags</code> 是你想给它什么语义就是什么——这是 OKF 留给写者的自由。</aside>
+
+      <p>当你的 wiki 小于几百页时，<code>grep</code> 与 <code>Read</code> 已经足够。当它更大，Mneme 会在第一次 <code>reindex</code> 时安静地打开一个本地 SQLite FTS5 索引（零依赖、零网络），wiki 越大索引越有用。索引文件 <code>.mneme/index.db</code> 是可删除的派生缓存——它从来没拥有事实，只是帮 agent 走快两步。</p>
+
+      <p>召回的下一步留给另一段路：默认 <strong>不</strong>下载任何外部模型，也 <strong>不</strong>装额外的依赖。wiki 本身、Agent 的工作流、<code>dream</code> 与 <code>search</code> 的契约都和有没有那段加法无关。</p>
+
+      <blockquote class="lift">
+        <p>所以 <em>search</em> 没有索引也能跑，<br/>索引烂掉也不会伤到事实。</p>
+      </blockquote>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         IV.  Why this is what it is · 为什么
+         ═══════════════════════════════════════════════════ -->
+    <section id="为什么" aria-labelledby="为什么-h">
+      <p class="kicker"><span class="num">IV.</span> Why this is what it is</p>
+
+      <h2 id="为什么-h">Mneme 选择留下的，刚好是让你不再需要运维的那些东西。</h2>
+
+      <p>没有 GUI，没有 web 应用，没有服务端进程，没有云同步。装它的那一秒，它就在那里；不装它的那一秒，它就不在——这没什么损失。整个工具的运行时是 Python 标准库加一份 <code>~/.claude/skills/mneme/</code> 目录下的 Markdown。</p>
+
+      <p>没有矢量模型自动下载，没有权重在后台跑、没有显卡假设、没有你不知道的"隐式索引"在悄悄长。你不会被提醒"已为您下载 X MB 模型"——因为没有人替你下。你不愿意装那种依赖，那就不装；<code>wiki</code> 与所有 <span class="v-dream">dream</span> / <span class="v-search">search</span> 仍然完整工作。</p>
+
+      <p>定时自动策展（“<code>mneme dream</code> 自动每天跑、自动 commit、自动归档”——v0.1 里曾经存在过的形态）刻意不发货。一个会自己改你的事实页、自动向你 <code>git commit -A</code> 的技能，需要先跨过安全门禁（<em>相似度数学 / find-orphans / git-add-A 时序 / 事务暂存 / rollback 测试</em> 五项 P0），那是另一个项目的事了。在这五项没全被覆盖之前，<code>mneme dream</code> 只输出报告——它把"是否落盘"的决定留给你。</p>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         V.  Friends · 朋友
+         ═══════════════════════════════════════════════════ -->
+    <section id="朋友" aria-labelledby="朋友-h">
+      <p class="kicker"><span class="num">V.</span> Friends of Mneme</p>
+
+      <h2 id="朋友-h">同一个方法论，另一个落点。</h2>
+
+      <div class="friends">
+        <span class="tag">朋友项目</span>
+        <h3>森林密语 / 塔罗树洞 · tarot-confessional</h3>
+        <p>把一次塔罗解读或长会话里有价值的体会，用同一套“本地优先 / Agent 驱动 / 可检查的开放文件”原则整理进你自己的长期 wiki。两边都坚持：本地优先、写入显式——你不主动「保存到 Wiki」，什么都不会被留下。Mneme 提供整理的工具；<em>森林密语</em>提供抽牌码与象征性解读。</p>
+        <p>仓库：<a href="https://github.com/Scott1743/tarot-confessional">github.com/Scott1743/tarot-confessional</a><br/>
+        落地页：<a href="https://scott1743.github.io/tarot-confessional/">scott1743.github.io/tarot-confessional</a><br/>
+        安装：<code>npx skills add Scott1743/tarot-confessional</code></p>
       </div>
     </section>
 
-    <!-- § 4 为什么 -->
-    <section id="为什么" aria-labelledby="为什么-h">
-      <h2 id="为什么-h">§ 4 · 你为什么可能需要它</h2>
-
-      <p>一份查得到、改得了、被 Agent 维护着的知识，比随时重新检索的 RAG 库更接近「思维的外接硬盘」。Mneme 想做的就是这件事——把它说出来的语言是 OKF v0.1，把它写出来的工具是一个站在你 Agent 旁边的轻量 skill。心理咨询方向请把它当成私人索引：诊断和处置始终交给专业人员。</p>
-
-      <p>v2.0 只带 <strong>L0</strong>(index / tags / 链接 / grep) 和 <strong>L1</strong>(SQLite FTS5)——零依赖、默认可用。语义索引层放在 v2.1，并且只是导航加速器，永不是事实源。</p>
-    </section>
-
-    <!-- § 5 朋友项目 -->
-    <section id="朋友" aria-labelledby="朋友-h">
-      <h2 id="朋友-h">§ 5 · 朋友项目</h2>
-
-      <aside class="friend-card">
-        <span class="tag">朋友项目</span>
-        <h3>森林密语 / 塔罗树洞(tarot-confessional)</h3>
-        <p>想用 Mneme 沉淀一次塔罗解读或长会话里的体会?试试 <strong>森林密语</strong>——它是 Mneme 在符号性反思方向上的同源项目。<em>森林密语</em>负责温柔地完成抽牌与象征性解读(本地优先,本地抽牌码不携带心事原文),<em>Mneme</em> 负责把有价值的体会整理进本地知识 Wiki,让反复出现的母题在时间的另一面再次浮现。两边都坚持:</p>
-        <ul>
-          <li>本地优先 / Agent 驱动 / 可检查的开放文件</li>
-          <li>不替任何产品下诊断,不替任何决定表态</li>
-          <li>写入是显式的——你不主动「保存到 Wiki」,什么都不会被留下</li>
-        </ul>
-        <p class="links">
-          🔗 <a href="https://github.com/Scott1743/tarot-confessional" target="_blank" rel="noopener">github.com/Scott1743/tarot-confessional</a><br/>
-          🪞 <a href="https://scott1743.github.io/tarot-confessional/" target="_blank" rel="noopener">scott1743.github.io/tarot-confessional</a>
-        </p>
-      </aside>
-    </section>
-
-    <footer>
-      <p>
-        <a href="https://github.com/Scott1743/mneme">仓库</a> ·
-        <a href="https://github.com/Scott1743/mneme/blob/main/LICENSE">MIT</a> ·
-        <a href="https://github.com/Scott1743/mneme/blob/main/CHANGELOG.md">CHANGELOG</a> ·
-        <a href="https://skill.sh/?q=mneme">skills.sh</a>
-      </p>
-      <p>本页面自包含、无外部 CDN、可在浏览器里「另存为」离线阅读。</p>
+    <!-- ═══════════════════════════════════════════════════
+         Closing press mark
+         ═══════════════════════════════════════════════════ -->
+    <footer class="signature">
+      <span class="press-mark">μνήμη — Mneme</span>
+      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases/tag/v2.1.0">v2.1.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
     </footer>
 
   </main>
