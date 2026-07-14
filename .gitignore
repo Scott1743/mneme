@@ -46,3 +46,4 @@ build/
 # Local agent worktrees (created by superpowers subagent isolation).
 .claude/
 **/.claude/
+.gstack/
