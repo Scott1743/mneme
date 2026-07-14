@@ -1,4 +1,4 @@
-"""Mneme 2.0.1 CLI matrix and bundle-resolution contract."""
+"""Mneme 2.2.0 CLI matrix and bundle-resolution contract."""
 from __future__ import annotations
 
 import argparse

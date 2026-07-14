@@ -9,7 +9,18 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
-## [2.0.1] — 2026-07-14 — optional local conversion adapter
+## [2.2.0] — 2026-07-14 — contract-aligned dream/search workflows
+
+- Finished the incomplete 2.0 surface migration: `SKILL.md` now exposes
+  exactly `dream` and `search`, while deterministic CLI operations remain
+  internal implementation details.
+- Merged the legacy ingest checklist into the approved write side of dream and
+  renamed the query workflow to search. References now have explicit loading
+  conditions, so the agent loads detailed write instructions only after user
+  approval and reads full Markdown pages before answering.
+- Added strict release gates for the two-scenario surface, approval-before-write
+  ordering, newest-first `dream` log entries, full-page cited search answers,
+  and removal of legacy workflow files.
 
 - Added `mneme convert <source> --output <path>` for explicit preprocessing
   of `.pdf`, `.docx`, and `.pptx` with a converter the user already has.

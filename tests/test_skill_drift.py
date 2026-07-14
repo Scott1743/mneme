@@ -1,9 +1,4 @@
-"""Release-gate for the Mneme 2.0 user and agent command surfaces.
-
-Pre-Task A removes assertions that freeze the previous scenario taxonomy.
-Later tasks complete the target sets below; this migration gate ensures that
-intermediate commits can move toward them without reintroducing variant drift.
-"""
+"""Release gate for the final dream/search and internal CLI surfaces."""
 from __future__ import annotations
 
 import re
@@ -31,33 +26,22 @@ def _scenarios(path: Path) -> set[str]:
     }
 
 
-def test_user_surface_migrates_as_dream_search_pair():
-    scenarios = _scenarios(SKILL_MD)
-    assert "search" in scenarios
-    if "dream" in scenarios:
-        assert USER_INTENTS <= scenarios
+def test_user_surface_is_exactly_dream_search_pair():
+    assert _scenarios(SKILL_MD) == USER_INTENTS
 
 
-def test_agent_cli_is_subset_of_2_0_contract_until_freeze_task():
+def test_agent_cli_matches_contract_exactly():
     from mneme import cli
 
     parser = cli.build_parser()
     names = set(parser._subparsers._group_actions[0].choices)
-    assert names <= AGENT_CLI
-    assert "search" in names
+    assert names == AGENT_CLI
 
 
 def test_dream_is_read_only_when_advertised():
     text = SKILL_MD.read_text(encoding="utf-8").lower()
-    if "dream" in _scenarios(SKILL_MD):
-        assert any(
-            phrase in text
-            for phrase in (
-                "dream is read-only",
-                "dream returns a report",
-                "no writes from dream",
-            )
-        )
+    assert "read-only audit step" in text
+    assert "before every bundle write" in text
 
 
 def test_skill_cites_okf_version():

@@ -88,7 +88,7 @@
       <p class="lede">一座由 Agent 增量维护的本地 Markdown 知识库。</p>
       <p class="lede">不是每次提问都重新检索——让 Agent 把读过的资料编译进一棵可以反复行走的概念树。</p>
       <a class="cta" href="https://skill.sh/?q=mneme" target="_blank" rel="noopener">npx skills add Scott1743/mneme</a>
-      <p class="meta">~/.claude/skills/mneme/ · MIT · 2.0.1</p>
+      <p class="meta">~/.claude/skills/mneme/ · MIT · 2.2.0</p>
     </header>
 
     <nav class="quick" aria-label="跳转">
@@ -122,10 +122,10 @@ wiki/            ← 你读什么;你 git 什么</div>
       <pre><code>npx skills add Scott1743/mneme</code></pre>
 
       <h3>选择版本</h3>
-      <p><code>npx skills add</code> 始终跟随仓库默认分支，也就是最新的 v3.0.0 语义版。要固定在这个零依赖版本，请直接下载 v2.0.1 的 skill zip。</p>
+      <p><code>npx skills add</code> 始终跟随仓库默认分支，也就是最新的 v3.2.0 语义版。要固定在这个零依赖版本，请直接下载 v2.2.0 的 skill zip。</p>
       <div class="release-links">
-        <a href="https://github.com/Scott1743/mneme/releases/download/v2.0.1/mneme-2.0.1.zip"><strong>v2.0.1 · 基础版</strong>SQLite FTS5，零第三方运行时依赖</a>
-        <a href="https://github.com/Scott1743/mneme/releases/download/v3.0.0/mneme-3.0.0.zip"><strong>v3.0.0 · 语义版</strong>最新主分支；可选语义检索能力</a>
+        <a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip"><strong>v2.2.0 · 基础版</strong>SQLite FTS5，零第三方运行时依赖</a>
+        <a href="https://github.com/Scott1743/mneme/releases/download/v3.2.0/mneme-3.2.0.zip"><strong>v3.2.0 · 语义版</strong>最新主分支；可选语义检索能力</a>
       </div>
 
       <p>安装到 <code>~/.claude/skills/mneme/</code> 之后，重启会话即可。Mneme 没有独立窗口、没有常驻服务、没有命令行仪表——你和你的 Agent 聊天就是了。</p>
@@ -157,7 +157,7 @@ Agent: 让我读你的 wiki 看看。
 
       <p>RAG 每次都重新发现知识——不持久、不积累、不互相引用。LLM Wiki 把知识编译一次：以后每次提问都是在已经存在的东西上行走的，不是在空仓库里爬的。</p>
 
-      <p>Mneme 让这件事对个人和团队都变得轻：本地存储、纯 Markdown、零常驻、零云依赖。你用 Agent 维护它；Agent 写、Agent 链、Agent 审 lint，你只是和 Agent 聊。规模上来时打开 SQLite FTS5；想要语义召回就装 [optional] v2.1 才会出现的语义索引。索引是垃圾，你不需要它也能用——它只是帮你走得更快。</p>
+      <p>Mneme 让这件事对个人和团队都变得轻：本地存储、纯 Markdown、零常驻、零云依赖。你用 Agent 维护它；Agent 写、Agent 链、Agent 审 lint，你只是和 Agent 聊。规模上来时打开 SQLite FTS5；需要语义召回时选择 v3.2.0 的显式可选语义索引。索引是垃圾，你不需要它也能用——它只是帮你走得更快。</p>
 
       <div class="cards">
         <div class="card">
@@ -181,7 +181,7 @@ Agent: 让我读你的 wiki 看看。
 
       <p>一份查得到、改得了、被 Agent 维护着的知识，比随时重新检索的 RAG 库更接近「思维的外接硬盘」。Mneme 想做的就是这件事——把它说出来的语言是 OKF v0.1，把它写出来的工具是一个站在你 Agent 旁边的轻量 skill。心理咨询方向请把它当成私人索引：诊断和处置始终交给专业人员。</p>
 
-      <p>v2.0 只带 <strong>L0</strong>(index / tags / 链接 / grep) 和 <strong>L1</strong>(SQLite FTS5)——零依赖、默认可用。语义索引层放在 v2.1，并且只是导航加速器，永不是事实源。</p>
+      <p>v2.2.0 只带 <strong>L0</strong>(index / tags / 链接 / grep) 和 <strong>L1</strong>(SQLite FTS5)——零依赖、默认可用。可选语义索引由 v3.2.0 提供，并且只是导航加速器，永不是事实源。</p>
     </section>
 
     <!-- § 5 朋友项目 -->

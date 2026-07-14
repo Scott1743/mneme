@@ -1,64 +1,36 @@
 ---
 type: Reference
-title: mneme dream workflow (host-agent, write-side)
-description: Write-side workflow for dream. The `mneme dream` CLI itself is read-only; this doc tells the agent how to apply approved changes.
+title: mneme dream workflow (approved write side)
+description: Apply an approved dream preview while preserving sources and OKF invariants.
 ---
 
-# dream workflow (host-agent)
+# dream workflow (after approval)
 
-The `mneme dream` CLI is **read-only**. It surfaces a candidate audit report
-(OKF hard-rule candidates, Mneme writer-rule candidates, navigation
-candidates) for the agent to review.
+Load this procedure only after the user approves the audit and concrete change
+preview shown by the main skill. The `mneme dream` CLI remains read-only; all
+approved writes use the host agent's native `Write` and `Edit` tools.
 
-After the user **explicitly approves** the report, the agent performs writes
-using its own `Write` / `Edit` tools. This separation — audit in the CLI,
-writes in the agent loop after approval — is the v2.0 contract enforced by
-`tests/test_dream_readonly.py`. There is no `--apply` flag on the CLI by
-design.
+## Apply the approved change set
 
-## What `mneme dream` reports
+1. Re-read the approved paths and scope. If a material expansion is needed,
+   stop and preview it before requesting additional approval.
+2. Copy the original source unchanged to `<bundle>/sources/<basename>`. A
+   converted text file is a reading aid, not a replacement for the original.
+   If the destination exists with different bytes, stop instead of overwriting.
+3. Write or edit one page per atomic concept. Mneme-written pages include at
+   least `type`, `title`, `description`, one or more `tags`, and `timestamp`;
+   include `resource` when a canonical source is available.
+4. Preserve unknown frontmatter keys on existing pages. Express relationships
+   with absolute bundle-relative Markdown links.
+5. Update `<bundle>/index.md` under the section matching each page's `type`.
+6. **Prepend** `<bundle>/log.md` with
+   `## YYYY-MM-DD dream | <source or curation title>` and a concise summary.
+7. Run `mneme lint --bundle <bundle>`. Fix only approved-scope errors; report
+   anything requiring new judgment.
+8. Run `mneme reindex --bundle <bundle>` after successful validation.
+9. Re-run `mneme dream --bundle <bundle> --json` and report remaining audit
+   candidates.
 
-The report has four sections, all candidate-only (no similarity scores, no
-thresholds, no auto-decisions):
-
-- `okf_hard_rules` — OKF v0.1 §4 candidates (e.g. `OKF-NO-FRONTMATTER`).
-- `mneme_writer_rules` — Mneme writer-rule candidates
-  (e.g. `MNEME-TAG-MISSING` for Mneme-written concept pages).
-- `navigation.dangling` / `orphan` / `tag_drift` — link and orphan candidates.
-- `_meta.raw_distance_only = true` — the report never contains a
-  similarity threshold. v2.1 will add raw distance candidates when L2 lands.
-
-## Write-side rules (after user approval)
-
-The agent must NEVER:
-
-- shell `git add -A`, `git commit`, or `git push` automatically — the dream
-  audit is **not** a commit trigger.
-- merge or archive pages from an automated similarity threshold.
-- skip `mneme lint` after writing.
-- mutate the bundle based on `dream`'s audit alone — user approval is
-  required for every change.
-
-## Steps (after the user has approved the audit)
-
-1. Read the `mneme dream` report; identify each candidate change.
-2. Surface each candidate in the chat; require explicit user approval per
-   change. Aggregate approval ("approve all") is acceptable when the user
-   wants it.
-3. Apply approved edits via `Write` / `Edit` to the bundle.
-4. Update `wiki/index.md` (add the new page under the section matching its
-   `type`) and `wiki/log.md` (prepend `## YYYY-MM-DD ingest | <title>`).
-5. Run `mneme lint <bundle>` and `mneme reindex` to keep the bundle healthy.
-6. Re-run `mneme dream` to confirm the audit is now clean.
-
-## OKF contract reminders
-
-- Every non-reserved `.md` MUST have YAML frontmatter with non-empty `type`.
-- `index.md` / `log.md` are reserved; bundle-root `index.md` may carry
-  `okf_version: 0.1`.
-- Tolerance (SPEC §9): missing optional fields, unknown `type`, unknown
-  frontmatter keys, dangling links, missing `index.md` — never reject the
-  bundle.
-- Mneme adds `tags` as a writer rule for Mneme-written pages, not an OKF
-  MUST. External OKF bundles may have untagged pages; dream reports them
-  as candidates only.
+Never run `git add`, `git commit`, or `git push`; never merge, archive, delete,
+or overwrite facts from an automated score. An external OKF page without tags
+remains consumable: missing tags are a Mneme writer warning, not an OKF error.
