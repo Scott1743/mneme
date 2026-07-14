@@ -8,6 +8,8 @@
 |---|---|
 | `constraints.md` | 蒸馏后的硬约束：OKF v0.1 合规规则 + 项目约束 + 命名约定 + 禁止项 |
 | `design-rationale.md` | 设计推演：Karpathy LLM Wiki → OKF → agent skill 的谱系与“为什么” |
+| `rag-sota-2026.md` | mid-2026 RAG SOTA 调研：指标 / 基准 / embedder / reranker / 方法景观 / Mneme 定位 |
+| `rag-benchmarks-2026.md` | RGB / ASQA / PopQA / ELI5 / MS MARCO 五项基准的精确 cite + metric + 原论文与 2024–2026 最佳数字（含 arXiv ID 修正） |
 | `references.md` | 全部来源链接 + 生态地图 + 检索方法 |
 | `upstream/` | 上游规范原文（MIT，verbatim 副本，**勿改**） |
 
