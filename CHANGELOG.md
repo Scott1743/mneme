@@ -9,6 +9,19 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [3.4.0] — 2026-07-16 — nightly agent health workflow
+
+- After initialization, the first interactive dream, or a direct maintenance
+  request, the skill can offer a host-agent recurring task at 02:00 local time.
+- Users choose report-only or guarded auto-repair. Auto-repair is a bounded
+  standing authorization for unambiguous metadata, tag, internal-link, index,
+  timestamp, log, and disposable-index maintenance; ambiguous or broad changes
+  degrade to a report.
+- Factual body text, raw sources, new knowledge pages, merges, archives, moves,
+  deletes, and git writes remain outside the nightly authorization boundary.
+- The agentless `mneme dream --schedule` fallback remains report-only and now
+  defaults to 02:00 for consistency with the host-agent workflow.
+
 ## [3.3.0] — 2026-07-15 — persistent retrieval mode and independent caches
 
 - `mneme reindex --l2` now explicitly builds and activates L2 once, recording

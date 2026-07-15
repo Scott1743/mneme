@@ -495,7 +495,7 @@ def cmd_dream(args: argparse.Namespace) -> int:
 # ``win32`` -> schtasks, everything else -> crontab.
 # ---------------------------------------------------------------------------
 
-_DEFAULT_DREAM_TIME = "02:00"  # 24h HH:MM, matches README
+_DEFAULT_DREAM_TIME = "02:00"  # 24h HH:MM, matches nightly agent guidance
 _DREAM_LAUNCHD_DIR = "~/Library/LaunchAgents"
 _DREAM_LAUNCHD_LABEL_PREFIX = "mneme.dream"
 

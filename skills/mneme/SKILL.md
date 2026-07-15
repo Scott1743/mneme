@@ -1,7 +1,7 @@
 ---
 name: mneme
-version: 3.3.0
-description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki. Use when the user wants to dream (capture or curate knowledge) or search (recall and synthesize it). Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', '查 wiki', '搜索知识库', '梦', '记住这个'. v3.3 defaults to SQLite FTS5 and persists an explicitly activated L2 semantic mode."
+version: 3.4.0
+description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v3.4 keeps SQLite FTS5 as the default and persists an explicitly activated L2 semantic mode."
 allowed-tools:
   - Read
   - Write
@@ -73,6 +73,8 @@ Before approval:
    planned `index.md` and `log.md` updates.
 5. Show the audit and proposed change set. Require explicit user approval
    before every bundle write, including copying the raw source into `sources/`.
+   This per-run approval rule governs interactive dreams; the only exception is
+   the bounded standing approval for a user-selected guarded nightly task below.
 
 Only after approval and before writing, load `references/workflow-dream.md`.
 It is mandatory for a first dream, more than five proposed pages, edits to
@@ -81,6 +83,28 @@ approved scope. If the scope must materially expand, preview it and ask again.
 
 Never automatically stage, commit, push, merge, archive, or delete knowledge.
 Never make those decisions from a text or vector score.
+
+### Offer a nightly health task
+
+When the user directly requests scheduled wiki maintenance, follow this section
+immediately. Otherwise, after `init` or the first successful interactive
+`dream` for a bundle, use the host's recurring-task capability, when available,
+to check whether that bundle already has a nightly Mneme task. If none exists,
+offer once to create a daily 02:00 local-time task and ask the user to choose
+one mode:
+
+- **Report only**: the scheduled agent audits, lints, reads relevant pages, and
+  reports findings without changing the bundle.
+- **Guarded auto-repair**: the scheduled agent may apply only the bounded,
+  non-destructive health fixes in `references/workflow-nightly-dream.md`, then
+  validates and reports the exact diff. The user's explicit mode selection is
+  standing approval only for that narrow repair scope.
+
+Do not create or change a recurring task until the user explicitly chooses a
+mode. Respect a prior decline and do not repeatedly prompt. Load
+`references/workflow-nightly-dream.md` before composing either scheduled task.
+Use a host-agent recurring task, not `mneme dream --schedule`: that CLI flag is
+an agentless, report-only scheduler-snippet fallback and cannot perform repair.
 
 ## Scenario: search <question>
 
@@ -117,7 +141,8 @@ require it.
   disposable index. `--l2` explicitly builds and persists semantic mode;
   `--fts5` explicitly switches back. Bare `reindex` uses the persisted mode.
 - `dream [--bundle <path>] --json` audits without writing. Its optional
-  schedule flags print scheduler snippets only and never install them.
+  schedule flags print agentless, report-only scheduler snippets and never
+  install them; the default fallback time is 02:00 local time.
 - `search <query> [--bundle <path>] --json` returns candidates from the
   persisted mode.
 - `convert <source> --output <path>` creates derived readable text with an
@@ -134,6 +159,8 @@ only when a page type is unknown or disputed.
 
 - `references/workflow-dream.md` - approved write-side procedure; load only
   after approval and before writing.
+- `references/workflow-nightly-dream.md` - recurring 02:00 agent task modes,
+  standing-approval boundary, guarded repairs, and report format.
 - `references/workflow-search.md` - full-page synthesis and citation procedure;
   load only under the search conditions above.
 - `references/workflow-lint.md` - read-only health review and diagnostics.

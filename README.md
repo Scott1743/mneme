@@ -7,7 +7,7 @@
 *把知识编译一次，让每一次提问都从已经整理好的地方继续向前。*
 
 [![MIT License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.4.0-blue.svg)](CHANGELOG.md)
 [![Skills.sh](https://img.shields.io/badge/skills.sh-available-2ea44f.svg)](https://www.skills.sh/?q=mneme)
 
 </div>
@@ -76,7 +76,7 @@ npx skills add Scott1743/mneme
 ### 方式二：下载 Skill zip
 
 - 零依赖基础版：[mneme-2.2.0.zip](https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip)
-- 最新语义版：[mneme-3.3.0.zip](https://github.com/Scott1743/mneme/releases/download/v3.3.0/mneme-3.3.0.zip)
+- 最新版：[mneme-3.4.0.zip](https://github.com/Scott1743/mneme/releases/download/v3.4.0/mneme-3.4.0.zip)
 
 解压到 Agent 的 skills 目录即可。Mneme 不提供 wheel 或全包 `pip install`，唯一交付物就是一个普通 Skill zip。
 
@@ -168,7 +168,12 @@ mneme convert report.pdf --output /tmp/report.md
 
 ### 夜巡 dream（可选）
 
-`mneme dream --schedule` 只打印适用于 launchd、crontab 或 `schtasks` 的调度片段，不会自行安装。默认建议时间为 `02:00`，可用 `--time HH:MM` 修改，用 `--unschedule` 生成撤销片段。
+首次建库或首次完成交互式 dream 后，Skill 会引导用户选择是否创建每天 `02:00` 的宿主 Agent 定时任务：
+
+- **只报告**：Agent 执行审计、lint 和相关页面复核，不修改 wiki。
+- **受限自动修复**：用户的选择构成对健康修复范围的持续授权；Agent 可修复无歧义的 frontmatter、tags、内部链接和索引项，随后校验并报告 diff。事实正文、原始资料、合并、归档、移动、删除和 git 写操作始终不在授权范围内；有歧义或超过 5 个概念页时自动降级为报告。
+
+定时任务必须由宿主 Agent 的 recurring-task 能力创建，创建或变更前都要得到用户明确选择。`mneme dream --schedule` 仍只打印适用于 launchd、crontab 或 `schtasks` 的无 Agent、仅报告 fallback 片段，不会自行安装；其默认时间也为 `02:00`，可用 `--time HH:MM` 修改，用 `--unschedule` 生成撤销片段。
 
 ---
 

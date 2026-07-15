@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILL_DIR = ROOT / "skills" / "mneme"
 SKILL_MD = SKILL_DIR / "SKILL.md"
 WORKFLOW_DREAM = SKILL_DIR / "references" / "workflow-dream.md"
+WORKFLOW_NIGHTLY = SKILL_DIR / "references" / "workflow-nightly-dream.md"
 WORKFLOW_SEARCH = SKILL_DIR / "references" / "workflow-search.md"
 
 
@@ -33,6 +34,19 @@ def test_dream_requires_approval_before_bundle_writes():
     assert approval < workflow_load
     assert "including copying the raw source into `sources/`" in text
     assert "only after approval and before writing" in text.lower()
+
+
+def test_skill_offers_guarded_nightly_agent_task():
+    skill = _text(SKILL_MD)
+    nightly = _text(WORKFLOW_NIGHTLY)
+    assert "daily 02:00 local-time task" in skill
+    assert "Report only" in skill
+    assert "Guarded auto-repair" in skill
+    assert "host-agent recurring task" in skill
+    assert "standing approval" in nightly
+    assert "more than five concept pages" in nightly
+    assert "Never change factual body text or raw sources" in nightly
+    assert "git add" in nightly and "git commit" in nightly and "git push" in nightly
 
 
 def test_approved_dream_preserves_source_and_prepends_log():

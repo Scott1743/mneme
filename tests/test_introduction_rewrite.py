@@ -1,4 +1,4 @@
-"""Release-gate — Mneme 3.3 public surface.
+"""Release-gate — Mneme 3.4 public surface.
 
 The README and introduction must describe the `dream` + `search` surface,
 the explicit v3.3 semantic-search option, and both release downloads.
@@ -30,7 +30,7 @@ def _read(path: Path) -> str:
 def test_release_downloads_are_present(path: Path) -> None:
     text = _read(path)
     assert "releases/download/v2.2.0/mneme-2.2.0.zip" in text
-    assert "releases/download/v3.3.0/mneme-3.3.0.zip" in text
+    assert "releases/download/v3.4.0/mneme-3.4.0.zip" in text
 
 
 def test_introduction_install_command_present() -> None:
@@ -58,9 +58,9 @@ def test_readme_states_v3_semantic_option() -> None:
     assert "v3.3.0" in text and "reindex --l2" in text
 
 
-def test_introduction_states_v3_release() -> None:
+def test_introduction_states_current_release() -> None:
     text = _read(INTRO)
-    assert "v3.3" in text
+    assert "v3.4" in text
 
 
 def test_introduction_no_naive_rag() -> None:
