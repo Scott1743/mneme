@@ -1,125 +1,230 @@
+<div align="center">
+
 # Mneme
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](https://github.com/Scott1743/mneme/releases/tag/v3.3.0)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab.svg)](.research/upstream/OKF-SPEC.md)
+**一座由 Agent 增量维护的本地 Markdown 知识 wiki**
 
-> 一座由 Agent 增量维护的本地 Markdown 知识库。
-> **dream** 写，**search** 读——其余都是细节。
+*把知识编译一次，在未来的每次提问里持续复利。*
 
-`dream` 把读过的资料编译进一棵你可以反复行走的本地概念树。
-`search` 在你的 wiki 里走，按 `index.md` / tags / 链接走；wiki 大的时候打开本地 SQLite FTS5 加速召回。找不到就明说，不编。
+[![MIT License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](CHANGELOG.md)
+[![Skills.sh](https://img.shields.io/badge/skills.sh-available-2ea44f.svg)](https://www.skills.sh/?q=mneme)
 
-## 安装
+</div>
 
-最新版一行命令，通过 [skills.sh](https://www.skills.sh)：
+---
+
+## 为什么选择 Mneme？
+
+Agent 每次重新检索，知识就会一次次从头经过。Mneme 把有价值的资料编译成一座本地 wiki，让后续问题可以从已经整理好的概念、标签和链接继续向前。
+
+**Mneme 不是一个新的云服务，也不是隐藏在数据库里的聊天记忆：**
+
+- 原始资料留在本地文件系统
+- 知识以普通 Markdown 保存，可以直接阅读、diff 和 review
+- `dream` 负责整理，写盘前必须先给你看预览
+- `search` 负责召回，最终答案来自完整知识页面而不是索引片段
+
+## 体验一下
+
+<div align="center">
+
+### 在线介绍（无需安装）
+
+**[打开 Mneme 图文介绍 →](https://scott1743.github.io/mneme/)**
+
+*包含产品初衷、工作方式、安装示例与本地优先设计说明*
+
+</div>
+
+仓库内也保留了可离线阅读的 [`introduction/index.html`](introduction/index.html)。
+
+---
+
+## 核心能力
+
+### dream：把资料编译成知识
+
+把文章、笔记或本地资料交给 Agent。它会先审计现有 wiki，再预览要新增或修改的概念页、tags、互链、`index.md` 与 `log.md`。只有得到明确批准后才会写盘。
+
+### search：沿知识图谱寻找答案
+
+Agent 从 `index.md` 开始，按标题、tags、链接和本地文本匹配逐层展开。wiki 变大后，可用 SQLite FTS5 或显式启用的 L2 语义索引召回候选；最终综合始终读取完整 Markdown 页面。
+
+### 本地优先
+
+OKF wiki 是唯一真相源。没有服务端、云数据库或强制 SDK，能 `cat` 就能读，能 `git clone` 就能迁移。
+
+### 可删除的索引
+
+`wiki/.mneme/fts.db` 和可选的 `wiki/.mneme/l2.db` 只是导航缓存。删掉索引不会丢失任何知识，Markdown bundle 始终完整。
+
+---
+
+## 快速开始
+
+### 方式一：通过 skills.sh 安装（推荐）
 
 ```bash
 npx skills add Scott1743/mneme
 ```
 
-落地到 `~/.claude/skills/mneme/`，重启 agent 会话即可。**没有 wheel、没有 `pip install` 全包、没有 setuptools——一个 zip，解压即用。**
+安装后会落到 `~/.claude/skills/mneme/`。重启 Agent 会话即可使用。
 
-固定安装零依赖基础版： [v2.2.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip)。最新版语义版： [v3.3.0 skill zip](https://github.com/Scott1743/mneme/releases/download/v3.3.0/mneme-3.3.0.zip)。
+### 方式二：下载 Skill zip
 
-**更多**：图文版介绍（产品初衷 + 娓娓道来 + 安装示例）已上线项目主页 **[scott1743.github.io/mneme](https://scott1743.github.io/mneme/)**，直接访问，无需下载安装。
+- 零依赖基础版：[mneme-2.2.0.zip](https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip)
+- 最新语义版：[mneme-3.3.0.zip](https://github.com/Scott1743/mneme/releases/download/v3.3.0/mneme-3.3.0.zip)
 
-仓库内同时保留自包含的 [`introduction/index.html`](introduction/index.html) 可供离线阅读；如需本地预览，可临时起一个静态服务器：
+解压到 Agent 的 skills 目录即可。Mneme 不提供 wheel 或全包 `pip install`，唯一交付物就是一个普通 Skill zip。
+
+---
+
+## 使用示例
+
+```text
+把这份调研资料 dream 进我的 wiki，先给我看变更预览。
+```
+
+```text
+search 我的 wiki：我们为什么选择 OKF，而不是自定义知识格式？
+```
+
+```text
+检查这座 wiki 的健康状况，但不要修改任何文件。
+```
+
+---
+
+## 设计理念
+
+### 编译一次，而非反复从零检索
+
+有价值的资料被蒸馏成稳定概念页，后续查询沿已有结构继续工作。知识像代码一样积累，而不是每轮对话重新消费。
+
+### Markdown，而非隐藏状态
+
+概念页、引用、索引和变更时间线都在本地目录中。用户拥有文件，也拥有完整的版本历史和迁移自由。
+
+### 审批写入，而非自动改写
+
+`mneme dream` 本身是只读审计。Agent 必须展示具体变更集并等待批准，不会根据相似度自动合并、归档或删除事实页。
+
+### 最小标准，而非固定 taxonomy
+
+Mneme 遵循 [OKF v0.1](.research/upstream/OKF-SPEC.md)：非保留 Markdown 页面必须有可解析的 YAML frontmatter 和非空 `type`。缺少可选字段、未知 `type`、额外键、断链或缺少 `index.md` 都不会让消费者拒绝整个 bundle。
+
+Mneme 自己写出的概念页至少带一个 `tags`；具体关系由 Markdown 链接表达。`type`、`tags` 和链接各司其职。
+
+---
+
+## 技术架构
+
+```text
+Raw sources
+不可变原始资料
+      │
+      ▼
+OKF Wiki
+Markdown 唯一真相源：type + tags + links
+      │
+      ▼
+Agent Skill
+SKILL.md + 按需加载的 references
+      │
+      ▼
+Disposable accelerator
+默认 SQLite FTS5；显式可选 L2；随时可删可重建
+```
+
+四层职责彼此分离：原始资料不被改写，wiki 拥有事实，Skill 约束 Agent 行为，索引只负责导航。
+
+---
+
+## 检索与转换
+
+### L1：SQLite FTS5（默认）
+
+Python 内建 `sqlite3` + FTS5，零第三方依赖。索引位于 `<bundle>/.mneme/fts.db`。
 
 ```bash
-cd introduction && python -m http.server 8000
-# 浏览器打开 http://localhost:8000/
+mneme reindex
+mneme search "X"
 ```
 
-## 两件事（用户表面）
+### L2：语义召回（可选）
 
-- **dream** —— 你丢资料进来，agent 写成 OKF 概念页，加 tag、互相链接，更新 `index.md` 与 `log.md`。默认先出预览，等你点头才落盘。
-- **search** —— 你问问题，agent 在你的 wiki 里走。默认按 `index.md` / tags / 链接 / grep 走；wiki 大的时候按 L1（SQLite FTS5）召回。最终答案由 agent 读完整页面综合，引用是 bundle 内路径。
+v3.3.0 可在用户自行安装 `sqlite-vec` 与 `FastEmbed` 后，通过一次 `reindex --l2` 显式启用。模式会持久化到配置中，之后普通 `search` / `reindex` 自动沿用；切回 FTS5 使用 `reindex --fts5`。Mneme 不会自动安装依赖，也不会静默回退模式。
 
-`init` / `lint` / `reindex` / `dream` / `search` / `convert` 是 agent 在后台调用的确定性脚本，不增加用户动词。v3.3.0 可通过一次 `reindex --l2` 显式启用并持久化语义召回；索引永远可删除。
+### 外部资料转换（可选）
 
-### 夜巡 `dream`（可选）
-
-想要每天夜里自动跑一次只读审计？`mneme dream --schedule` 只**打印**一段你系统调度器能直接吃的片段——macOS 的 launchd plist、Linux 的 crontab、Windows 的 `schtasks` 行；不会自己装。
-默认凌晨 `02:00`，改时间加 `--time HH:MM`，想撤就 `mneme dream --unschedule`。一行粘贴、即可。
-
-## 4 层架构
-
-```
-原始资料 sources/      不可变事实来源；agent 只读不改
-        │
-        ▼
-OKF Wiki                唯一真相源；agent 完全维护
-                        （type 描述角色 / tags 描述主题 / 链接表达关系）
-        │
-        ▼
-Agent Skill             告诉 agent 怎么维护、怎么查询
-                        （SKILL.md + references/）
-        │
-        ▼
-Disposable accelerator  可删除的导航缓存（wiki 大时打开 FTS5；不可信源）
-```
-
-`type` 描述文档角色（OKF v0.1 协议级 MUST），`tags` 描述主题归类（mneme 写作纪律——我们写的概念页至少 1 个 tag，消费外部 OKF 时缺 tag 只 WARN），Markdown 链接表达具体关系。三者语义不重叠。
-
-## L1 默认 —— sqlite3 + FTS5
-
-`L1` 是 mneme 的默认导航层：Python 内建 `sqlite3` + FTS5，零依赖。索引文件 `<bundle>/.mneme/fts.db`，是 **disposable accelerator**，永远不是事实来源——删掉它仍能 `git log` 出 wiki 的全部真相。
-
-```bash
-mneme reindex       # 全量重建一次；幂等
-mneme search "X"    # FTS5 候选 + snippet；agent 读完整页综合
-```
-
-## 外部资料转换（可选）
-
-遇到 agent 不能直接读取的本地 PDF、DOCX 或 PPTX，可在 dream 预览阶段调用 `mneme convert`。它只使用用户已经安装的兼容转换器，不自动安装软件，也不会用派生文本替换原始资料。
+Agent 无法直接读取本地 PDF、DOCX 或 PPTX 时，可以在 dream 预览阶段调用 `mneme convert`。它只使用用户已经安装的兼容转换器，不会用派生文本替换原始资料。
 
 ```bash
 mneme convert report.pdf --output /tmp/report.md
 ```
 
-## 可选 L2（v3.3.0）
+### 夜巡 dream（可选）
 
-默认仍是 FTS5。需要语义召回时，用户自行安装 `sqlite-vec` 与 `FastEmbed` 后，显式运行一次 `reindex --l2`。它建立独立的 `<bundle>/.mneme/l2.db` 并持久化当前模式，之后普通 `search` / `reindex` 自动走 L2；切回 FTS5 用 `reindex --fts5`。不会自动安装或静默回退。
+`mneme dream --schedule` 只打印适用于 launchd、crontab 或 `schtasks` 的调度片段，不会自行安装。默认建议时间为 `02:00`，可用 `--time HH:MM` 修改，用 `--unschedule` 生成撤销片段。
 
-## OKF v0.1 + tags 写作纪律
-
-- **OKF v0.1**（MIT，2026-06-12）—— YAML frontmatter 必填 `type`，容错消费契约：缺可选字段、未知 `type`、未知额外 frontmatter 键、断链、缺 `index.md` **只 WARN**。
-- **mneme 写作纪律** —— 我们自己写出来的概念页至少要有 1 个 `tags`；消费外部 OKF bundle 时缺 tags 只 WARN。
-- **Topic 页面** —— 需要时写一份普通 OKF `Topic` 页面，不用 `tags/<tag>.md` 镜像聚合；前者维护成本低、不容易腐化。
-
-完整规范见 [`.research/upstream/OKF-SPEC.md`](.research/upstream/OKF-SPEC.md) —— 上游原文的 verbatim MIT 副本，不允许改动。
+---
 
 ## 项目结构
 
 ```text
-skills/mneme/               ← 唯一交付物（打成 zip）
-├── SKILL.md                ←   agent 工作流（dream + search）
-├── scripts/mneme.py        ←   CLI 入口 shim
-├── scripts/mneme/          ←   Python 包（cli / okflib / indexlib / config；stdlib only）
-└── references/             ←   工作流文档（按需加载）
-sample-bundle/              ←   OKF 合规示范 + 测试夹具
-tests/                      ←   分层测试
-introduction/               ←   GitHub Pages 介绍页（自包含 HTML）
-.research/                  ←   上游规范 + 立项研究
-docs/superpowers/           ←   specs + plans + reports
+mneme/
+├── skills/mneme/           # 唯一可分发的 Skill 源
+│   ├── SKILL.md            # dream + search 工作流
+│   ├── scripts/mneme.py    # CLI 入口 shim
+│   ├── scripts/mneme/      # stdlib-only Python 包
+│   └── references/         # 按需加载的工作流文档
+├── sample-bundle/          # OKF 合规示范与测试夹具
+├── tests/                  # 分层测试
+├── introduction/           # GitHub Pages 图文介绍
+├── .research/              # 上游规范与立项研究
+└── docs/superpowers/       # 设计、计划与报告
 ```
-
-## 开发者
-
-```bash
-pip install pytest
-pytest                          # 离线分层测试
-python scripts/build_zip.py     # 产 dist/mneme-3.3.0.zip
-```
-
-L2（语义召回）是 v3.3.0 的显式可选路径；默认 FTS5 不引入相关依赖。CI 在 Python 3.11 / 3.12 / 3.13 三档矩阵上跑。
-
-## 朋友项目
-
-森林密语 / 塔罗树洞：[github.com/Scott1743/tarot-confessional](https://github.com/Scott1743/tarot-confessional) —— 同源、本地优先、Agent 驱动的个人反思记录。
 
 ---
 
-[MIT License](LICENSE) · 本仓库由 Agent 维护 · 让知识留在你手里。
+## 设计文档
+
+- [Mneme 2.0 产品与交互设计](docs/superpowers/specs/2026-07-13-mneme-2.0-design.md)
+- [图文介绍页设计](docs/superpowers/specs/2026-07-13-mneme-introduction-redesign.md)
+- [dream / search 契约对齐](docs/superpowers/plans/2026-07-14-mneme-dream-search-contract-alignment.md)
+- [OKF v0.1 上游规范](.research/upstream/OKF-SPEC.md)
+
+---
+
+## 开发者指南
+
+```bash
+pip install pytest
+pytest
+python scripts/build_zip.py
+```
+
+默认路径保持 stdlib-only；L2 是显式可选能力。CI 覆盖 Python 3.11、3.12 和 3.13。
+
+---
+
+## 朋友项目
+
+[森林密语 / 塔罗树洞](https://github.com/Scott1743/tarot-confessional)：同源、本地优先、Agent 驱动的个人反思记录。
+
+---
+
+## 许可证
+
+本项目采用 [MIT License](LICENSE) 开源协议。
+
+---
+
+<div align="center">
+
+**让知识留在你手里。**
+
+*Mneme，给 Agent 一座可以持续生长的本地记忆。*
+
+</div>
