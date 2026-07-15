@@ -54,6 +54,28 @@ def _slug_for(filename: str) -> str:
     return m.group(2)
 
 
+def _source_records(sources: list[Path]) -> list[tuple[Path, str]]:
+    """Assign a stable, collision-free concept slug to every source file.
+
+    Feishu exports can contain both ``NNN_<id>.md`` and ``<id>.md``.
+    Both normalize to the same historic concept slug, so preserve the first
+    one and suffix later occurrences rather than silently overwriting a
+    concept page.
+    """
+    used: set[str] = set()
+    records: list[tuple[Path, str]] = []
+    for source in sources:
+        base = _slug_for(source.name)
+        slug = base
+        occurrence = 2
+        while slug in used:
+            slug = f"{base}--{occurrence}"
+            occurrence += 1
+        used.add(slug)
+        records.append((source, slug))
+    return records
+
+
 def _description_for(source_text: str, fallback: str, limit: int = 120) -> str:
     """First non-empty, non-heading line of the source as the description.
 
@@ -86,6 +108,8 @@ def bootstrap(corpus: Path, bundle: Path, cfg: Path) -> None:
     if not sources:
         raise SystemExit(f"no .md files under {corpus}")
 
+    records = _source_records(sources)
+
     # Step 1: scaffold the bundle.
     if (bundle / "index.md").exists() and (bundle / "log.md").exists():
         print(f"bundle already initialized at {bundle}; reusing")
@@ -105,8 +129,7 @@ def bootstrap(corpus: Path, bundle: Path, cfg: Path) -> None:
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     new_pages: list[tuple[str, str]] = []  # (slug, title)
-    for src in sources:
-        slug = _slug_for(src.name)
+    for src, slug in records:
         if not slug:
             print(f"  skip {src.name} (no slug)")
             continue
@@ -191,8 +214,7 @@ def bootstrap(corpus: Path, bundle: Path, cfg: Path) -> None:
     ]
     # Flatten per_source_entries into a single block to insert at top.
     new_block_lines = []
-    for src in sources:
-        slug = _slug_for(src.name)
+    for src, slug in records:
         if not slug:
             continue
         new_block_lines.append(f"## {today} ingest | {src.name}")
