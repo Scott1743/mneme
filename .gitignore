@@ -47,3 +47,6 @@ build/
 .claude/
 **/.claude/
 .gstack/
+
+# Chinese translation of SKILL.md (local reference only, not shipped)
+skills/mneme/skill_cn.md
