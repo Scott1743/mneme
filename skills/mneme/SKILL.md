@@ -1,7 +1,7 @@
 ---
 name: mneme
-version: 4.0.0
-description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including a disposable SQLite knowledge graph, hybrid graph + FTS5 retrieval, and optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, rebuild graph navigation, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v4 keeps Markdown authoritative, derives graph.db from pages/tags/links, keeps FTS5 zero-dependency, and preserves explicitly activated L2 semantic mode."
+version: 4.1.0
+description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including a disposable SQLite knowledge graph, agent-extracted graph enrichment via graph ingest, hybrid graph + FTS5 retrieval, and optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, rebuild graph navigation, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v4 keeps Markdown authoritative, derives graph.db from pages/tags/links, keeps FTS5 zero-dependency, and preserves explicitly activated L2 semantic mode."
 allowed-tools:
   - Read
   - Write
@@ -84,6 +84,32 @@ approved scope. If the scope must materially expand, preview it and ask again.
 Never automatically stage, commit, push, merge, archive, or delete knowledge.
 Never make those decisions from a text or vector score.
 
+### Enrich the graph after approved writes
+
+After approved page writes and `reindex --graph`, you may enrich the derived
+graph with entities and relations you extract from the new or changed pages.
+The CLI never calls an LLM: you are the extractor, `mneme graph ingest` is the
+deterministic writer, and Markdown stays authoritative. Show the extraction
+JSON in the change preview and ingest only after the same approval that covers
+the writes. Payload contract (tolerant consumer; bad blocks are skipped with
+warnings):
+
+```json
+{"version": 1, "pages": [{"page": "concepts/example.md",
+  "entities": [{"name": "...", "type": "concept", "description": "...", "confidence": 0.9}],
+  "relations": [{"subject": "...", "predicate": "...", "object": "...", "evidence": "...", "confidence": 0.8}]}]}
+```
+
+Keep entities faithful to page text, reuse existing entity names across pages
+so the graph connects, and prefer a few high-confidence relations over
+exhaustive weak ones. Ingest with
+`python3 ~/.claude/skills/mneme/scripts/mneme.py graph ingest <extraction.json> --bundle <bundle>`;
+re-ingesting a page replaces only that page's prior extracted relations.
+The CLI records approved extraction blocks in
+`<bundle>/.mneme/graph-extractions.json` and replays them during later Graph
+rebuilds, so `reindex --graph` does not silently discard enrichment. This
+manifest is derived navigation data, never an authority over Markdown.
+
 ### Offer a nightly health task
 
 When the user directly requests scheduled wiki maintenance, follow this section
@@ -115,9 +141,10 @@ candidates only; the agent produces the answer.
    local text matches.
 2. When ranked candidates are useful, run:
    `python3 ~/.claude/skills/mneme/scripts/mneme.py search "<question>" --json -k 10`.
-   A bundle with `<bundle>/.mneme/graph.db` uses hybrid graph + FTS5 retrieval
-   automatically unless L2 is the persisted mode. Build or refresh the graph
-   explicitly with `reindex --graph`; Graph remains derived and disposable.
+   A bundle with a fresh `<bundle>/.mneme/graph.db` uses hybrid graph + FTS5
+   retrieval automatically unless L2 is the persisted mode. Hybrid unions
+   Graph candidates with global FTS5 candidates; Graph never hides lexical
+   matches. A stale Graph is ignored until `reindex --graph` refreshes it.
 3. Use `search --mode graph|fts|hybrid` only when diagnosing or explicitly
    comparing retrieval paths. If Graph has no entity match, hybrid mode falls
    back to FTS5 candidates rather than returning an empty answer.
@@ -155,6 +182,10 @@ require it.
 - `search <query> [--bundle <path>] [--mode graph|fts|hybrid] --json` returns
   candidates. Graph-enabled FTS5 bundles default to hybrid; bundles without
   Graph keep the persisted FTS5/L2 behavior.
+- `graph ingest <extraction.json> [--bundle <path>]` merges agent-extracted
+  entities/relations into `<bundle>/.mneme/graph.db` (schema v3). Use `"-"` as
+  the file to read JSON from stdin. Requires an existing graph index; the
+  payload contract is in the dream section above.
 - `convert <source> --output <path>` creates derived readable text with an
   already-installed compatible converter; it never installs software and
   refuses overwrite unless the user explicitly requests `--force`.

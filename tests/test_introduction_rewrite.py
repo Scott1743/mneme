@@ -30,7 +30,7 @@ def _read(path: Path) -> str:
 def test_release_downloads_are_present(path: Path) -> None:
     text = _read(path)
     assert "releases/download/v2.2.0/mneme-2.2.0.zip" in text
-    assert "releases/download/v4.0.0/mneme-4.0.0.zip" in text
+    assert "releases/download/v4.1.0/mneme-4.1.0.zip" in text
 
 
 def test_introduction_install_command_present() -> None:

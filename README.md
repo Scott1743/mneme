@@ -7,7 +7,7 @@
 *把知识编译一次，让每一次提问都从已经整理好的地方继续向前。*
 
 [![MIT License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-4.0.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](CHANGELOG.md)
 [![Skills.sh](https://img.shields.io/badge/skills.sh-available-2ea44f.svg)](https://www.skills.sh/?q=mneme)
 
 </div>
@@ -76,7 +76,7 @@ npx skills add Scott1743/mneme
 ### 方式二：下载 Skill zip
 
 - 零依赖基础版：[mneme-2.2.0.zip](https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip)
-- 最新版：[mneme-4.0.0.zip](https://github.com/Scott1743/mneme/releases/download/v4.0.0/mneme-4.0.0.zip)
+- 最新版：[mneme-4.1.0.zip](https://github.com/Scott1743/mneme/releases/download/v4.1.0/mneme-4.1.0.zip)
 
 解压到 Agent 的 skills 目录即可。Mneme 不提供 wheel 或全包 `pip install`，唯一交付物就是一个普通 Skill zip。
 

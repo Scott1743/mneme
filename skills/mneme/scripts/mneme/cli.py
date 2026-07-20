@@ -317,6 +317,12 @@ def cmd_search(args: argparse.Namespace) -> int:
             mode = "fts5"
         else:
             try:
+                if mode == "graph" and not graphlib.graph_is_fresh(bundle, graph_db):
+                    print(
+                        "graph index is stale; run `mneme reindex --graph` to refresh it.",
+                        file=sys.stderr,
+                    )
+                    return 1
                 out = (
                     graphlib.search_graph(graph_db, args.query, k=args.limit)
                     if mode == "graph"
@@ -476,6 +482,54 @@ def cmd_convert(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_graph_ingest(args: argparse.Namespace) -> int:
+    """Merge an agent-produced extraction payload into ``graph.db``.
+
+    The agent (the LLM in this architecture) reads OKF pages and produces an
+    extraction JSON; this command is the deterministic ingestion counterpart.
+    It never calls an LLM itself and never mutates Markdown — the graph
+    remains a disposable accelerator derived from the bundle.
+    """
+    from . import graphlib
+
+    bundle = _resolve_bundle(args)
+    if bundle is None:
+        print("no bundle found; set bundle_path, MNEME_BUNDLE, or run mneme init", file=sys.stderr)
+        return 1
+    db_path = graphlib.graph_index_path(bundle)
+    if not db_path.is_file():
+        print(f"graph index missing: {db_path}; run `mneme reindex --graph` first", file=sys.stderr)
+        return 1
+    if args.extraction == "-":
+        raw = sys.stdin.read()
+        origin = "<stdin>"
+    else:
+        extraction_path = Path(args.extraction).expanduser()
+        if not extraction_path.is_file():
+            print(f"extraction file not found: {extraction_path}", file=sys.stderr)
+            return 1
+        raw = extraction_path.read_text(encoding="utf-8")
+        origin = str(extraction_path)
+    try:
+        payload = json.loads(raw)
+    except ValueError as exc:
+        print(f"extraction file is not valid JSON: {origin}: {exc}", file=sys.stderr)
+        return 1
+    try:
+        result = graphlib.ingest_extraction(db_path, payload)
+    except Exception as exc:
+        print(f"graph ingest failed: {exc}", file=sys.stderr)
+        return 1
+    print(
+        f"ingested {result.pages_ingested} page block(s) from {origin}: "
+        f"{result.entities_upserted} entity upsert(s), {result.relations_upserted} relation upsert(s) "
+        f"into {result.db_path}"
+    )
+    for warning in result.warnings:
+        print(f"warning: {warning}", file=sys.stderr)
+    return 0
+
+
 def cmd_dream(args: argparse.Namespace) -> int:
     """`mneme dream` — read-only audit; ``--schedule`` / ``--unschedule``
     print platform-specific scheduler snippets for the user to install.
@@ -516,16 +570,18 @@ def cmd_dream(args: argparse.Namespace) -> int:
         return 0
 
     from . import dream as _dream
-    if getattr(args, "bundle", None):
-        bundle = Path(args.bundle)
-    else:
-        bundle = _resolve_bundle(Path(args.config))
-    if bundle is None:
-        return 1
-    report = _dream.dream_audit(bundle)
+    bundle = _resolve_bundle(args)
+    # `dream` is a read-only audit and must remain exit-0 even when the
+    # bundle is missing (frozen contract from v0.3.0). Pass a Path so
+    # dream_audit can report the missing directory itself; other
+    # subcommands (search/reindex/lint) keep their stricter return-1.
+    audit_path = bundle if bundle is not None else Path(
+        getattr(args, "bundle", "") or ""
+    )
+    report = _dream.dream_audit(audit_path)
     from . import graphlib
 
-    graph_db = graphlib.graph_index_path(bundle)
+    graph_db = graphlib.graph_index_path(audit_path)
     if graph_db.is_file():
         try:
             report["graph"] = graphlib.graph_health(graph_db)
@@ -818,6 +874,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     convert_parser.add_argument("--force", action="store_true")
     convert_parser.set_defaults(handler=cmd_convert)
+
+    graph_parser = subparsers.add_parser(
+        "graph",
+        help="knowledge graph operations (agent extraction ingest)",
+    )
+    graph_sub = graph_parser.add_subparsers(dest="graph_command", required=True)
+    graph_ingest = graph_sub.add_parser(
+        "ingest",
+        help=(
+            "merge an agent-produced extraction JSON into graph.db. "
+            "The agent is the LLM: it reads OKF pages, produces the extraction "
+            "payload, and this command ingests it deterministically."
+        ),
+    )
+    graph_ingest.add_argument(
+        "extraction",
+        help="extraction JSON file path, or '-' to read from stdin",
+    )
+    graph_ingest.add_argument("--bundle", dest="bundle", default=None)
+    graph_ingest.add_argument("--config", default=None)
+    graph_ingest.set_defaults(handler=cmd_graph_ingest)
     return parser
 
 

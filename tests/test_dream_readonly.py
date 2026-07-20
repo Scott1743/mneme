@@ -101,3 +101,20 @@ def test_dream_audit_handles_missing_bundle(tmp_path: Path) -> None:
     report = dream_audit(missing)
     assert report["_meta"]["raw_distance_only"] is True
     assert "error" in report["_meta"]
+
+
+def test_dream_cli_resolves_bundle_via_config_without_bundle_flag(tmp_path: Path) -> None:
+    """`mneme dream` without --bundle must resolve via config.toml, not crash.
+
+    Regression guard for the TypeError caused by passing ``Path(args.config)``
+    (where ``args.config`` is None by default) to ``_resolve_bundle``. The
+    fix routes through ``_resolve_bundle(args)`` like the other subcommands.
+    """
+    bundle = _seed(tmp_path)
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(f'bundle_path = "{bundle}"\n', encoding="utf-8")
+
+    from mneme import cli
+
+    rc = cli.main(["dream", "--config", str(cfg)])
+    assert rc == 0, "dream without --bundle must resolve via config and succeed"

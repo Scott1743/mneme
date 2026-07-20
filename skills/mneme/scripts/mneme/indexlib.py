@@ -672,8 +672,10 @@ def search_hybrid(
             "graph_context": {"fallback": "l0", "reason": "graph and FTS5 indexes missing"},
         }
 
-    graph_candidates = graphlib.graph_page_candidates(
-        graph_db, query, limit=max(k * 10, 50), depth=depth
+    graph_fresh = graphlib.graph_is_fresh(root, graph_db)
+    graph_candidates = (
+        graphlib.graph_page_candidates(graph_db, query, limit=max(k * 10, 50), depth=depth)
+        if graph_fresh else []
     )
     if not graph_candidates and fts_db.is_file():
         result = search(query, fts_db, k=k)
@@ -690,9 +692,10 @@ def search_hybrid(
         result["graph_context"] = {
             "mode": "hybrid",
             "fallback": "fts5",
-            "reason": "no graph entity match",
+            "reason": "no graph entity match" if graph_fresh else "graph index is stale",
             "graph_candidates": 0,
             "fts_candidates": len(result["candidates"]),
+            "graph_fresh": graph_fresh,
             "embedding_weight": gamma,
             "embedding_enabled": False,
         }
@@ -708,12 +711,25 @@ def search_hybrid(
             "title": props.get("title", item.get("name", path)),
             "snippet": item.get("description", "") or "graph match",
             "distance": int(item.get("distance", 0)),
+            "graph_score": float(item.get("graph_score", 0.0)),
             "matched_entities": item.get("matched_entities", []),
         }
 
-    fts_candidates = {"candidates": []}
-    if fts_db.is_file() and by_path:
-        fts_candidates = search_paths(query, fts_db, by_path.keys(), k=max(k * 10, 50))
+    # FTS5 searches globally. Graph is an additional signal, never a hard
+    # candidate filter, so sparse graph coverage cannot hide lexical hits.
+    fts_candidates = (
+        search(query, fts_db, k=min(max(k * 10, 50), 100))
+        if fts_db.is_file() else {"candidates": []}
+    )
+    for candidate in fts_candidates["candidates"]:
+        by_path.setdefault(candidate["path"], {
+            "path": candidate["path"],
+            "title": candidate["title"],
+            "snippet": candidate["snippet"],
+            "distance": None,
+            "graph_score": 0.0,
+            "matched_entities": [],
+        })
     fts_rank = {item["path"]: rank for rank, item in enumerate(fts_candidates["candidates"])}
     total_weight = alpha + beta
     if total_weight <= 0:
@@ -721,7 +737,7 @@ def search_hybrid(
 
     merged = []
     for path, item in by_path.items():
-        graph_score = 1.0 / (1.0 + item["distance"])
+        graph_score = item["graph_score"] if item["distance"] is not None else 0.0
         fts_score = 1.0 / (1.0 + fts_rank[path]) if path in fts_rank else 0.0
         final_score = (alpha * graph_score + beta * fts_score) / total_weight
         fts_item = next(
@@ -750,6 +766,7 @@ def search_hybrid(
             "depth": depth,
             "graph_candidates": len(graph_candidates),
             "fts_candidates": len(fts_candidates["candidates"]),
+            "graph_fresh": graph_fresh,
             "embedding_weight": gamma,
             "embedding_enabled": False,
         },

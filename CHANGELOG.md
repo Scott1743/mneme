@@ -9,7 +9,100 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
-## [4.0.0] — 2026-07-20 — graph-enhanced hybrid retrieval
+## [4.1.0] - 2026-07-21 - agent-extracted graph enrichment (`graph ingest`)
+
+### Added
+
+- **`mneme graph ingest <extraction.json>`** merges agent-extracted entities
+  and relations into `<bundle>/.mneme/graph.db`. Phase 2 keeps the division of
+  labor explicit: the host agent is the LLM (it reads pages and produces the
+  extraction JSON), while the CLI stays deterministic (it validates and writes
+  SQLite, never calls an LLM, never touches Markdown). Use `"-"` as the file
+  to read the payload from stdin.
+- **Graph schema v3** (`GRAPH_SCHEMA_VERSION = "3"`): `entities` gains
+  `source` / `confidence`, `relations` gains `source` / `confidence` /
+  `evidence`, and `relation_sources` retains independent supporting pages, so
+  derived-from-LLM structure is distinguishable from
+  deterministic page/tag/link structure. The migration is an idempotent
+  `ALTER TABLE` inside `ensure_graph_schema`; existing v1 graph databases
+  upgrade in place and remain disposable.
+- **Hybrid correctness**: Graph and global FTS5 candidates are fused as a
+  union; Graph no longer hard-filters lexical recall. Graph caches carry a
+  Markdown source fingerprint and stale caches fall back to global FTS5.
+- **Replayable enrichment**: approved extraction blocks are kept in
+  `.mneme/graph-extractions.json` and replayed during Graph rebuilds.
+- **Extraction contract** (`graphlib.validate_extraction` +
+  `graphlib.ingest_extraction`): tolerant per OKF §9 — malformed blocks are
+  skipped with warnings instead of rejecting the payload; confidence is
+  clamped to `[0, 1]`; predicates are normalized to safe tokens; every
+  extracted entity connects back to its page with a `mentions` edge so BFS
+  from an entity seed reaches the source page in one hop. Re-ingesting a page
+  replaces only that page's prior `llm_extracted` relations (idempotent per
+  page). `graph_health` now reports `llm_entity_count` / `llm_relation_count`.
+- **SKILL.md dream workflow** documents the extraction → preview → `graph
+  ingest` loop so agents enrich the graph after approved writes, and the
+  internal command list covers `graph ingest`.
+- `reports/experiments/eval_graph_stages.py`: fixed-bundle G / G+L1 evaluator
+  used for the ingest pilot (a fresh-bootstrap runner cannot measure a bundle
+  mutated in place).
+
+### Evidence
+
+- Ingest pilot on the 142-page Feishu dogfood corpus (8 pages extracted by the
+  agent, 52 entity upserts, 93 relation upserts): G Recall@10 0.6 → 0.8,
+  G nDCG@10 0.486 → 0.612; the `Hermes` query — whose expected page mentions
+  the term only inside one body line — becomes reachable at G rank 2 via the
+  extracted `Hermes-Agent` entity. Full write-up, including one hybrid ranking
+  side effect and one historical qrel found to be a mis-annotation, is in
+  `reports/experiments/2026-07-21-graph-ingest-pilot.md`.
+
+### Preserved
+
+- Markdown remains the only source of truth; `graph.db` is still a derived,
+  disposable cache, and deleting it falls back to FTS5/L0.
+- The user surface stays `dream` + `search`; `graph` is an internal agent CLI
+  operation like `reindex`. No new runtime dependencies; Graph stays stdlib
+  SQLite. The dream preview-and-approval contract now covers extraction
+  payloads.
+
+## [4.0.1] - 2026-07-20 - graph search description match + dream/hybrid fixes
+
+### Fixed
+
+- **`find_entity_by_name` now searches the `description` column.** v4.0.0
+  omitted it from the LIKE WHERE clause, so Graph search and the Graph leg
+  of hybrid retrieval never surfaced pages whose name is a path/slug but
+  whose description carries the semantic content (the common case for
+  bootstrap dogfood pages whose title is derived from the source filename).
+  This is the root cause of the v4.0.0 cross-version regression where
+  `G` (graph-only) returned zero candidates for every historical query on
+  the 142-document Feishu corpus. The fix also adds a `name` prefix-match
+  tier in the ORDER BY so exact name matches rank first, then prefix
+  matches, then description/properties matches.
+- **`cmd_dream` no longer crashes when invoked without `--bundle`.** v4.0.0
+  passed `Path(args.config)` (where `args.config` defaults to `None`) to
+  `_resolve_bundle`, raising `TypeError` on the default `mneme dream`
+  invocation. The fix routes through `_resolve_bundle(args)` like the other
+  subcommands while preserving the v0.3.0 frozen contract that `dream`
+  exits 0 even when the bundle is missing.
+- **`_iter_page_records` now catches `UnicodeDecodeError`.** v4.0.0 only
+  caught `OSError`, so a single non-UTF-8 `.md` file aborted the entire
+  graph rebuild. OKF §9 requires one bad file not to affect the rest.
+
+### Added
+
+- Regression tests in `tests/test_graphlib.py` covering the description
+  match path (`find_entity_by_name`, `search_graph`, `search_hybrid`).
+- Regression tests in `tests/test_dream_readonly.py` covering `mneme dream`
+  without `--bundle` and `tests/test_graphlib.py` covering non-UTF-8 files.
+
+### Preserved
+
+- The user surface, OKF/Mneme writing discipline, read-only `mneme dream`,
+  explicit L2 opt-in, and disposable accelerator contract are unchanged.
+- `graph.db` remains a derived cache; deleting it falls back to FTS5/L0.
+
+## [4.0.0] - 2026-07-20 - graph-enhanced hybrid retrieval
 
 ### Added
 

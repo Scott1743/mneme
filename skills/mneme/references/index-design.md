@@ -11,6 +11,8 @@ remains authoritative, and each rebuild atomically replaces only its own cache:
 
 - `<bundle>/.mneme/fts.db` for zero-dependency FTS5;
 - `<bundle>/.mneme/graph.db` for v4 page/tag/link graph navigation;
+- `<bundle>/.mneme/graph-extractions.json` for replaying approved agent graph
+  enrichment when `graph.db` is rebuilt;
 - `<bundle>/.mneme/l2.db` for explicitly activated semantic retrieval.
 
 The persisted FTS5/L2 choice lives in `~/.config/mneme/config.toml` as
@@ -36,14 +38,18 @@ concept pages without changing them. Phase 1 derives:
 - graph health counters for the read-only `dream --json` report.
 
 After Graph exists, bare search uses hybrid mode: Graph finds entity-related page
-paths, FTS5 ranks text matches inside that candidate set, and the CLI returns
-scores plus graph context. If no entity matches, hybrid falls back to global
-FTS5. `search --mode graph|fts|hybrid` provides an explicit per-query override
-for diagnostics; it does not persist a new mode.
+paths, FTS5 independently searches the whole bundle, and ranking fuses the union
+of both candidate sets. Graph never hard-filters global lexical recall. Each
+Graph rebuild records a Markdown source fingerprint; a stale graph is ignored
+and hybrid falls back to global FTS5 until `reindex --graph` refreshes it.
+`search --mode graph|fts|hybrid` provides an explicit per-query override for
+diagnostics; it does not persist a new mode.
 
-Graph is stdlib-only SQLite, contains no authoritative facts, and can be deleted
-at any time. Rebuild it after page/tag/link changes when graph navigation should
-reflect the latest Markdown.
+Graph is stdlib-only SQLite and contains no authoritative facts. Approved agent
+extractions are stored as a replay manifest beside `graph.db`, so rebuilding the
+database does not silently discard enrichment. Both files remain derived cache:
+Markdown is the authority, and deleting `.mneme/` restores the plain FTS5/L0
+behavior without losing wiki content.
 
 ## Explicit opt-in: L2
 
