@@ -31,7 +31,7 @@ MENTIONS_PREDICATE = "mentions"
 _LINK_RE = re.compile(r"\]\(([^)\s]+\.md)(?:#[^)]*)?\)")
 _STOP_WORDS = frozenset({
     "what", "which", "where", "when", "with", "from", "that", "this", "and", "the",
-    "关系", "什么", "哪些", "如何", "相关", "有关", "工作流", "方案", "规划", "介绍", "文档",
+    "关系", "什么", "哪些", "如何", "相关", "有关",
 })
 
 

@@ -9,6 +9,16 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced the invalid five-query historical reports with the frozen 80-query
+  Graph enrichment diagnostic in `reports/`. The new report separates
+  deterministic Graph (`G0`), enriched Graph (`G1`), and their global-FTS
+  hybrids, reports bootstrap confidence intervals, and labels extraction-
+  derived qrels as construction-aware rather than independent human judgments.
+- FTS5 search now retries punctuation-heavy natural-language queries as quoted
+  tokens when SQLite interprets hyphens or other characters as MATCH syntax.
+
 ## [4.1.0] - 2026-07-21 - agent-extracted graph enrichment (`graph ingest`)
 
 ### Added
@@ -42,19 +52,16 @@ for in-flight specs and plans.
 - **SKILL.md dream workflow** documents the extraction → preview → `graph
   ingest` loop so agents enrich the graph after approved writes, and the
   internal command list covers `graph ingest`.
-- `reports/experiments/eval_graph_stages.py`: fixed-bundle G / G+L1 evaluator
-  used for the ingest pilot (a fresh-bootstrap runner cannot measure a bundle
-  mutated in place).
+- The Graph benchmark runner measures deterministic and enriched indexes on
+  the same frozen bundle without mutating Markdown.
 
 ### Evidence
 
-- Ingest pilot on the 142-page Feishu dogfood corpus (8 pages extracted by the
-  agent, 52 entity upserts, 93 relation upserts): G Recall@10 0.6 → 0.8,
-  G nDCG@10 0.486 → 0.612; the `Hermes` query — whose expected page mentions
-  the term only inside one body line — becomes reachable at G rank 2 via the
-  extracted `Hermes-Agent` entity. Full write-up, including one hybrid ranking
-  side effect and one historical qrel found to be a mis-annotation, is in
-  `reports/experiments/2026-07-21-graph-ingest-pilot.md`.
+- The replacement 80-query construction-aware benchmark records enriched
+  Graph nDCG@10 0.719 versus deterministic Graph 0.238, with paired bootstrap
+  delta +0.481 [0.376, 0.588]. These numbers demonstrate extraction coverage,
+  not independent general-search quality; the full methods and limits are in
+  `reports/experiments/graph-enrichment-benchmark.html`.
 
 ### Preserved
 

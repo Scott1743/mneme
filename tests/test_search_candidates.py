@@ -111,6 +111,22 @@ def test_search_uses_body_column_3_for_snippet(tmp_path):
     )
 
 
+def test_search_quotes_fts_operator_punctuation(tmp_path):
+    bundle = _seed_bundle_with_index(tmp_path)
+    page = bundle / "concepts" / "proposal.md"
+    page.write_text(
+        "---\ntype: Concept\ntitle: Proposal\ndescription: proposal\n"
+        "tags: [test]\n---\nlegal-proposal-generator is indexed.\n",
+        encoding="utf-8",
+    )
+    assert indexlib.reindex_paths([page], bundle) == 1
+
+    out = indexlib.search("legal-proposal-generator", bundle / ".mneme" / "fts.db", k=5)
+
+    assert out["candidates"]
+    assert out["candidates"][0]["path"] == "concepts/proposal.md"
+
+
 def test_search_fts5_path_does_not_import_l2(tmp_path):
     """`indexlib.search` must not pull in sqlite_vec or fastembed."""
     # The function itself must not import them — pre-import check

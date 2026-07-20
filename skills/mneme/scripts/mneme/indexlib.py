@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import sqlite3
 import struct
 import sys
@@ -812,17 +813,27 @@ def search(query: str, db: Path, k: int = 10) -> Dict:
         raise ValueError("limit must be between 1 and 100")
     db_path = Path(db)
     conn = sqlite3.connect(str(db_path))
+    match_query = query
     try:
-        rows = conn.execute(
-            # FTS5 column 3 = body (see ensure_schema). SELECT
-            # path/title/body columns from `pages` joined on rowid
-            # to keep the candidate shape stable.
+        statement = (
             "SELECT p.path, p.title, "
             "snippet(pages_fts, 3, '|', '|', '…', 8) "
             "FROM pages_fts JOIN pages p ON p.id = pages_fts.rowid "
-            "WHERE pages_fts MATCH ? ORDER BY rank LIMIT ?",
-            (query, k),
-        ).fetchall()
+            "WHERE pages_fts MATCH ? ORDER BY rank LIMIT ?"
+        )
+        try:
+            rows = conn.execute(statement, (match_query, k)).fetchall()
+        except sqlite3.OperationalError as exc:
+            # Natural-language punctuation such as '-' can be interpreted as
+            # an FTS5 operator or column name. Retry as quoted tokens.
+            message = str(exc).lower()
+            if "fts5" not in message and "no such column" not in message:
+                raise
+            tokens = [token for token in re.findall(r"[^\s]+", query) if token]
+            match_query = " AND ".join(
+                f'"{token.replace(chr(34), chr(34) * 2)}"' for token in tokens
+            )
+            rows = conn.execute(statement, (match_query, k)).fetchall()
     finally:
         conn.close()
     return {
