@@ -68,6 +68,7 @@ def test_skills_mneme_scripts_layout():
         SCRIPTS_PKG / "cli.py",
         SCRIPTS_PKG / "okflib.py",
         SCRIPTS_PKG / "indexlib.py",
+        SCRIPTS_PKG / "graphlib.py",
         SCRIPTS_PKG / "validate_okf.py",
         SCRIPTS_PKG / "config.py",
         SCRIPTS_PKG / "tools_helpers.py",

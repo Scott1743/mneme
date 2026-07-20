@@ -1,7 +1,7 @@
 ---
 name: mneme
-version: 3.4.0
-description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v3.4 keeps SQLite FTS5 as the default and persists an explicitly activated L2 semantic mode."
+version: 4.0.0
+description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including a disposable SQLite knowledge graph, hybrid graph + FTS5 retrieval, and optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, rebuild graph navigation, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v4 keeps Markdown authoritative, derives graph.db from pages/tags/links, keeps FTS5 zero-dependency, and preserves explicitly activated L2 semantic mode."
 allowed-tools:
   - Read
   - Write
@@ -115,17 +115,23 @@ candidates only; the agent produces the answer.
    local text matches.
 2. When ranked candidates are useful, run:
    `python3 ~/.claude/skills/mneme/scripts/mneme.py search "<question>" --json -k 10`.
-3. When the user explicitly requests semantic recall, load
+   A bundle with `<bundle>/.mneme/graph.db` uses hybrid graph + FTS5 retrieval
+   automatically unless L2 is the persisted mode. Build or refresh the graph
+   explicitly with `reindex --graph`; Graph remains derived and disposable.
+3. Use `search --mode graph|fts|hybrid` only when diagnosing or explicitly
+   comparing retrieval paths. If Graph has no entity match, hybrid mode falls
+   back to FTS5 candidates rather than returning an empty answer.
+4. When the user explicitly requests semantic recall, load
    `references/index-design.md`. After the user installs the optional
    dependencies, run `reindex --l2` once to build and activate L2. Later plain
    `search` commands use the persisted L2 mode; never add `--l2` to each
    search, install dependencies, download a model, or switch modes on the
    user's behalf. L2 failures never silently fall back to FTS5.
-4. Always read each relevant Markdown page in full. Snippets, chunks, distances,
-   and the derived SQLite index are never authoritative.
-5. Synthesize the answer with inline bundle-relative citations such as
+5. Always read each relevant Markdown page in full. Snippets, chunks, distances,
+   graph edges, and derived SQLite indexes are never authoritative.
+6. Synthesize the answer with inline bundle-relative citations such as
    `[Example](/concepts/example.md)`.
-6. State coverage gaps honestly. If a reusable answer should be retained,
+7. State coverage gaps honestly. If a reusable answer should be retained,
    offer a separate `dream`; `search` itself never writes.
 
 Load `references/workflow-search.md` only for multi-page synthesis, multiple
@@ -137,14 +143,18 @@ require it.
 
 - `init <path>` scaffolds an OKF bundle and records its location.
 - `lint [--bundle <path>]` validates and diagnoses without changing pages.
-- `reindex [--bundle <path>] [--l2 | --fts5]` atomically rebuilds the active
-  disposable index. `--l2` explicitly builds and persists semantic mode;
-  `--fts5` explicitly switches back. Bare `reindex` uses the persisted mode.
-- `dream [--bundle <path>] --json` audits without writing. Its optional
-  schedule flags print agentless, report-only scheduler snippets and never
-  install them; the default fallback time is 02:00 local time.
-- `search <query> [--bundle <path>] --json` returns candidates from the
-  persisted mode.
+- `reindex [--bundle <path>] [--graph | --l2 | --fts5]` atomically rebuilds
+  disposable indexes. `--graph` derives `<bundle>/.mneme/graph.db` from OKF
+  pages/tags/links and refreshes FTS5 without changing Markdown. `--l2`
+  explicitly builds and persists semantic mode; `--fts5` explicitly switches
+  back. Bare `reindex` uses the persisted FTS5/L2 mode.
+- `dream [--bundle <path>] --json` audits without writing and includes Graph
+  health counters when `graph.db` exists. Its optional schedule flags print
+  agentless, report-only scheduler snippets and never install them; the default
+  fallback time is 02:00 local time.
+- `search <query> [--bundle <path>] [--mode graph|fts|hybrid] --json` returns
+  candidates. Graph-enabled FTS5 bundles default to hybrid; bundles without
+  Graph keep the persisted FTS5/L2 behavior.
 - `convert <source> --output <path>` creates derived readable text with an
   already-installed compatible converter; it never installs software and
   refuses overwrite unless the user explicitly requests `--force`.
@@ -166,6 +176,6 @@ only when a page type is unknown or disputed.
 - `references/workflow-lint.md` - read-only health review and diagnostics.
 - `references/type-vocab.md` - optional, non-registered type guidance.
 - `references/wiki-structure.md` - growing-bundle organization.
-- `references/index-design.md` - default FTS5 and explicit opt-in L2 details.
+- `references/index-design.md` - v4 Graph + FTS5 hybrid retrieval and explicit opt-in L2 details.
 
 OKF specification: <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>.

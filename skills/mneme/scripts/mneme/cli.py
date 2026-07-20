@@ -94,13 +94,31 @@ def cmd_reindex(args: argparse.Namespace) -> int:
         from .config import retrieval_mode
 
         mode = (
-            "l2" if getattr(args, "l2", False)
+            "graph" if getattr(args, "graph", False)
+            else "l2" if getattr(args, "l2", False)
             else "fts5" if getattr(args, "fts5", False)
             else retrieval_mode(config_path)
         )
     except ValueError as exc:
         print(f"reindex failed: {exc}", file=sys.stderr)
         return 1
+
+    if mode == "graph":
+        from . import graphlib
+
+        paths = _indexable_paths(bundle)
+        try:
+            indexed_pages = indexlib.reindex_paths(paths, bundle)
+            result = graphlib.rebuild_graph(bundle)
+        except Exception as exc:
+            print(f"reindex (graph) failed: {exc}", file=sys.stderr)
+            return 1
+        print(
+            f"indexed {result.indexed_pages} page(s), {result.indexed_entities} entity(s), "
+            f"and {result.indexed_relations} relation(s) into {result.db_path}; "
+            f"refreshed {indexed_pages} page(s) in {indexlib.fts_index_path(bundle)}"
+        )
+        return 0
 
     if mode == "l2":
         try:
@@ -260,7 +278,16 @@ def cmd_search(args: argparse.Namespace) -> int:
     try:
         from .config import retrieval_mode
 
-        mode = retrieval_mode(config_path)
+        persisted_mode = retrieval_mode(config_path)
+        requested_mode = getattr(args, "mode", None)
+        if requested_mode == "fts":
+            mode = "fts5"
+        elif requested_mode:
+            mode = requested_mode
+        elif indexlib.graph_index_path(bundle).is_file() and persisted_mode != "l2":
+            mode = "hybrid"
+        else:
+            mode = persisted_mode
     except ValueError as exc:
         print(f"search failed: {exc}", file=sys.stderr)
         return 1
@@ -271,6 +298,33 @@ def cmd_search(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
+
+    if mode in {"graph", "hybrid"}:
+        from . import graphlib
+
+        graph_db = graphlib.graph_index_path(bundle)
+        if not graph_db.is_file():
+            if mode == "graph":
+                print(
+                    f"no graph index at {graph_db}; run `mneme reindex --graph` to build it.",
+                    file=sys.stderr,
+                )
+                return 1
+            print(
+                f"no graph index at {graph_db}; falling back to FTS5 retrieval.",
+                file=sys.stderr,
+            )
+            mode = "fts5"
+        else:
+            try:
+                out = (
+                    graphlib.search_graph(graph_db, args.query, k=args.limit)
+                    if mode == "graph"
+                    else indexlib.search_hybrid(bundle, args.query, k=args.limit)
+                )
+            except Exception as exc:
+                print(f"search ({mode}) failed: {exc}", file=sys.stderr)
+                return 1
 
     if mode == "l2":
         db = indexlib.l2_index_path(bundle)
@@ -313,7 +367,7 @@ def cmd_search(args: argparse.Namespace) -> int:
                 for h in hits
             ],
         }
-    else:
+    elif mode not in {"graph", "hybrid"}:
         db = indexlib.fts_index_path(bundle)
         if db.is_file():
             try:
@@ -469,6 +523,14 @@ def cmd_dream(args: argparse.Namespace) -> int:
     if bundle is None:
         return 1
     report = _dream.dream_audit(bundle)
+    from . import graphlib
+
+    graph_db = graphlib.graph_index_path(bundle)
+    if graph_db.is_file():
+        try:
+            report["graph"] = graphlib.graph_health(graph_db)
+        except Exception as exc:
+            report["graph"] = {"error": str(exc)}
     if getattr(args, "json", False):
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
@@ -482,6 +544,16 @@ def cmd_dream(args: argparse.Namespace) -> int:
             print(f"  {section}:")
             for it in items:
                 print(f"    - {it['path']}: [{it['rule']}]")
+        graph = report.get("graph")
+        if graph:
+            if "error" in graph:
+                print(f"  graph: unavailable ({graph['error']})")
+            else:
+                print(
+                    "  graph: "
+                    f"{graph['entity_count']} entities, {graph['relation_count']} relations, "
+                    f"{graph['connected_component_count']} component(s)"
+                )
     return 0
 
 
@@ -665,6 +737,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="build and activate persistent zero-dependency FTS5 retrieval.",
     )
+    mode_group.add_argument(
+        "--graph",
+        action="store_true",
+        help=(
+            "rebuild the v4 disposable graph index from OKF pages and refresh FTS5; "
+            "does not modify Markdown"
+        ),
+    )
     reindex_parser.set_defaults(handler=cmd_reindex)
 
     search_parser = subparsers.add_parser("search", help="return ranked candidates from the index")
@@ -674,6 +754,15 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--bundle", dest="bundle", default=None)
     search_parser.add_argument("--config", default=None)
     search_parser.add_argument("--json", action="store_true")
+    search_parser.add_argument(
+        "--mode",
+        choices=("graph", "fts", "hybrid"),
+        default=None,
+        help=(
+            "override retrieval for this query. Without an override, graph-enabled "
+            "FTS5 bundles use hybrid mode and other bundles keep their persisted mode."
+        ),
+    )
     search_parser.add_argument(
         "--l2",
         action="store_true",

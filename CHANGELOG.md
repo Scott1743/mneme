@@ -9,6 +9,32 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.0.0] — 2026-07-20 — graph-enhanced hybrid retrieval
+
+### Added
+
+- Added the stdlib-only `<bundle>/.mneme/graph.db` disposable cache with page,
+  tag, and Markdown-link entities/relations, atomic rebuilds, graph traversal,
+  and health counters.
+- Added `mneme reindex --graph`, which rebuilds Graph and refreshes FTS5 without
+  modifying the authoritative OKF Markdown bundle.
+- Added `mneme search --mode graph|fts|hybrid`. Graph-enabled FTS5 bundles use
+  hybrid retrieval by default; hybrid falls back to global FTS5 when Graph is
+  missing or the query contains no graph entity match.
+- Added graph context and fused Graph/FTS scores to hybrid JSON candidates, while
+  preserving the required `path` / `title` / `snippet` navigation shape.
+- Added graph health statistics to the read-only `mneme dream --json` report.
+
+### Preserved
+
+- The user surface remains exactly `dream` + `search`; internal CLI command names
+  and existing `init` / `lint` / `reindex` / `convert` contracts remain intact.
+- Markdown remains the only source of truth. Graph, FTS5, and L2 are independent,
+  gitignored caches that can be deleted and rebuilt.
+- `mneme dream` remains read-only, OKF v0.1 tolerance and Mneme tags discipline
+  remain unchanged, and L2 stays an explicit user-installed opt-in with no
+  silent fallback.
+
 ## [3.4.0] — 2026-07-16 — nightly agent health workflow
 
 - After initialization, the first interactive dream, or a direct maintenance

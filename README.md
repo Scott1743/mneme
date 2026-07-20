@@ -7,7 +7,7 @@
 *把知识编译一次，让每一次提问都从已经整理好的地方继续向前。*
 
 [![MIT License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.4.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.0.0-blue.svg)](CHANGELOG.md)
 [![Skills.sh](https://img.shields.io/badge/skills.sh-available-2ea44f.svg)](https://www.skills.sh/?q=mneme)
 
 </div>
@@ -76,7 +76,7 @@ npx skills add Scott1743/mneme
 ### 方式二：下载 Skill zip
 
 - 零依赖基础版：[mneme-2.2.0.zip](https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip)
-- 最新版：[mneme-3.4.0.zip](https://github.com/Scott1743/mneme/releases/download/v3.4.0/mneme-3.4.0.zip)
+- 最新版：[mneme-4.0.0.zip](https://github.com/Scott1743/mneme/releases/download/v4.0.0/mneme-4.0.0.zip)
 
 解压到 Agent 的 skills 目录即可。Mneme 不提供 wheel 或全包 `pip install`，唯一交付物就是一个普通 Skill zip。
 
@@ -136,7 +136,7 @@ SKILL.md + 按需加载的 references
       │
       ▼
 Disposable accelerator
-默认 SQLite FTS5；显式可选 L2；随时可删可重建
+v4 Graph + SQLite FTS5；显式可选 L2；随时可删可重建
 ```
 
 四层职责彼此分离：原始资料不被改写，wiki 拥有事实，Skill 约束 Agent 行为，索引只负责导航。
@@ -154,9 +154,21 @@ mneme reindex
 mneme search "X"
 ```
 
+### v4：Graph + FTS5 混合检索
+
+`reindex --graph` 从现有 OKF 页面、tags 和 Markdown links 原子重建 `<bundle>/.mneme/graph.db`，并刷新 FTS5。Graph 只是派生导航缓存，不修改 Markdown，也不接管事实。Graph 存在且 L2 未激活时，普通 `search` 自动使用 hybrid；没有实体命中时回退到全局 FTS5。
+
+```bash
+mneme reindex --graph
+mneme search "OKF 和 FTS5 的关系" --mode hybrid
+mneme search "OKF" --mode graph
+```
+
+`dream --json` 会在 `graph.db` 存在时附带实体、关系、孤立实体、未解析页面与连通分量统计；审计仍然完全只读。
+
 ### L2：语义召回（可选）
 
-v3.3.0 可在用户自行安装 `sqlite-vec` 与 `FastEmbed` 后，通过一次 `reindex --l2` 显式启用。模式会持久化到配置中，之后普通 `search` / `reindex` 自动沿用；切回 FTS5 使用 `reindex --fts5`。Mneme 不会自动安装依赖，也不会静默回退模式。
+v3.3.0 起可在用户自行安装 `sqlite-vec` 与 `FastEmbed` 后，通过一次 `reindex --l2` 显式启用。模式会持久化到配置中，之后普通 `search` / `reindex` 自动沿用；切回 FTS5 使用 `reindex --fts5`。Mneme 不会自动安装依赖，也不会静默回退模式。
 
 ### 外部资料转换（可选）
 

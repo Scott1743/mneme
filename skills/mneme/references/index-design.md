@@ -1,19 +1,22 @@
 ---
 type: Reference
 title: mneme index design
-description: Independent FTS5 and persistent opt-in semantic indexing.
+description: Independent Graph, FTS5, and persistent opt-in semantic indexing.
 ---
 
 # index design
 
-Both modes use independent disposable, gitignored files. The Markdown bundle
+All indexes use independent disposable, gitignored files. The Markdown bundle
 remains authoritative, and each rebuild atomically replaces only its own cache:
 
-- `<bundle>/.mneme/fts.db` for default FTS5;
+- `<bundle>/.mneme/fts.db` for zero-dependency FTS5;
+- `<bundle>/.mneme/graph.db` for v4 page/tag/link graph navigation;
 - `<bundle>/.mneme/l2.db` for explicitly activated semantic retrieval.
 
-The active mode lives in `~/.config/mneme/config.toml` as
-`active_retrieval_mode`. Configurations without that field remain FTS5.
+The persisted FTS5/L2 choice lives in `~/.config/mneme/config.toml` as
+`active_retrieval_mode`. Configurations without that field remain FTS5. When
+Graph exists and L2 is not active, bare search uses hybrid Graph + FTS5.
+Deleting Graph restores the v3-compatible FTS5/L0 path.
 
 ## Default: FTS5
 
@@ -21,6 +24,26 @@ New and pre-L2 configurations use Python's standard-library SQLite FTS5.
 `mneme reindex` builds `<bundle>/.mneme/fts.db`; `mneme search` uses it. No
 third-party dependency or model is required. Without that index, search may
 fall back to a local Markdown scan.
+
+## v4 Graph + hybrid retrieval
+
+`mneme reindex --graph` builds `<bundle>/.mneme/graph.db` from valid OKF
+concept pages without changing them. Phase 1 derives:
+
+- one page entity per concept path;
+- tag entities plus `tagged_by` relations;
+- Markdown-link relations between page entities;
+- graph health counters for the read-only `dream --json` report.
+
+After Graph exists, bare search uses hybrid mode: Graph finds entity-related page
+paths, FTS5 ranks text matches inside that candidate set, and the CLI returns
+scores plus graph context. If no entity matches, hybrid falls back to global
+FTS5. `search --mode graph|fts|hybrid` provides an explicit per-query override
+for diagnostics; it does not persist a new mode.
+
+Graph is stdlib-only SQLite, contains no authoritative facts, and can be deleted
+at any time. Rebuild it after page/tag/link changes when graph navigation should
+reflect the latest Markdown.
 
 ## Explicit opt-in: L2
 
@@ -38,11 +61,11 @@ Only when the user requests semantic recall:
 4. `mneme reindex --fts5` explicitly switches the persisted mode back to FTS5.
    It does not delete `l2.db`; changing modes never overwrites the other cache.
 
-## Upgrade from 3.2
+## Upgrade from 3.x
 
-The old `<bundle>/.mneme/index.db` is a disposable derived cache. Version 3.3
-does not reuse it: run `mneme reindex` for FTS5, or `mneme reindex --l2` to
-build and activate L2 once.
+The old `<bundle>/.mneme/index.db` is a disposable derived cache. Version 4.0
+does not reuse it: run `mneme reindex` for FTS5, `mneme reindex --graph` for
+hybrid graph navigation, or `mneme reindex --l2` to build and activate L2 once.
 
 L2 returns chunks and raw distances for navigation, not truth or calibrated
 similarity decisions. Always read complete Markdown pages before answering,

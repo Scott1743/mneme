@@ -25,6 +25,13 @@ def fts_index_path(bundle_path: Path | str) -> Path:
     return Path(bundle_path) / ".mneme" / "fts.db"
 
 
+def graph_index_path(bundle_path: Path | str) -> Path:
+    """Return the independent v4 graph cache path."""
+    from .graphlib import graph_index_path as _graph_index_path
+
+    return _graph_index_path(bundle_path)
+
+
 def l2_index_path(bundle_path: Path | str) -> Path:
     """Return the independent optional semantic cache path."""
     return Path(bundle_path) / ".mneme" / "l2.db"
@@ -596,6 +603,157 @@ def reindex_paths(paths, bundle) -> int:
         _remove_sqlite_sidecars(temp_path)
         raise
     return indexed
+
+
+def search_paths(query: str, db: Path, paths: Iterable[str], k: int = 10) -> Dict:
+    """Search FTS5 while restricting candidates to bundle-relative paths."""
+    if not query.strip():
+        raise ValueError("query must not be empty")
+    if not 1 <= k <= 100:
+        raise ValueError("limit must be between 1 and 100")
+    selected = list(dict.fromkeys(str(path) for path in paths if str(path)))
+    if not selected:
+        return {"query": query, "candidates": []}
+    placeholders = ", ".join("?" for _ in selected)
+    conn = sqlite3.connect(str(db))
+    try:
+        rows = conn.execute(
+            "SELECT p.path, p.title, "
+            "snippet(pages_fts, 3, '|', '|', '…', 8) "
+            "FROM pages_fts JOIN pages p ON p.id = pages_fts.rowid "
+            f"WHERE pages_fts MATCH ? AND p.path IN ({placeholders}) "
+            "ORDER BY rank LIMIT ?",
+            (query, *selected, k),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {
+        "query": query,
+        "candidates": [
+            {"path": row[0], "title": row[1] or "", "snippet": row[2] or ""}
+            for row in rows
+        ],
+    }
+
+
+def search_hybrid(
+    bundle_path: Path | str,
+    query: str,
+    k: int = 10,
+    *,
+    alpha: float = 0.4,
+    beta: float = 0.4,
+    gamma: float = 0.2,
+    depth: int = 2,
+) -> Dict:
+    """Fuse graph reachability with FTS5 candidate ranking.
+
+    Phase 1 deliberately leaves ``gamma`` inactive: entity embeddings are a
+    later opt-in layer. The available graph and FTS weights are renormalized
+    so an absent embedding does not lower every result's score.
+    """
+    from . import graphlib
+
+    if not query.strip():
+        raise ValueError("query must not be empty")
+    if not 1 <= k <= 100:
+        raise ValueError("limit must be between 1 and 100")
+    root = Path(bundle_path)
+    graph_db = graphlib.graph_index_path(root)
+    fts_db = fts_index_path(root)
+    if not graph_db.is_file():
+        if fts_db.is_file():
+            result = search(query, fts_db, k=k)
+            result["graph_context"] = {"fallback": "fts5", "reason": "graph index missing"}
+            return result
+        return {
+            "query": query,
+            "candidates": [],
+            "graph_context": {"fallback": "l0", "reason": "graph and FTS5 indexes missing"},
+        }
+
+    graph_candidates = graphlib.graph_page_candidates(
+        graph_db, query, limit=max(k * 10, 50), depth=depth
+    )
+    if not graph_candidates and fts_db.is_file():
+        result = search(query, fts_db, k=k)
+        for rank, candidate in enumerate(result["candidates"]):
+            fts_score = 1.0 / (1.0 + rank)
+            candidate.update(
+                {
+                    "score": round(fts_score, 6),
+                    "graph_score": 0.0,
+                    "fts_score": round(fts_score, 6),
+                    "graph_context": {"distance": None, "matched_entities": []},
+                }
+            )
+        result["graph_context"] = {
+            "mode": "hybrid",
+            "fallback": "fts5",
+            "reason": "no graph entity match",
+            "graph_candidates": 0,
+            "fts_candidates": len(result["candidates"]),
+            "embedding_weight": gamma,
+            "embedding_enabled": False,
+        }
+        return result
+    by_path: Dict[str, Dict] = {}
+    for item in graph_candidates:
+        path = str(item.get("page_path") or item.get("name") or "")
+        if not path:
+            continue
+        props = item.get("properties", {})
+        by_path[path] = {
+            "path": path,
+            "title": props.get("title", item.get("name", path)),
+            "snippet": item.get("description", "") or "graph match",
+            "distance": int(item.get("distance", 0)),
+            "matched_entities": item.get("matched_entities", []),
+        }
+
+    fts_candidates = {"candidates": []}
+    if fts_db.is_file() and by_path:
+        fts_candidates = search_paths(query, fts_db, by_path.keys(), k=max(k * 10, 50))
+    fts_rank = {item["path"]: rank for rank, item in enumerate(fts_candidates["candidates"])}
+    total_weight = alpha + beta
+    if total_weight <= 0:
+        alpha, beta, total_weight = 0.5, 0.5, 1.0
+
+    merged = []
+    for path, item in by_path.items():
+        graph_score = 1.0 / (1.0 + item["distance"])
+        fts_score = 1.0 / (1.0 + fts_rank[path]) if path in fts_rank else 0.0
+        final_score = (alpha * graph_score + beta * fts_score) / total_weight
+        fts_item = next(
+            (candidate for candidate in fts_candidates["candidates"] if candidate["path"] == path),
+            None,
+        )
+        candidate = {
+            "path": path,
+            "title": (fts_item or item)["title"],
+            "snippet": (fts_item or item)["snippet"],
+            "score": round(final_score, 6),
+            "graph_score": round(graph_score, 6),
+            "fts_score": round(fts_score, 6),
+            "graph_context": {
+                "distance": item["distance"],
+                "matched_entities": item["matched_entities"],
+            },
+        }
+        merged.append(candidate)
+    merged.sort(key=lambda candidate: (-candidate["score"], candidate["path"]))
+    return {
+        "query": query,
+        "candidates": merged[:k],
+        "graph_context": {
+            "mode": "hybrid",
+            "depth": depth,
+            "graph_candidates": len(graph_candidates),
+            "fts_candidates": len(fts_candidates["candidates"]),
+            "embedding_weight": gamma,
+            "embedding_enabled": False,
+        },
+    }
 
 
 def search(query: str, db: Path, k: int = 10) -> Dict:

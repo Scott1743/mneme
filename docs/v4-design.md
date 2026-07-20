@@ -1,25 +1,25 @@
 # Mneme v4.0.0 — 图谱增强知识 Wiki 设计方案
 
-> **状态**：Draft v2 · 设计提案 · 2026-07-20
-> **兼容性声明**：本文提出 v4.0 的破坏性架构方向，尚未与现行 v3.4.0 的 `AGENTS.md` / `SKILL.md` 工作流契约对齐；在实现前必须完成契约迁移评审。本文不会单独改变现行 CLI、OKF 写作纪律或用户表面。
+> **状态**：Phase 1 MVP 已实施 · 2026-07-20
+> **兼容性声明**：v4.0.0 采用向后兼容实现：保留 v3.4.0 的 `dream + search` 用户表面、OKF/Mneme 写作纪律、只读 `mneme dream` 与显式 L2 契约；Graph 只作为从页面、tags 和 Markdown links 派生的可删除索引。
 > **作者**：Scott1743 + 小刘鸭
 > **前置版本**：v3.4.0（FTS5 + 可选 L2 语义索引）
-> **变更**：v2 简化架构——去掉 tags/links 与图谱的冗余层，FTS5 只索引正文
+> **实施范围**：Phase 1——SQLite Graph、`reindex --graph`、graph/fts/hybrid 搜索、Graph 健康统计；Phase 2–4 继续作为后续提案
 
 ---
 
-## 0. 与现行 v3.4.0 契约的关系
+## 0. v4.0.0 实施决议
 
-这是一份待评审的 v4 设计提案，不是现行 v3.4.0 行为的说明，也不是实现计划的批准。文中将 `tags`、Markdown links、写入入口和 Graph 的职责重新分配，属于有意提出的 breaking changes；在这些变更获批前，仓库仍以 `AGENTS.md`、`skills/mneme/SKILL.md` 和 `.research/upstream/OKF-SPEC.md` 为准。
+实际实现选择了兼容优先，而不是直接落地 Draft v2 中全部破坏性设想：
 
-需要单独决策的兼容性议题包括：
+- **OKF Wiki 继续是唯一真相源**：保留 `description`、`tags`、`timestamp` 与 Markdown links；Graph 只从这些字段派生，删掉 `graph.db` 不损失知识。
+- **用户表面继续是 `dream + search`**：没有新增顶层 `mneme <source>` 写入动词，写入仍由 host-agent 的 dream 工作流在预览与批准后执行。
+- **`mneme dream` 继续只读**：Graph 重建放在内部维护命令 `reindex --graph`；dream 只在报告中读取 Graph 健康统计。
+- **检索新增显式覆盖**：`search --mode graph|fts|hybrid`；Graph 存在且 L2 未激活时，普通 search 默认 hybrid。Graph 缺失或没有实体命中时回退 FTS5。
+- **Phase 1 保留 v3.4.0 FTS5 schema**：继续索引 `title + description + tags + body`，避免迁移期破坏现有候选与 snippet 契约；body-only schema 推迟到有基准和迁移方案后再决定。
+- **Embedding / 社区检测未进入核心路径**：`entity_embeddings` / `communities` 表先保留 schema，Phase 2–3 再做显式可选实现。
 
-- OKF frontmatter 是否继续保留 Mneme 写作纪律要求的 `description`、`tags`、`timestamp` 与 links；
-- `mneme` 是否可以成为新的写入入口，还是继续由 host-agent 的 `dream` 工作流负责写入；
-- Graph 是否始终只是可删除的派生索引，还是允许承载 tags / relations 等结构化事实；
-- `lint`、`reindex`、`dream` 与 `convert` 的现有 CLI 契约如何迁移。
-
-在迁移评审完成前，本提案中的命令、schema 和 frontmatter 示例均为拟议 v4 行为，不应直接复制到 v3.4.0 实现中。
+`AGENTS.md`、`skills/mneme/SKILL.md` 和 `.research/upstream/OKF-SPEC.md` 仍是实现约束；本文件后续标为“提案”的章节不代表已经交付的行为。
 
 ---
 
@@ -33,41 +33,39 @@ v4.0 引入 **SQLite 知识图谱**作为搜索的前置层：先走图谱召回
 
 | 维度 | v3.4.0 | v4.0 |
 |------|------|------|
-| 用户入口 | `init / lint / reindex / dream / search / convert` | **`mneme`（记入）/ `dream`（整理）/ `search`（检索）** |
-| 搜索路径 | FTS5(title+description+tags+body) → agent 读页 | **Graph(结构化) → FTS5(body only) → agent 综合** |
+| 用户入口 | `dream` / `search`，内部 CLI 为 `init / lint / reindex / dream / search / convert` | **保持不变；内部增加 `reindex --graph` 与 `search --mode graph|fts|hybrid`** |
+| 搜索路径 | FTS5(title+description+tags+body) → agent 读页 | **Graph(结构化候选) → FTS5 → agent 综合；无实体命中时 FTS5 fallback** |
 | 索引层 | `.mneme/fts.db` + 可选 `.mneme/l2.db` | `.mneme/fts.db` + **`.mneme/graph.db`** + 可选 `.mneme/l2.db` |
-| tags / links | frontmatter tags + Markdown links | **全部迁入 Graph（tagged_by 关系 + typed relations）** |
-| FTS5 索引范围 | title + description + tags + body | **正常模式：body only；降级模式：全部** |
-| embedding 模型 | 可选，L2 专用 | **复用于实体 embedding + 图谱搜索** |
+| tags / links | frontmatter tags + Markdown links | **继续保留在 Markdown，同时派生为 Graph 的 tagged_by / relates_to 关系** |
+| FTS5 索引范围 | title + description + tags + body | **Phase 1 保持不变；body-only 作为后续优化提案** |
+| embedding 模型 | 可选，L2 专用 | **Phase 1 仍仅用于显式 L2；实体 embedding 延后** |
 
 ---
 
 ## 2. 三层功能架构
 
-v4.0 的核心简化：**去掉 tags/links 与图谱三元组的冗余**。tags 和 links 本质上是用自然语言编码的实体关系——图谱把它们结构化了，不再需要两套系统并存。
+v4.0 的核心原则是**派生而非迁移**。tags 和 links 同时承担人类可读导航与 Graph 构建输入；Graph 把它们结构化用于遍历，但不能成为唯一存储位置。
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                   OKF Wiki（唯一真相源）                  │
 │                                                         │
-│  frontmatter 拟议最小化为：type + title（type 是 OKF 协议必填；title 是推荐字段）           │
-│  tags / links / relations → 全部迁入 Graph               │
-│  body（正文）→ FTS5/Embedding 索引                       │
+│  frontmatter：type + title + description + tags + ...   │
+│  Markdown links：可读、可 diff、可从 Graph 缺失时直接使用 │
+│  body（正文）→ FTS5 / 显式可选 L2                        │
 ├─────────────────────────────────────────────────────────┤
-│              Graph（关系 + 元数据中心）v4.0 新增           │
+│              Graph（可删除派生索引）v4.0 新增             │
 │                                                         │
-│  entities: name, entity_type, description, page_path    │
-│  relations: subject → predicate → object                │
-│  ← tags 变成 tagged_by 关系                              │
-│  ← links 变成具体 predicate 的 relations                  │
-│  ← description 从 frontmatter 继承                       │
-│  embedding + community detection                         │
+│  page entities：path + title + type + description       │
+│  tag entities：tags → tagged_by                          │
+│  link relations：Markdown links → relates_to             │
+│  health：孤立实体 / 未解析页面 / 连通分量                  │
 ├─────────────────────────────────────────────────────────┤
-│              Content Search（纯内容检索）                  │
+│              Content Search（内容检索）                   │
 │                                                         │
-│  FTS5：只索引 body（正文关键词匹配）                       │
-│  Embedding：正文语义向量（可选）                           │
-│  不再索引 tags / description / links                      │
+│  FTS5：title + description + tags + body（Phase 1）      │
+│  L2：正文语义向量（显式可选）                             │
+│  Hybrid：Graph 候选路径 + FTS5 排序                       │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -83,11 +81,11 @@ v4.0 的核心简化：**去掉 tags/links 与图谱三元组的冗余**。tags 
 
 ### 降级模式
 
-当 `graph.db` 不存在时（用户删除、首次使用、未 rebuild），FTS5 回退到 v3.4.0 行为——同时索引 title + tags + description + body，保证搜索不中断：
+当 `graph.db` 不存在时（用户删除、首次使用、未执行 `reindex --graph`），搜索回退到 v3.4.0 的 FTS5/L0 行为；Phase 1 的 FTS5 始终索引全部既有字段：
 
 | 模式 | graph.db 存在 | FTS5 索引范围 |
 |------|-------------|--------------|
-| **正常** | ✅ | body only |
+| **Hybrid** | ✅ | title + description + tags + body |
 | **降级** | ❌ | title + description + tags + body（v3.4.0 行为） |
 
 **关键约束**：Graph 和 FTS5 都是 **disposable**——可删可重建，不拥有事实。OKF Wiki 始终是唯一真相源。
@@ -198,7 +196,9 @@ VALUES (3, 'part_of', 2, '/concepts/fts5.md');    -- FTS5 part_of SQLite
 
 ---
 
-## 4. CLI 重新设计
+## 4. CLI 重新设计（Phase 2 提案，未实施）
+
+> v4.0.0 实际保留 `dream + search` 用户表面和六个内部 CLI 子命令；已实施的新增参数是 `reindex --graph` 与 `search --mode graph|fts|hybrid`。以下“三动词入口”保留为未来提案。
 
 ### 4.1 三动词入口
 
@@ -392,9 +392,11 @@ L3（可视化可选依赖，pip install mneme[graph-viz]）
 
 **原则**：L0 永远能跑（纯 sqlite3 SQL 遍历）；L1 提供图遍历 + embedding；L2 提供社区检测 + 向量加速；L3 仅提供可视化。用户按需安装。
 
+**v4.0.0 实际实现**：Phase 1 只使用 L0（sqlite3 + 项目内解析器 + Python 标准库）；NetworkX、fastembed、Leiden、sqlite-vec 与 matplotlib 均未进入默认或 Graph 重建路径。
+
 ---
 
-## 7. Agent 工作流
+## 7. Agent 工作流（Phase 2 提案，未实施）
 
 ### 7.1 `mneme`（记入）工作流
 
@@ -528,7 +530,7 @@ Agent 综合答案（引用 bundle 内路径）
 
 ---
 
-## 8. 可视化
+## 8. 可视化（Phase 3 提案，未实施）
 
 ### 8.1 Mermaid 图谱导出
 
@@ -562,21 +564,21 @@ graph TD
 v3.4.0 bundle（有 tags + links 的 wiki）
     │
     ▼
-mneme dream --rebuild --migrate
+mneme reindex --graph
     │
-    ├── 新建 graph.db：
-    │   ├── frontmatter tags → entities(type=tag) + tagged_by relations
-    │   ├── Markdown links → typed relations（推断 predicate）
-    │   └── description → entities.description
-    ├── FTS5 切换到 body-only 模式（schema 变更，自动处理）
+    ├── 新建 graph.db（原子替换）：
+    │   ├── frontmatter tags → tag entities + tagged_by relations
+    │   ├── Markdown links → page relations（relates_to）
+    │   └── description / title → page entity properties
+    ├── 刷新现有 FTS5（保留 title + description + tags + body schema）
     ├── 保留 l2.db（如果存在）
-    └── 更新 config.toml（添加 graph 相关配置）
+    └── 不修改 config.toml、OKF frontmatter、index.md 或 log.md
     │
     ▼
-v4.0 bundle（OKF frontmatter 简化，向后兼容 OKF v0.1）
+v4.0 bundle（原有 OKF/Mneme 写作纪律保持不变）
 ```
 
-### 9.2 配置扩展
+### 9.2 未来配置扩展提案（未实施）
 
 ```toml
 # ~/.config/mneme/config.toml
@@ -597,30 +599,33 @@ community_detection = true       # 是否在 dream 时运行社区检测
 export_mermaid = true            # 是否在 dream 时导出 Mermaid
 ```
 
-### 9.3 旧命令映射
+### 9.3 v4.0 实际命令兼容
 
-| v3.4.0 命令 | v4.0 等价 |
+| v3.4.0 命令 | v4.0 行为 |
 |-----------|-----------|
-| `mneme init <path>` | `mneme <path>`（首次运行自动 init） |
-| `mneme lint` | 保留为独立 lint（迁移期间不改退出码契约） |
-| `mneme reindex` | `mneme dream --rebuild` |
-| `mneme reindex --l2` | `mneme dream --rebuild`（L2 自动检测） |
-| `mneme search <q>` | `mneme search <q>`（默认 hybrid 模式） |
-| `mneme dream` | `mneme dream --dry-run`（只读审计） |
+| `mneme init <path>` | 保留，不改退出码与脚手架契约 |
+| `mneme lint` | 保留为独立 lint，不改退出码契约 |
+| `mneme reindex` | 保留，继续按持久化 FTS5/L2 模式重建 |
+| `mneme reindex --graph` | **新增**：重建 graph.db 并刷新 FTS5，不修改 Markdown |
+| `mneme reindex --l2` | 保留显式启用与持久化 L2 的契约 |
+| `mneme search <q>` | Graph 存在且 L2 未激活时默认 hybrid；否则保持原模式 |
+| `mneme search <q> --mode graph|fts|hybrid` | **新增**：单次查询覆盖，不持久化模式 |
+| `mneme dream` | 保持只读审计；Graph 存在时附加健康统计 |
 | `mneme convert` | 保留（不改） |
 
 ---
 
 ## 10. 实现分期
 
-### Phase 1：图谱基础（MVP）
+### Phase 1：图谱基础（MVP，v4.0.0 已实施）
 
-- [ ] graph.db schema 创建（`graphlib.py`）
-- [ ] 从 OKF 页面自动提取实体/关系（规则：tags → tagged_by，links → typed relations）
-- [ ] FTS5 双模式：正常(body only) / 降级(tags+desc+body)
-- [ ] `mneme dream --rebuild` 全量重建 graph.db + FTS5 切换模式
-- [ ] `mneme search --mode graph` 基础图谱搜索（BFS + SQL 遍历）
-- [ ] `mneme search --mode hybrid` 融合搜索
+- [x] graph.db schema 创建（`graphlib.py`）
+- [x] 从 OKF 页面自动提取实体/关系（规则：tags → tagged_by，links → relates_to）
+- [x] 原子 `mneme reindex --graph`：全量重建 graph.db + 刷新 FTS5
+- [x] `mneme search --mode graph` 基础图谱搜索（双向 BFS，depth ≤ 2）
+- [x] `mneme search --mode hybrid` Graph/FTS5 融合与无实体命中 fallback
+- [x] `mneme dream --json` 只读 Graph 健康统计
+- [ ] FTS5 body-only schema（兼容性评审后再决定；v4.0.0 保留全字段 schema）
 
 ### Phase 2：Agent 驱动的智能提取
 
@@ -647,17 +652,17 @@ export_mermaid = true            # 是否在 dream 时导出 Mermaid
 
 ## 11. 设计决策记录
 
-### 已解决：tags / links 与图谱的去重（2026-07-20）
+### 已解决：Markdown 权威性与 Graph 去重（2026-07-20）
 
-**问题**：OKF frontmatter 的 tags 和 Markdown links 与 Graph 三元组存在语义重叠。
+**问题**：OKF frontmatter 的 tags 和 Markdown links 与 Graph 三元组存在语义重叠，但全部迁入 Graph 会破坏 git-native、自描述和 disposable accelerator 契约。
 
-**结论**：
-- tags → Graph 中 type=tag 的实体 + `tagged_by` 关系
-- links → Graph 中具体 predicate 的 relations（比 Markdown 链接更精确）
-- FTS5 不再索引 tags/description（正常模式下由 Graph 覆盖）
-- OKF frontmatter 只保留协议必填字段（type, title），其余信息进 Graph
+**v4.0.0 结论**：
+- tags / links 继续留在 Markdown，Graph 仅派生 `tagged_by` / `relates_to` 关系；
+- FTS5 Phase 1 继续索引 `title + description + tags + body`，兼容既有候选契约；
+- OKF/Mneme frontmatter 写作纪律不变；Graph 删除后，FTS5/L0 与 agent 直接读页仍完整可用；
+- 更深层 typed relations、实体 embedding 与 community detection 推迟到后续显式可选阶段。
 
-**降级策略**：graph.db 缺失时 FTS5 回退到 v3 行为（索引全部字段）。
+**降级策略**：graph.db 缺失或 query 无实体命中时，hybrid 自动回退 FTS5；激活的 L2 仍不静默回退。
 
 ### 开放问题
 
@@ -670,11 +675,10 @@ export_mermaid = true            # 是否在 dream 时导出 Mermaid
 3. **图谱大小限制**：sqlite-muninn 和 NetworkX 在多大规模下性能可接受？
    - **倾向**：先跑 benchmark；目标 1000 实体 / 5000 关系内亚秒级响应。
 
-4. **夜巡整合**：`mneme dream` 的夜巡任务是否需要更新？
-   - **倾向**：是——夜巡增加"图谱健康检查"（孤立实体、断链关系、embedding 过期）。
+4. **夜巡整合**：v4.0.0 的 `dream --json` 已读取 Graph 健康统计；后续是否把无歧义的 graph.db 重建加入受限自动修复白名单？
+   - **倾向**：可以，因为只改 disposable accelerator；仍需遵守用户选择的夜巡模式。
 
-5. **旧 wiki 迁移**：已有 tags/links 的 v3 wiki 如何迁移到 v4？
-   - **倾向**：`mneme dream --rebuild --migrate` 自动将 frontmatter tags 转为 tagged_by 关系，Markdown links 转为 typed relations。
+5. **旧 wiki 迁移**：无需修改已有 Markdown。首次 `mneme reindex --graph` 直接从现有 tags/links 派生 Graph；删除 graph.db 即完成回退。
 
 ---
 

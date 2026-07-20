@@ -1,7 +1,7 @@
-"""Release-gate — Mneme 3.4 public surface.
+"""Release-gate — Mneme 4.0 public surface.
 
 The README and introduction must describe the `dream` + `search` surface,
-the explicit v3.3 semantic-search option, and both release downloads.
+the explicit v4 Graph + hybrid retrieval option, and both release downloads.
 
 The introduction page must expose `npx skills add Scott1743/mneme` as
 the install CTA; the README must be self-contained about the four-layer
@@ -30,7 +30,7 @@ def _read(path: Path) -> str:
 def test_release_downloads_are_present(path: Path) -> None:
     text = _read(path)
     assert "releases/download/v2.2.0/mneme-2.2.0.zip" in text
-    assert "releases/download/v3.4.0/mneme-3.4.0.zip" in text
+    assert "releases/download/v4.0.0/mneme-4.0.0.zip" in text
 
 
 def test_introduction_install_command_present() -> None:
@@ -53,14 +53,14 @@ def test_readme_surfaces_dream_and_search() -> None:
     )
 
 
-def test_readme_states_v3_semantic_option() -> None:
+def test_readme_states_v4_graph_option() -> None:
     text = _read(README)
-    assert "v3.3.0" in text and "reindex --l2" in text
+    assert "v4" in text and "reindex --graph" in text and "--mode hybrid" in text
 
 
 def test_introduction_states_current_release() -> None:
     text = _read(INTRO)
-    assert "v3.4" in text
+    assert "v4.0" in text
 
 
 def test_introduction_no_naive_rag() -> None:
