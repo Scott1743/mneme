@@ -1,19 +1,19 @@
 # 为什么 G(graph-only)在 5 题历史回归上效果差
 
-> **日期**:2026-07-20 · **基于**:v4.0.1 修复 description 列后的实验数据
+> **日期**:2026-07-21 · **基于**:v4.1.0 hybrid/freshness/Graph 排序修复后的重跑数据
 > **数据来源**:`reports/experiments/2026-07-20-cross-version-historical.{manifest.json,results.jsonl}`
 
 ---
 
 ## TL;DR
 
-G 阶段在 5 题上 nDCG@10=0.486,远低于 L2 的 0.826。**这不是 Graph 算法本身的失败,而是 bootstrap bundle 的 Graph 派生基础太薄弱**:
+G 阶段在 5 题上 nDCG@10=0.286，G+L1=0.400，与 L1 基线持平，仍远低于 L2 的 0.826。**这不是 SQLite/BFS 性能问题，而是 bootstrap bundle 的 Graph 派生基础太薄弱**:
 
 1. **Graph 的关系几乎全是 `tagged_by`**(426/428),且所有页面共享同 3 个 tag(dogfood/source/feishu),Graph 在结构上退化为"142 个页面通过 3 个 tag hub 连成一大块"。
 2. **`relates_to` 只有 2 条**(beta → alpha,即 `_bundle` fixture 里的 `Alpha uses Beta`),在真实 bootstrap bundle 里**没有任何跨页 Markdown link**。
-3. **G 的召回 = seed 命中 + BFS 2 跳**,seed 命中取决于 description/name/properties 是否含查询词;BFS 2 跳在 "142 页全连在 3 个 tag hub 上" 的拓扑里,**2 跳能触达几乎所有页面**,但 `graph_score = 1/(1+distance)` 无法区分"直接命中"和"通过共享 tag 间接关联"的页面。
+3. **G 的召回 = seed 命中 + BFS 2 跳**。v4.1 已对高 degree tag hub 降权并过滤通用 seed，但这只能抑制噪声，不能生成缺失的实体关系。
 
-结果是:G 在 query 直接命中 description 的页面上表现好(H01/H02 rank=1),在 description 不含查询词的页面上失败(H04/H05)。
+结果是:G 在 query 直接命中 description 的页面上表现好(H01 rank=1)，在 description 不含查询词的页面上失败(H04/H05)；H02 的通用词 seed 被过滤后不再产生伪 Graph 候选。
 
 ---
 
@@ -36,8 +36,8 @@ tag entities:
 
 **影响**:
 - `bfs_neighborhood(depth=2)` 从任何 seed 出发,2 跳能触达几乎所有页面(seed → tag hub → 其他页)。
-- `graph_score = 1/(1+distance)` 中,直接命中页 distance=0 → score=1.0;通过 tag 关联的页 distance=1 或 2 → score=0.5 或 0.33。
-- 但由于 **所有页面都有相同的 tag**,BFS 触达的"page 候选集"几乎总是全部 142 页,`graph_score` 无法有效区分。
+- v4.1 对匹配类型、边权与 tag degree 做衰减；直接命中仍明显高于经共享 tag 到达的页面。
+- 但由于 **所有页面都有相同的 tag**，BFS 仍会触达几乎全部 142 页；降权改善排序，却不能让这些边获得主题区分度。
 
 ### 2. 每题失败/成功的根因
 
@@ -77,10 +77,10 @@ final_score = (α * graph_score + β * fts_score) / (α + β)
 ```
 
 - G 阶段提供 graph_score(结构化召回),FTS5 提供 fts_score(全文词法召回)。
-- 对于 H04/H05,G 阶段 graph_score=0(未命中),但 FTS5 在 graph 候选集里能找到正文含查询词的页面,fts_score > 0,所以 final_score > 0。
-- 对于 H01/H02,G 阶段 graph_score=1.0(直接命中),FTS5 也能命中,final_score = (0.4×1.0 + 0.4×0.x)/0.8 ≈ 0.5+0.2x,比纯 G 的 1.0 低,但 rank 仍靠前。
+- v4.1 的 FTS5 在全局语料上独立召回，与 Graph 候选取并集；Graph 不再是硬过滤器。
+- 对于 H01，Graph 与 FTS5 都直接命中，rank 保持 1；H02 的通用词 Graph seed 被过滤，结果完全由全局 FTS5 决定。
 
-**G+L1 的 nDCG@10=0.600 比 G 的 0.486 高 0.114**,提升来自 H04/H05 上 FTS5 补充了 Graph 漏掉的页面。
+**G+L1 的 nDCG@10=0.400，与 L1 基线完全一致。** 这说明候选并集修复达到了“不让稀疏 Graph 伤害词法召回”的目标，但 Phase 1 Graph 本身没有带来净增益。
 
 ---
 
@@ -116,12 +116,12 @@ description = extract_first_sentences(body, max_chars=200)
 
 ## 7. 结论
 
-G 阶段在 5 题历史回归上 nDCG@10=0.486,**不是 Graph 算法失败,而是 bootstrap bundle 的 Graph 派生基础太薄弱**:
+G 阶段在 5 题历史回归上 nDCG@10=0.286，**不是 Graph 存储失败，而是 bootstrap bundle 的 Graph 派生基础太薄弱**:
 
 1. Graph 拓扑退化为 tag hub 星形结构(426 tagged_by vs 2 relates_to)。
 2. description 只是正文首行,查询词出现在正文其他位置时 Graph 无法命中。
-3. `graph_score = 1/(1+distance)` 在 tag hub 拓扑里无法有效区分页面。
+3. v4.1 的 hub 降权能减少噪声，但无法弥补正文实体和跨页关系缺失。
 
 **Graph 的价值需要在 "tags 有区分度、links 有跨页关系、description 有语义信息" 的 bundle 上才能体现**。bootstrap bundle 是测试夹具,不是真实 wiki;真实 wiki 应该有 agent 维护的 tags 和 links。80 题主分析应在更接近真实 wiki 的 bundle 上跑,或在 bootstrap 后补充 agent 提取的 tags/links。
 
-**G+L1 的 hybrid 设计是正确的**:G 提供结构化召回(当 Graph 数据好时),FTS5 提供全文兜底(当 Graph 数据差时)。v4.0.1 修复 description 列后,G+L1 的 nDCG@10 从 0.400 提升到 0.600,证明 hybrid 路径是有效的。
+**v4.1 的 hybrid 安全性已改善**：G 提供结构化信号，FTS5 始终全局召回。重跑中 G+L1 与 L1 同为 0.400，Graph 不再拖累基线；是否产生正增益仍取决于 agent extraction 的覆盖与质量。

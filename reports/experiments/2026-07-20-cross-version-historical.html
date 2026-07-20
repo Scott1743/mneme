@@ -1,0 +1,52 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mneme 跨版本检索回归 - 2026-07-20</title>
+<style>
+:root { --ink:#1b2a25; --muted:#5d6c65; --paper:#f5f5ef; --line:#d7ded8;
+  --l1:#31736a; --l2:#9a5a27; --hybrid:#765297; --g:#2e637d; --gl1:#a83d2a; }
+body { margin:0; background:var(--paper); color:var(--ink);
+  font:16px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif; }
+main { max-width:1100px; margin:auto; padding:52px 25px 84px; }
+h1 {font-size:38px;line-height:1.15;margin:0 0 12px} h2{margin-top:46px}
+.meta{color:var(--muted)} .warning{background:#fff0cf;border-left:5px solid #b87913;padding:17px 20px}
+table{width:100%;border-collapse:collapse;background:white}
+th,td{border:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}
+th{background:#e9efea} code{overflow-wrap:anywhere}
+.small{font-size:14px;color:var(--muted)}
+</style></head><body><main>
+<p class="meta">Mneme Research · Cross-version regression · 2026-07-20T16:40:05+00:00</p>
+<h1>0.5 / 2.0 / 3.0 / 4.0 的五题历史回归</h1>
+<div class="warning"><strong>结论边界。</strong> 本报告只复跑五条历史手选 qrels，<strong>不是</strong>预注册主分析。
+主分析仍缺 80 条、双人独立标注并裁决的 qrels，故不得将本页的均值、CI 或 p 值外推为主结论。
+v0.5 原始分数（Recall@5=1.000 / MRR=0.800）在 manifest 中标记为"档案数字"，不在本表重新运行；
+本表 L1/L2/L1+L2 与 2026-07-15-design01-historical 的对应阶段应可复现。</div>
+<h2>冻结证据</h2>
+<table><tr><th>字段</th><th>值</th></tr>
+<tr><th>语料</th><td>142 篇私有 Markdown，2085799 字符；聚合 SHA-256 <code>6bd159fdeaeeb87f6ce32beba690b2775366d228ec09c7a1d2dbcb88fd29e174</code></td></tr>
+<tr><th>表示</th><td>142 个 Source 概念页；raw source 与系统文件已排除</td></tr>
+<tr><th>实现</th><td>Mneme 4.1.0，commit <code>b31b18e779476ae8cd77f1d6fa79014599b984b3</code>；BGE <code>BAAI/bge-small-zh-v1.5</code>；RRF k=60；hybrid α=0.4/β=0.4/γ=0.2(inactive)；Graph depth=2</td></tr>
+<tr><th>Graph 健康</th><td>146 entities / 428 relations / 1 component(s) / 0 orphan(s)</td></tr>
+<tr><th>索引成本</th><td>L1 中位 117.4 ms / P95 129.1 ms / 7503872 bytes；L2 中位 28787.9 ms / P95 29430.4 ms / 11763712 bytes；Graph 中位 35.6 ms / P95 39.7 ms / 319488 bytes</td></tr>
+</table>
+<h2>阶段定义</h2>
+<table><tr><th>阶段</th><th>检索器</th><th>版本</th><th>状态</th></tr>
+<tr><td>L1</td><td>SQLite FTS5</td><td>v2.0</td><td>零依赖词法基线</td></tr>
+<tr><td>L2</td><td>BGE-small-zh-v1.5 + sqlite-vec</td><td>v3.0</td><td>纯语义检索</td></tr>
+<tr><td>L1+L2</td><td>L1 与 L2，RRF k=60</td><td>v3.x 实验脚本</td><td>词法+语义融合</td></tr>
+<tr><td>G</td><td>Graph BFS depth=2</td><td>v4.0</td><td>纯结构化召回</td></tr>
+<tr><td>G+L1</td><td>Graph + FTS5 加权融合</td><td>v4.0 CLI 默认</td><td>v4.0 主候选</td></tr>
+<tr><td>V0</td><td>v0.5 原始 dense</td><td>v0.5</td><td>档案数字，不在本表复跑</td></tr>
+</table>
+<h2>质量与延迟</h2>
+<table><tr><th>阶段</th><th>Recall@1</th><th>Recall@3</th><th>Recall@10</th><th>MRR@10</th><th>nDCG@10 [bootstrap 95% CI]</th><th>查询 P50/P95 ms</th></tr>
+<tr><th>L1</th><td>0.400</td><td>0.400</td><td>0.400</td><td>0.400</td><td>0.400 [0.000, 0.800]</td><td>0.47/12.14</td></tr><tr><th>L2</th><td>0.600</td><td>1.000</td><td>1.000</td><td>0.767</td><td>0.826 [0.626, 1.000]</td><td>4.87/5.92</td></tr><tr><th>L1+L2</th><td>0.600</td><td>0.800</td><td>1.000</td><td>0.733</td><td>0.797 [0.540, 1.000]</td><td>5.59/17.39</td></tr><tr><th>G</th><td>0.200</td><td>0.200</td><td>0.400</td><td>0.250</td><td>0.286 [0.000, 0.686]</td><td>3.94/5.01</td></tr><tr><th>G+L1</th><td>0.400</td><td>0.400</td><td>0.400</td><td>0.400</td><td>0.400 [0.000, 0.800]</td><td>13.90/23.18</td></tr></table>
+<p class="small">每阶段 5 个历史 qrels；查询延迟为同一进程内 30 次 × 5 query 的 warm 样本，不含模型下载。配对随机化：L2-L1 p=0.250；L1+L2-L1 p=0.250；G-L1 p=1.000；G+L1-L1 p=1.000；G+L1-G p=1.000。样本极小，p 值仅作审计记录。</p>
+<h2>逐题审计</h2>
+<table><tr><th>ID</th><th>查询</th><th>L1</th><th>L2</th><th>L1+L2</th><th>G</th><th>G+L1</th></tr><tr><td>H01</td><td>gstack</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td></tr><tr><td>H02</td><td>Claude Code 工作流</td><td>-</td><td>2</td><td>6</td><td>-</td><td>-</td></tr><tr><td>H03</td><td>银行回单</td><td>1</td><td>3</td><td>1</td><td>4</td><td>1</td></tr><tr><td>H04</td><td>录音</td><td>-</td><td>1</td><td>1</td><td>-</td><td>-</td></tr><tr><td>H05</td><td>Hermes</td><td>-</td><td>1</td><td>2</td><td>-</td><td>-</td></tr></table>
+<h2>解释</h2>
+<p>本表 L1/L2/L1+L2 应与 2026-07-15-design01-historical 对应阶段一致（除随机扰动）。G 与 G+L1 是 v4.0 新增阶段。
+若 G 在多跳题上 rank 优于 L1，提示 Graph 结构化召回有潜力，但需 80 题主分析验证。若 G+L1 的 nDCG@10 不低于 L1 且延迟可接受，提示 hybrid 路径值得作为 v4.0 默认。</p>
+<h2>产物</h2>
+<p><code>2026-07-20-cross-version-historical.manifest.json</code> 记录语料 hash、依赖、参数、Graph 健康度与环境；
+<code>results.jsonl</code> 逐阶段记录 query、rank、path、score 与配置 hash；均不含私有语料正文。</p>
+</main></body></html>
