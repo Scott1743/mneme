@@ -280,6 +280,7 @@ def ranked_metrics(paths: list[str], relevant_paths: list[str]) -> dict[str, flo
         return {
             "rank": None, "accuracy": 0.0, "precision": 0.0,
             "recall": 0.0, "f1": 0.0, "hit": 0.0, "mrr": 0.0, "ndcg": 0.0,
+            "retrieved_targets": 0, "first_hit_cost": TOP_K + 1,
         }
     ranks = [index for index, path in enumerate(paths[:TOP_K], 1) if path in relevant]
     first = min(ranks) if ranks else None
@@ -297,6 +298,8 @@ def ranked_metrics(paths: list[str], relevant_paths: list[str]) -> dict[str, flo
         "f1": f1,
         "mrr": 0.0 if first is None else 1.0 / first,
         "ndcg": 0.0 if ideal == 0 else dcg / ideal,
+        "retrieved_targets": len(ranks),
+        "first_hit_cost": first if first is not None else TOP_K + 1,
     }
 
 
@@ -358,6 +361,17 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     result["false_positive_rate"] = (
         statistics.mean(float(row["false_positive"]) for row in no_answer) if no_answer else 0.0
     )
+    result["target_retrieved_count"] = sum(int(row["retrieved_targets"]) for row in answerable)
+    result["target_total_count"] = sum(len(row["relevant_paths"]) for row in answerable)
+    result["target_recovery"] = (
+        result["target_retrieved_count"] / result["target_total_count"]
+        if result["target_total_count"] else 0.0
+    )
+    result["success"] = result["hit"]
+    result["success_ci"] = result["hit_ci"]
+    result["missed_query_count"] = sum(not bool(row["hit"]) for row in answerable)
+    result["first_hit_cost"] = statistics.mean(float(row["first_hit_cost"]) for row in answerable)
+    result["first_hit_cost_ci"] = bootstrap_ci(answerable, "first_hit_cost")
     result["latency_p50_ms"] = statistics.median(row["latency_ms"] for row in rows)
     result["latency_p95_ms"] = percentile([row["latency_ms"] for row in rows], 0.95)
     return result
@@ -386,8 +400,8 @@ def forest_svg(summary: dict[str, Any]) -> str:
     ticks = [0, .2, .4, .6, .8, 1]
     parts = [
         f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-labelledby="forest-title forest-desc">',
-        '<title id="forest-title">Overall nDCG at 10 with bootstrap confidence intervals</title>',
-        '<desc id="forest-desc">Five retrieval stages compared on 72 answerable queries.</desc>',
+        '<title id="forest-title">Macro Recall at 10 with bootstrap confidence intervals</title>',
+        '<desc id="forest-desc">Five retrieval stages compared by mean per-query target recall on 72 answerable queries.</desc>',
     ]
     for tick in ticks:
         x = left + tick * plot_w
@@ -396,8 +410,8 @@ def forest_svg(summary: dict[str, Any]) -> str:
     for index, stage in enumerate(STAGES):
         y = top + index * row_h
         metric = summary[stage]
-        low, high = metric["ndcg_ci"]
-        value = metric["ndcg"]
+        low, high = metric["recall_ci"]
+        value = metric["recall"]
         x1, x2, x = left + low * plot_w, left + high * plot_w, left + value * plot_w
         parts.append(f'<text x="{left - 14}" y="{y + 5}" text-anchor="end">{esc(STAGE_LABELS[stage])}</text>')
         parts.append(f'<line class="ci" x1="{x1:.1f}" x2="{x2:.1f}" y1="{y}" y2="{y}"/>')
@@ -405,7 +419,7 @@ def forest_svg(summary: dict[str, Any]) -> str:
         parts.append(f'<line class="ci-cap" x1="{x2:.1f}" x2="{x2:.1f}" y1="{y-6}" y2="{y+6}"/>')
         parts.append(f'<circle cx="{x:.1f}" cy="{y}" r="6" fill="{COLORS[stage]}"/>')
         parts.append(f'<text class="value" x="{min(width-42, x+10):.1f}" y="{y+5}">{value:.3f}</text>')
-    parts.append(f'<text class="axis-title" x="{left + plot_w/2:.1f}" y="298" text-anchor="middle">nDCG@10</text></svg>')
+    parts.append(f'<text class="axis-title" x="{left + plot_w/2:.1f}" y="298" text-anchor="middle">Macro Recall@10</text></svg>')
     return "".join(parts)
 
 
@@ -416,8 +430,8 @@ def family_svg(by_family: dict[str, dict[str, Any]]) -> str:
     plot_w = width - left - right
     parts = [
         f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-labelledby="family-title family-desc">',
-        '<title id="family-title">nDCG at 10 by query family</title>',
-        '<desc id="family-desc">Small multiple dot plot comparing five stages across three answerable query families.</desc>',
+        '<title id="family-title">Macro Recall at 10 by query family</title>',
+        '<desc id="family-desc">Small multiple dot plot comparing target recall across five stages and three answerable query families.</desc>',
     ]
     for tick in (0, .25, .5, .75, 1):
         x = left + tick * plot_w
@@ -429,56 +443,46 @@ def family_svg(by_family: dict[str, dict[str, Any]]) -> str:
         parts.append(f'<text class="family-label" x="{left-18}" y="{base_y+40}" text-anchor="end">{labels[family]}</text>')
         for stage_index, stage in enumerate(STAGES):
             y = base_y + stage_index * 16
-            value = by_family[family][stage]["ndcg"]
+            value = by_family[family][stage]["recall"]
             x = left + value * plot_w
             parts.append(f'<circle cx="{x:.1f}" cy="{y}" r="4.5" fill="{COLORS[stage]}"><title>{esc(STAGE_LABELS[stage])}: {value:.3f}</title></circle>')
             if family_index == 0:
                 parts.append(f'<text class="series-label" x="{x+8:.1f}" y="{y+4}">{esc(stage)}</text>')
-    parts.append(f'<text class="axis-title" x="{left + plot_w/2:.1f}" y="386" text-anchor="middle">nDCG@10</text></svg>')
+    parts.append(f'<text class="axis-title" x="{left + plot_w/2:.1f}" y="386" text-anchor="middle">Macro Recall@10</text></svg>')
     return "".join(parts)
 
 
-def classic_metrics_svg(summary: dict[str, Any]) -> str:
-    metrics = (
-        ("accuracy", "Top-1 accuracy", "#3573b8", "circle"),
-        ("precision", "Precision@10", "#238b68", "square"),
-        ("recall", "Macro Recall@10", "#c87a18", "diamond"),
-        ("f1", "Macro F1@10", "#a44a8b", "cross"),
-    )
-    width, height = 900, 330
-    left, right, top, row_h = 200, 70, 52, 47
-    plot_w = width - left - right
+def coverage_effort_svg(summary: dict[str, Any]) -> str:
+    width, height = 920, 330
+    left_label, left_x, panel_w, gap, right_x = 190, 210, 250, 90, 550
+    top, row_h = 50, 48
     parts = [
-        f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-labelledby="classic-title classic-desc">',
-        '<title id="classic-title">Classic retrieval metric profile</title>',
-        '<desc id="classic-desc">Top-1 accuracy, precision at 10, macro recall at 10, and macro F1 at 10 for five retrieval stages.</desc>',
+        f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-labelledby="coverage-title coverage-desc">',
+        '<title id="coverage-title">Query success and first-hit reading cost</title>',
+        '<desc id="coverage-desc">Two aligned panels compare success within ten candidates and mean pages inspected before the first frozen target. Misses cost eleven pages.</desc>',
+        f'<text class="axis-title" x="{left_x + panel_w/2}" y="20" text-anchor="middle">Query Success@10 · higher is better</text>',
+        f'<text class="axis-title" x="{right_x + panel_w/2}" y="20" text-anchor="middle">First-hit pages · lower is better</text>',
     ]
-    for tick in (0, .2, .4, .6, .8, 1):
-        x = left + tick * plot_w
-        parts.append(f'<line class="grid" x1="{x:.1f}" x2="{x:.1f}" y1="38" y2="270"/>')
-        parts.append(f'<text class="axis" x="{x:.1f}" y="298" text-anchor="middle">{tick:.1f}</text>')
+    for tick in (0, .25, .5, .75, 1):
+        x = left_x + tick * panel_w
+        parts.append(f'<line class="grid" x1="{x:.1f}" x2="{x:.1f}" y1="34" y2="270"/>')
+        parts.append(f'<text class="axis" x="{x:.1f}" y="298" text-anchor="middle">{tick:.2f}</text>')
+    for tick in (1, 3, 5, 7, 9, 11):
+        x = right_x + (tick - 1) / 10 * panel_w
+        parts.append(f'<line class="grid" x1="{x:.1f}" x2="{x:.1f}" y1="34" y2="270"/>')
+        parts.append(f'<text class="axis" x="{x:.1f}" y="298" text-anchor="middle">{tick}</text>')
     for index, stage in enumerate(STAGES):
         y = top + index * row_h
-        parts.append(f'<text x="{left-14}" y="{y+5}" text-anchor="end">{esc(STAGE_LABELS[stage])}</text>')
-        for metric_index, (key, label, color, shape) in enumerate(metrics):
-            value = summary[stage][key]
-            x = left + value * plot_w
-            offset = (metric_index - 1.5) * 8
-            cy = y + offset
-            title = f'{label}: {value:.3f}'
-            if shape == "circle":
-                parts.append(f'<circle cx="{x:.1f}" cy="{cy:.1f}" r="4.5" fill="{color}"><title>{title}</title></circle>')
-            elif shape == "square":
-                parts.append(f'<rect x="{x-4:.1f}" y="{cy-4:.1f}" width="8" height="8" fill="{color}"><title>{title}</title></rect>')
-            elif shape == "diamond":
-                parts.append(f'<path d="M{x:.1f},{cy-5:.1f} L{x+5:.1f},{cy:.1f} L{x:.1f},{cy+5:.1f} L{x-5:.1f},{cy:.1f} Z" fill="{color}"><title>{title}</title></path>')
-            else:
-                parts.append(f'<path d="M{x-4:.1f},{cy-4:.1f} L{x+4:.1f},{cy+4:.1f} M{x+4:.1f},{cy-4:.1f} L{x-4:.1f},{cy+4:.1f}" stroke="{color}" stroke-width="2"><title>{title}</title></path>')
-    legend_x = left
-    for index, (_, label, color, _) in enumerate(metrics):
-        x = legend_x + index * 155
-        parts.append(f'<circle cx="{x:.1f}" cy="20" r="4" fill="{color}"/><text class="axis" x="{x+9:.1f}" y="24">{label}</text>')
-    parts.append(f'<text class="axis-title" x="{left+plot_w/2:.1f}" y="325" text-anchor="middle">Score</text></svg>')
+        success = summary[stage]["success"]
+        cost = summary[stage]["first_hit_cost"]
+        sx = left_x + success * panel_w
+        cx = right_x + (cost - 1) / 10 * panel_w
+        parts.append(f'<text x="{left_label}" y="{y+5}" text-anchor="end">{esc(STAGE_LABELS[stage])}</text>')
+        parts.append(f'<circle cx="{sx:.1f}" cy="{y}" r="5" fill="{COLORS[stage]}"><title>Success@10: {success:.3f}</title></circle>')
+        parts.append(f'<text class="value" x="{sx+9:.1f}" y="{y+5}">{success:.3f}</text>')
+        parts.append(f'<rect x="{cx-5:.1f}" y="{y-5}" width="10" height="10" fill="{COLORS[stage]}"><title>Mean first-hit pages: {cost:.2f}</title></rect>')
+        parts.append(f'<text class="value" x="{cx+9:.1f}" y="{y+5}">{cost:.2f}</text>')
+    parts.append('</svg>')
     return "".join(parts)
 
 
@@ -486,15 +490,15 @@ def delta_svg(deltas: dict[str, dict[str, Any]]) -> str:
     labels = (("G1-G0", "Enrichment: G1 - G0"), ("H1-H0", "Enrichment: H1 - H0"),
               ("H1-L1", "Hybrid safety: H1 - L1"), ("H1-G1", "Fusion effect: H1 - G1"))
     width, height = 860, 260
-    left, right, top, row_h, bound = 240, 90, 38, 48, .5
+    left, right, top, row_h, bound = 240, 90, 38, 48, .75
     plot_w = width - left - right
     x_of = lambda value: left + ((value + bound) / (2 * bound)) * plot_w
     parts = [
         f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-labelledby="delta-title delta-desc">',
-        '<title id="delta-title">Paired nDCG differences</title>',
-        '<desc id="delta-desc">Paired bootstrap differences with 95 percent confidence intervals.</desc>',
+        '<title id="delta-title">Paired Macro Recall at 10 differences</title>',
+        '<desc id="delta-desc">Paired query-bootstrap recall differences with 95 percent confidence intervals.</desc>',
     ]
-    for tick in (-.5, -.25, 0, .25, .5):
+    for tick in (-.75, -.5, -.25, 0, .25, .5, .75):
         x = x_of(tick)
         parts.append(f'<line class="{"zero" if tick == 0 else "grid"}" x1="{x:.1f}" x2="{x:.1f}" y1="18" y2="212"/>')
         parts.append(f'<text class="axis" x="{x:.1f}" y="238" text-anchor="middle">{tick:+.2f}</text>')
@@ -546,8 +550,8 @@ def corpus_expansion_svg(base: dict[str, Any], expanded: dict[str, Any]) -> str:
     plot_w = width - left - right
     parts = [
         f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-labelledby="growth-title growth-desc">',
-        '<title id="growth-title">Frozen-target nDCG before and after event corpus expansion</title>',
-        '<desc id="growth-desc">Paired points compare the 142-page base corpus with the 219-page corpus after adding 77 topical event pages.</desc>',
+        '<title id="growth-title">Macro Recall at 10 before and after event corpus expansion</title>',
+        '<desc id="growth-desc">Paired recall points compare the 142-page base corpus with the 219-page corpus after adding 77 topical event pages.</desc>',
     ]
     for tick in (0, .2, .4, .6, .8, 1):
         x = left + tick * plot_w
@@ -555,8 +559,8 @@ def corpus_expansion_svg(base: dict[str, Any], expanded: dict[str, Any]) -> str:
         parts.append(f'<text class="axis" x="{x:.1f}" y="302" text-anchor="middle">{tick:.1f}</text>')
     for index, stage in enumerate(STAGES):
         y = top + index * row_h
-        before = base[stage]["ndcg"]
-        after = expanded[stage]["ndcg"]
+        before = base[stage]["recall"]
+        after = expanded[stage]["recall"]
         x1, x2 = left + before * plot_w, left + after * plot_w
         parts.append(f'<text x="{left-14}" y="{y+5}" text-anchor="end">{esc(STAGE_LABELS[stage])}</text>')
         parts.append(f'<line class="ci" x1="{x1:.1f}" x2="{x2:.1f}" y1="{y}" y2="{y}"/>')
@@ -564,7 +568,7 @@ def corpus_expansion_svg(base: dict[str, Any], expanded: dict[str, Any]) -> str:
         parts.append(f'<rect x="{x2-5:.1f}" y="{y-5}" width="10" height="10" fill="{COLORS[stage]}"><title>Expanded: {after:.3f}</title></rect>')
         anchor = min(width - 48, max(x1, x2) + 10)
         parts.append(f'<text class="value" x="{anchor:.1f}" y="{y+5}">{after-before:+.3f}</text>')
-    parts.append(f'<text class="axis-title" x="{left+plot_w/2:.1f}" y="326" text-anchor="middle">Frozen-target nDCG@10 · circle=base, square=expanded</text></svg>')
+    parts.append(f'<text class="axis-title" x="{left+plot_w/2:.1f}" y="326" text-anchor="middle">Macro Recall@10 · circle=base, square=expanded</text></svg>')
     return "".join(parts)
 
 
@@ -589,6 +593,26 @@ def corpus_statement_html(manifest: dict[str, Any]) -> str:
         f'<p class="caption">Event archive: <code>{esc(events["archive_name"])}</code>; '
         f'{events["unique_body_count"]} unique bodies; {events["frontmatter_count"]} pages with '
         f'frontmatter; event dates {esc(date_range)}. Most frequent tags: {esc(tags)}.</p>'
+    )
+
+
+def metric_design_html() -> str:
+    rows = (
+        ("Macro Recall@10", "Does each question recover its labeled targets?", "Per-query target recall, then mean; primary quality metric."),
+        ("Query Success@10", "How often does the candidate set contain any target?", "Fraction of answerable questions with at least one target in ten candidates."),
+        ("Recovered targets", "How many frozen targets are recovered overall?", "Exact count and micro recovery ratio; keeps the denominator visible."),
+        ("First-hit pages", "How many pages must the agent inspect before finding a target?", "First target rank; a miss is charged 11 pages. Lower is better."),
+        ("Expansion retention", "Does quality survive topical corpus growth?", "Expanded/base Macro Recall@10, reported as both delta and retained fraction."),
+        ("Latency", "What is the local retrieval cost?", "Warm in-process P50/P95; descriptive, not a service-level claim."),
+    )
+    body = "".join(
+        f"<tr><td>{esc(name)}</td><td>{esc(question)}</td><td>{esc(definition)}</td></tr>"
+        for name, question, definition in rows
+    )
+    return (
+        "<p>The primary question is whether the agent receives the pages needed to answer, under a fixed ten-candidate reading budget. Classification accuracy, fixed-denominator Precision@10, and F1@10 are excluded from the headline because the qrels are sparse and do not exhaustively label the expanded corpus.</p>"
+        '<div class="table-wrap"><table class="question-table"><thead><tr><th>Metric</th>'
+        f"<th>Operational question</th><th>Definition</th></tr></thead><tbody>{body}</tbody></table></div>"
     )
 
 
@@ -650,10 +674,13 @@ def report_html(manifest: dict[str, Any], qrels: list[dict[str, Any]]) -> str:
     base_summary = manifest["base_summary"]
     by_family = manifest["by_family"]
     rows = "".join(
-        f"<tr><td>{esc(STAGE_LABELS[stage])}</td><td>{summary[stage]['ndcg']:.3f}</td>"
-        f"<td>{summary[stage]['accuracy']:.3f}</td><td>{summary[stage]['precision']:.3f}</td>"
-        f"<td>{summary[stage]['recall']:.3f}</td><td>{summary[stage]['f1']:.3f}</td><td>{summary[stage]['hit']:.3f}</td>"
-        f"<td>{summary[stage]['mrr']:.3f}</td><td>{summary[stage]['false_positive_rate']:.3f}</td>"
+        f"<tr><td>{esc(STAGE_LABELS[stage])}</td><td>{summary[stage]['recall']:.3f}</td>"
+        f"<td>{summary[stage]['success']:.3f}</td>"
+        f"<td>{summary[stage]['target_retrieved_count']}/{summary[stage]['target_total_count']} "
+        f"({summary[stage]['target_recovery']:.3f})</td>"
+        f"<td>{summary[stage]['first_hit_cost']:.2f}</td>"
+        f"<td>{summary[stage]['missed_query_count']}</td>"
+        f"<td>{summary[stage]['recall'] / base_summary[stage]['recall']:.3f}</td>"
         f"<td>{summary[stage]['latency_p50_ms']:.2f}</td><td>{summary[stage]['latency_p95_ms']:.2f}</td></tr>"
         for stage in STAGES
     )
@@ -662,13 +689,13 @@ def report_html(manifest: dict[str, Any], qrels: list[dict[str, Any]]) -> str:
     fusion = manifest["deltas"]["H1-G1"]
     fusion_low, fusion_high = fusion["ci"]
     conclusion = (
-        f"On the expanded corpus, G1 target nDCG@10 is {summary['G1']['ndcg']:.3f} and H1 is "
-        f"{summary['H1']['ndcg']:.3f}, a change of "
-        f"{summary['H1']['ndcg']-base_summary['H1']['ndcg']:+.3f} "
-        f"from base H1. The H1-G1 difference is {fusion['delta']:+.3f} "
+        f"On the expanded corpus, H1 Macro Recall@10 is {summary['H1']['recall']:.3f}: "
+        f"{summary['H1']['target_retrieved_count']} of {summary['H1']['target_total_count']} frozen targets "
+        f"are recovered, and {summary['H1']['missed_query_count']} of 72 answerable questions have no target "
+        f"in ten candidates. Recall changes by {summary['H1']['recall']-base_summary['H1']['recall']:+.3f} "
+        f"after corpus expansion. The H1-G1 recall difference is {fusion['delta']:+.3f} "
         f"[{fusion_low:+.3f}, {fusion_high:+.3f}]; enrichment still improves H1 over H0 by "
-        f"{manifest['deltas']['H1-H0']['delta']:+.3f}. These are frozen-target retention results, "
-        "not exhaustive relevance judgments for the event cohort."
+        f"{manifest['deltas']['H1-H0']['delta']:+.3f}."
     )
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -684,24 +711,25 @@ main{{max-width:1120px;margin:0 auto;padding:48px 28px 80px}}h1{{font-size:34px;
 <p class="lede">A controlled ablation of deterministic Graph, agent enrichment, and global FTS5 fusion on a {manifest['bundle_page_count']}-page Markdown corpus. A paired stress condition adds {events['page_count']} topical AI event pages to the original {manifest['base_page_count']} pages; 72 construction-aware answerable queries and 8 synthetic no-answer controls remain frozen.</p>
 <p class="finding">{esc(conclusion)}</p>
 <h2>Corpus and label scope</h2>{corpus_statement_html(manifest)}
+<h2>Metric design</h2>{metric_design_html()}
 <h2>Benchmark questions</h2>{question_audit_html(qrels)}
 <h2>Corpus expansion stress</h2>{corpus_expansion_svg(base_summary, summary)}
-<p class="caption">The same frozen original targets are evaluated before and after adding the event cohort. Event pages were not exhaustively relevance-judged; the expanded score is therefore a target-retention diagnostic, not a complete relevance estimate. Exact query text occurs in the added cohort for {len(events['exact_query_overlap_ids'])} question(s): {esc(', '.join(events['exact_query_overlap_ids']) or 'none')}.</p>
-<h2>Expanded-corpus target retrieval</h2>{forest_svg(summary)}
-<p class="caption">Points are mean binary target nDCG@10 on the expanded corpus; horizontal lines are query-bootstrap 95% confidence intervals (10,000 resamples). No-answer controls are excluded.</p>
-<h2>Classic metric profile</h2>{classic_metrics_svg(summary)}
-<p class="caption">Precision@10 uses a fixed denominator of 10. Accuracy means whether rank 1 is a frozen target, not document-classification accuracy. Recall and F1 are macro-averaged over answerable base-corpus targets.</p>
+<p class="caption">The same frozen targets are evaluated before and after adding the event cohort. The ratio in the metric table reports retained recall. Event pages are unjudged; exact query text occurs in the added cohort for {len(events['exact_query_overlap_ids'])} question(s): {esc(', '.join(events['exact_query_overlap_ids']) or 'none')}.</p>
+<h2>Expanded-corpus recall</h2>{forest_svg(summary)}
+<p class="caption">Points are mean per-query target Recall@10; horizontal lines are query-bootstrap 95% confidence intervals (10,000 resamples). No-answer controls are excluded.</p>
+<h2>Coverage and reading effort</h2>{coverage_effort_svg(summary)}
+<p class="caption">Success asks whether any frozen target appears within ten candidates. First-hit pages estimates the agent's reading work; a miss is assigned 11 pages so failures remain visible. It is a cost measure, not a relevance judgment about unlabelled event pages.</p>
 <h2>Query-family response</h2>{family_svg(by_family)}
 <p class="caption">The family split is essential: entity and relation qrels are derived from the frozen extraction manifest and measure mechanism coverage, not independent general-search quality.</p>
-<h2>Paired effects</h2>{delta_svg(manifest['deltas'])}
+<h2>Paired recall effects</h2>{delta_svg(manifest['deltas'])}
 <p class="caption">Positive values favor the second system. Intervals crossing zero do not establish a stable directional effect on this diagnostic set.</p>
 <h2>Latency</h2>{latency_svg(summary)}
 <p class="caption">Warm in-process measurements; each query is repeated {QUERY_REPEATS} times. They describe this local machine and are not service-level benchmarks.</p>
-<h2>Expanded-corpus metric table</h2><div class="table-wrap"><table><thead><tr><th>Stage</th><th>Target nDCG@10</th><th>Top-1 target accuracy</th><th>Target Precision@10</th><th>Macro target Recall@10</th><th>Macro target F1@10</th><th>Target Hit@10</th><th>Target MRR@10</th><th>No-answer FPR</th><th>P50 ms</th><th>P95 ms</th></tr></thead><tbody>{rows}</tbody></table></div>
+<h2>Expanded-corpus metric table</h2><div class="table-wrap"><table><thead><tr><th>Stage</th><th>Macro Recall@10</th><th>Query Success@10</th><th>Recovered targets</th><th>First-hit pages</th><th>Missed queries</th><th>Expansion retention</th><th>P50 ms</th><th>P95 ms</th></tr></thead><tbody>{rows}</tbody></table></div>
 <h2>Graph construction</h2><div class="table-wrap"><table><thead><tr><th>Graph</th><th>Entities</th><th>Relations</th><th>LLM entities</th><th>LLM relations</th><th>Components</th><th>Orphans</th></tr></thead><tbody>
 <tr><td>G0 deterministic</td><td>{health['G0']['entity_count']}</td><td>{health['G0']['relation_count']}</td><td>{health['G0']['llm_entity_count']}</td><td>{health['G0']['llm_relation_count']}</td><td>{health['G0']['connected_component_count']}</td><td>{health['G0']['orphan_entity_count']}</td></tr>
 <tr><td>G1 enriched</td><td>{health['G1']['entity_count']}</td><td>{health['G1']['relation_count']}</td><td>{health['G1']['llm_entity_count']}</td><td>{health['G1']['llm_relation_count']}</td><td>{health['G1']['connected_component_count']}</td><td>{health['G1']['orphan_entity_count']}</td></tr></tbody></table></div>
-<h2>Methods and limits</h2><div class="methods"><p><strong>Corpus.</strong> The base is one private {manifest['base_page_count']}-content-page Feishu Markdown export. The paired expansion adds {events['page_count']} unique event pages from <code>{esc(events['archive_name'])}</code>, producing {manifest['bundle_page_count']} content pages. FTS5 also indexes the reserved <code>index.md</code>/<code>log.md</code> files ({manifest['base_indexed_markdown_count']} and {manifest['indexed_markdown_count']} Markdown files respectively). Export pairs with identical bodies (<code>foo.md</code>/<code>foo--2.md</code>) are treated as one document equivalence class.</p><p><strong>Expansion labels.</strong> Qrels were frozen on the base corpus. Added event pages are topical stress documents, not judged negatives. Expanded-corpus metrics therefore ask whether the original relevant targets remain highly ranked; they cannot penalize or validate the relevance of new event hits.</p><p><strong>Metrics.</strong> nDCG uses binary target labels and logarithmic rank discount. Recall is macro-averaged per answerable query; Hit records any frozen target in the top 10; MRR uses the first frozen target rank. No-answer controls are excluded and reported as FPR.</p><p><strong>Systems.</strong> L1 is global FTS5. G0 derives only pages, tags, and Markdown links. G1 adds the frozen agent extraction manifest for the base corpus. H0/H1 use the production Graph + global FTS union. Event pages receive deterministic Graph indexing but no post-hoc enrichment.</p><p><strong>Labels.</strong> Entity, context, and relation qrels are deterministically sampled from the extraction manifest. They are suitable for enrichment ablation, but share construction provenance with G1 and must not be treated as independent human relevance judgments.</p><p><strong>Known boundary.</strong> This report does not compare L2, answer synthesis, citation correctness, or independent user questions. A separate double-annotated benchmark is required for those claims.</p></div>
+<h2>Methods and limits</h2><div class="methods"><p><strong>Corpus.</strong> The base is one private {manifest['base_page_count']}-content-page Feishu Markdown export. The paired expansion adds {events['page_count']} unique event pages from <code>{esc(events['archive_name'])}</code>, producing {manifest['bundle_page_count']} content pages. FTS5 also indexes the reserved <code>index.md</code>/<code>log.md</code> files ({manifest['base_indexed_markdown_count']} and {manifest['indexed_markdown_count']} Markdown files respectively). Export pairs with identical bodies (<code>foo.md</code>/<code>foo--2.md</code>) are treated as one document equivalence class.</p><p><strong>Expansion labels.</strong> Qrels were frozen on the base corpus. Added event pages are topical stress documents, not judged negatives. Expanded-corpus metrics therefore measure frozen-target recovery and reading cost; they cannot penalize or validate the relevance of new event hits.</p><p><strong>Metrics.</strong> Macro Recall@10 and Query Success@10 use the query as the statistical unit. Recovered targets is the micro count across 80 frozen targets. First-hit pages charges the observed first target rank or 11 for a miss. Precision, classification Accuracy, F1, nDCG, and MRR remain in machine-readable rows for audit compatibility but are intentionally excluded from the scientific headline.</p><p><strong>Systems.</strong> L1 is global FTS5. G0 derives only pages, tags, and Markdown links. G1 adds the frozen agent extraction manifest for the base corpus. H0/H1 use the production Graph + global FTS union. Event pages receive deterministic Graph indexing but no post-hoc enrichment.</p><p><strong>Labels.</strong> Entity, context, and relation qrels are deterministically sampled from the extraction manifest. They are suitable for enrichment ablation, but share construction provenance with G1 and must not be treated as independent human relevance judgments.</p><p><strong>Known boundary.</strong> This report does not compare L2, answer synthesis, citation correctness, or independent user questions. A separate double-annotated benchmark is required for those claims.</p></div>
 <p class="meta">Code <code>{esc(manifest['code_revision'][:12])}</code> · Mneme {esc(manifest['mneme_version'])} · qrels SHA-256 <code>{esc(manifest['qrels_sha256'][:16])}</code> · events SHA-256 <code>{esc(events['archive_sha256'][:16])}</code> · extraction SHA-256 <code>{esc(manifest['extraction_sha256'][:16])}</code></p>
 </main></body></html>"""
 
@@ -789,14 +817,15 @@ def run(bundle: Path, extraction: Path, events_zip: Path, qrels_path: Path, out:
         for family in families
     }
     deltas = {
-        "G1-G0": paired_delta(stage_rows["G0"], stage_rows["G1"], "ndcg"),
-        "H1-H0": paired_delta(stage_rows["H0"], stage_rows["H1"], "ndcg"),
-        "H1-L1": paired_delta(stage_rows["L1"], stage_rows["H1"], "ndcg"),
-        "H1-G1": paired_delta(stage_rows["G1"], stage_rows["H1"], "ndcg"),
+        "G1-G0": paired_delta(stage_rows["G0"], stage_rows["G1"], "recall"),
+        "H1-H0": paired_delta(stage_rows["H0"], stage_rows["H1"], "recall"),
+        "H1-L1": paired_delta(stage_rows["L1"], stage_rows["H1"], "recall"),
+        "H1-G1": paired_delta(stage_rows["G1"], stage_rows["H1"], "recall"),
     }
     manifest = {
         "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "design": "construction-aware Graph enrichment diagnostic",
+        "primary_metric": "macro_recall_at_10",
         "mneme_version": __version__,
         "code_revision": git_revision(),
         "python": sys.version,

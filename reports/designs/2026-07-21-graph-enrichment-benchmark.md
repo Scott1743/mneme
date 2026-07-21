@@ -46,25 +46,25 @@
 
 ## 4. 指标与统计
 
-主指标：
+主指标以“agent 在最多读取 10 个候选时能否拿到所需页面”为目标：
 
-- nDCG@10（binary relevance，支持多相关页面）；
-- Top-1 accuracy、Precision@10、macro Recall@10、macro F1@10；
-- Hit@10、MRR@10；
-- `no_answer` false-positive rate；
+- **Macro Recall@10**：逐题计算标注目标召回率后取平均，是主质量指标；
+- **Query Success@10**：至少召回一个标注目标的问题比例；
+- **Recovered targets**：召回目标数 / 80 个冻结目标，保留可核查的微观计数；
+- **First-hit pages**：首个标注目标的排名；完全 miss 记为 11，表示候选预算耗尽，越低越好；
+- **Expansion retention**：expanded/base Macro Recall@10，同时报告绝对差和保留比例；
 - warm query P50/P95 latency；
 - Graph entity/relation/component/orphan counters。
-- base/expanded 配对的 frozen-target nDCG@10 变化。
 
-每个 query 作为 bootstrap 重采样单位，报告 95% percentile confidence interval（10,000 次、固定 seed）。报告 query family small multiples，不把不同 family 混成一个未经解释的总分。延迟使用同一进程 warm cache，索引构建单独报告。
+普通分类 Accuracy 不纳入，因为 query-document 负例没有被穷尽标注，且大量 true negative 会制造虚高分数。固定分母 Precision@10 与 F1@10 不纳入 headline，因为 65/72 道题只有一个标注目标，Precision@10 的理论上限仅 0.111。nDCG/MRR 继续保留在机器可读逐题结果中供排序审计，但不是本实验的主要结论。
 
-`Top-1 accuracy` 定义为第一名是否相关；它不是逐文档分类 accuracy。`Precision@10` 使用固定分母 10，未填满的位置按未命中处理。F1 在每个 query 上由 Precision@10 与 Recall@10 计算，再做 macro average。
+每个 query 作为 bootstrap 重采样单位，报告 Macro Recall、Query Success、First-hit pages 和配对 Recall 差的 95% percentile confidence interval（10,000 次、固定 seed）。报告 query family small multiples，不把不同 family 混成一个未经解释的总分。延迟使用同一进程 warm cache，索引构建单独报告。
 
 飞书重复导出形成的 `foo.md` / `foo--2.md` 若正文完全相同，评测时视为一个文档等价类：qrels 只保留 canonical path，候选列表也在截取 top-10 前去重。否则重复文件会虚增相关文档分母并占用排名位置。
 
 ## 5. 失效与解释规则
 
-- `G1 > G0` 只说明 enrichment 对 Graph-native 查询有帮助，不证明通用语义检索优于 L2。
+- `G1 > G0` 的 Recall 增益只说明 enrichment 对 Graph-native 查询有帮助，不证明通用语义检索优于 L2。
 - `H1 < L1` 是实现回归，必须单独标红，不能用 Graph health 解释带过。
 - `H1 < G1` 说明融合权重或分数校准有问题，报告必须保留该事实。
 - 任何 qrel 由 extraction 自动产生的结果，都标注 construction-aware，不与独立人工 qrels 混合。

@@ -23,6 +23,8 @@ def test_ranked_metrics_single_relevant_document():
     assert metrics["recall"] == 1.0
     assert metrics["mrr"] == pytest.approx(0.5)
     assert metrics["ndcg"] == pytest.approx(1.0 / math.log2(3))
+    assert metrics["retrieved_targets"] == 1
+    assert metrics["first_hit_cost"] == 2
 
 
 def test_ranked_metrics_multiple_relevant_documents():
@@ -46,6 +48,7 @@ def test_ranked_metrics_miss_and_no_answer():
     assert miss == {
         "rank": None, "accuracy": 0.0, "precision": 0.0, "recall": 0.0,
         "f1": 0.0, "hit": 0.0, "mrr": 0.0, "ndcg": 0.0,
+        "retrieved_targets": 0, "first_hit_cost": benchmark.TOP_K + 1,
     }
     assert no_answer == miss
 
@@ -93,12 +96,12 @@ def test_add_event_corpus_copies_only_top_level_markdown(tmp_path):
 
 
 def test_corpus_expansion_chart_labels_both_conditions():
-    summary = {stage: {"ndcg": 0.5} for stage in benchmark.STAGES}
-    expanded = {stage: {"ndcg": 0.4} for stage in benchmark.STAGES}
+    summary = {stage: {"recall": 0.5} for stage in benchmark.STAGES}
+    expanded = {stage: {"recall": 0.4} for stage in benchmark.STAGES}
 
     output = benchmark.corpus_expansion_svg(summary, expanded)
 
-    assert "circle=base, square=expanded" in output
+    assert "Macro Recall@10" in output
     assert output.count("-0.100") == len(benchmark.STAGES)
 
 
@@ -121,3 +124,35 @@ def test_corpus_statement_separates_labels_from_event_stress_pages():
     assert "80 qrels belong to the base corpus" in output
     assert "Unjudged topical stress documents" in output
     assert "Frozen-target retention" in output
+
+
+def test_metric_design_excludes_sparse_classification_metrics_from_headline():
+    output = benchmark.metric_design_html()
+
+    assert "Macro Recall@10" in output
+    assert "Query Success@10" in output
+    assert "First-hit pages" in output
+    assert "Precision@10" in output
+    assert "excluded from the headline" in output
+
+
+def test_summary_reports_recovery_success_and_reading_cost():
+    rows = [
+        {"relevant_paths": ["a.md"], "candidate_paths": ["a.md"], "retrieved_targets": 1,
+         "first_hit_cost": 1, "hit": 1.0, "ndcg": 1.0, "accuracy": 1.0,
+         "precision": 0.1, "recall": 1.0, "f1": 2 / 11, "mrr": 1.0,
+         "false_positive": False, "latency_ms": 1.0},
+        {"relevant_paths": ["b.md"], "candidate_paths": [], "retrieved_targets": 0,
+         "first_hit_cost": 11, "hit": 0.0, "ndcg": 0.0, "accuracy": 0.0,
+         "precision": 0.0, "recall": 0.0, "f1": 0.0, "mrr": 0.0,
+         "false_positive": False, "latency_ms": 2.0},
+    ]
+
+    output = benchmark.summarize(rows)
+
+    assert output["recall"] == 0.5
+    assert output["success"] == 0.5
+    assert output["target_retrieved_count"] == 1
+    assert output["target_total_count"] == 2
+    assert output["first_hit_cost"] == 6.0
+    assert output["missed_query_count"] == 1
