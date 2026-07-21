@@ -1,8 +1,9 @@
-"""Release-gate — Mneme 4.1 public surface.
+"""Release-gate — Mneme 4.2 public surface.
 
 The README and introduction must describe the primary `dream` + `search`
-intents, the v4 Graph path, v4.1 Graph enrichment, guarded nightly health,
-and both release downloads.
+intents, the v4 Graph path, v4.1 Graph enrichment, the v4.2 `mneme serve`
+localhost console (with its three real screenshots), guarded nightly
+health, and both release downloads.
 
 The introduction page must expose `npx skills add Scott1743/mneme` as
 the install CTA; the README must be self-contained about the four-layer
@@ -61,11 +62,23 @@ def test_readme_states_v4_graph_option() -> None:
 
 def test_introduction_states_current_release() -> None:
     text = _read(INTRO)
-    assert "<title>Mneme · 记忆女神 · v4.1</title>" in text
-    assert "v4.1" in text
+    assert "<title>Mneme · 记忆女神 · v4.2</title>" in text
+    assert "v4.2" in text
     assert "Mneme 2.1" not in text
     assert "两个动词" not in text
     assert "其余都是细节" not in text
+
+
+def test_introduction_surfaces_v42_serve_console() -> None:
+    """v4.2 ships the `mneme serve` localhost console; the page shows it
+    with three real screenshots stored under introduction/assets/ (the
+    one sanctioned exception to the self-contained rule, user-approved)."""
+    text = _read(INTRO)
+    assert "mneme serve" in text
+    for name in ("serve-overview", "serve-lint", "serve-browse"):
+        rel = f"assets/{name}.png"
+        assert rel in text, f"introduction page must embed {rel}"
+        assert (INTRO.parent / rel).is_file(), f"missing screenshot {rel}"
 
 
 def test_introduction_surfaces_v41_graph_enrichment() -> None:

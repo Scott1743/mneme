@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mneme · 记忆女神 · v4.1</title>
-  <meta name="description" content="本地优先、agent 增量维护的 Markdown 知识库。dream 写，search 读；v4.1 加入可审核的 Graph enrichment 与受限夜巡。" />
+  <title>Mneme · 记忆女神 · v4.2</title>
+  <meta name="description" content="本地优先、agent 增量维护的 Markdown 知识库。dream 写，search 读；v4.2 加入只绑 localhost 的 mneme serve 可视化控制台。" />
   <meta name="color-scheme" content="light dark" />
   <meta property="og:title" content="Mneme — agent 维护的本地 Markdown 知识库" />
   <meta property="og:description" content="dream 写，search 读；Graph enrichment 把实体与关系接进可删除的本地索引。" />
@@ -39,6 +39,7 @@
       --max-w-wide:   56rem;
       --rule-thin:    1px solid var(--hairline);
       --rule-soft:    1px solid var(--hairline-soft);
+      --shadow:       rgba(31,27,22,.35);
     }
 
     @media (prefers-color-scheme: dark) {
@@ -53,6 +54,7 @@
         --search:       #88a9bd;
         --dream-soft:   rgba(212,132,116,.16);
         --search-soft:  rgba(136,169,189,.14);
+        --shadow:       rgba(0,0,0,.55);
       }
     }
 
@@ -244,6 +246,27 @@
     /* In-body colour-coding for the two verbs. */
     .v-dream  { color: var(--dream); }
     .v-search { color: var(--search); }
+
+    /* Real screenshots (the one sanctioned exception to the
+       self-contained rule — local files under assets/). */
+    figure.shot { margin: 2.4em 0; }
+    figure.shot img {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: var(--rule-soft);
+      box-shadow: 0 12px 34px -14px var(--shadow);
+    }
+    figure.shot figcaption {
+      margin-top: 0.7em;
+      font-size: 0.84rem;
+      font-style: italic;
+      line-height: 1.55;
+      color: var(--ink-soft);
+      text-align: center;
+    }
 
     /* A small marginalium signpost to the right of a paragraph. */
     aside.gloss {
@@ -530,14 +553,14 @@
          Hero
          ═══════════════════════════════════════════════════ -->
     <header class="hero">
-      <p class="kicker">An agent skill · MIT · v4.1</p>
+      <p class="kicker">An agent skill · MIT · v4.2</p>
       <h1>Mneme</h1>
       <p class="tagline">让 agent 替你记着点的本地 Markdown 知识库。<br/><span class="v-dream">dream</span> 写，<span class="v-search">search</span> 读；Graph 把知识之间的关系接起来。</p>
 
       <a class="install" href="https://www.skills.sh">
         <span class="verb">$</span> npx skills add Scott1743/mneme
       </a>
-      <p class="byline"><a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip">v2.2.0 基础版下载</a> · <a href="https://github.com/Scott1743/mneme/releases/download/v4.1.0/mneme-4.1.0.zip">v4.1.0 最新版下载</a></p>
+      <p class="byline"><a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip">v2.2.0 基础版下载</a> · <a href="https://github.com/Scott1743/mneme/releases/download/v4.1.0/mneme-4.1.0.zip">v4.1.0 发布版下载</a> · v4.2.0 在 main</p>
 
       <p class="byline">— μνήμη · 记忆女神 —</p>
 
@@ -546,7 +569,8 @@
         <a href="#安装">II · First prompts</a>
         <a href="#原理">III · The walk</a>
         <a href="#为什么">IV · Why this is what it is</a>
-        <a href="#朋友">V · Friends of Mneme</a>
+        <a href="#面板">V · The console</a>
+        <a href="#朋友">VI · Friends of Mneme</a>
       </nav>
     </header>
 
@@ -626,7 +650,7 @@
 
       <h2 id="为什么-h">我没有写的那些功能，正是它有用的原因。</h2>
 
-      <p>没有 GUI，没有 web 应用，没有服务端进程，没有云同步。装它的那一秒它就在；不装它的那一秒它就不在——这没什么损失。整个运行时是 Python 标准库加一份 <code>~/.claude/skills/mneme/</code> 目录下的 Markdown。</p>
+      <p>没有必须常驻的 GUI，没有服务端进程，没有云同步。装它的那一秒它就在；不装它的那一秒它就不在——这没什么损失。整个运行时是 Python 标准库加一份 <code>~/.claude/skills/mneme/</code> 目录下的 Markdown。v4.2 的 <code>mneme serve</code> 也不是例外：它是你显式拉起、Ctrl-C 即停的前台面板（见下节），不是长在后台的服务。</p>
 
       <p>没有矢量模型自动下载，没有权重在后台跑，没有显卡假设，没有你不知道的"隐式索引"在悄悄长。你不会被提醒"已为您下载 X MB 模型"——因为没有人替你下。你不愿意装那种依赖，那就不装；<code>wiki</code> 与 <span class="v-dream">dream</span> / <span class="v-search">search</span> 仍然完整工作。</p>
 
@@ -634,10 +658,42 @@
     </section>
 
     <!-- ═══════════════════════════════════════════════════
-         V.  Friends · 朋友
+         V.  The console · 面板（v4.2 新增）
+         ═══════════════════════════════════════════════════ -->
+    <section id="面板" aria-labelledby="面板-h">
+      <p class="kicker"><span class="num">V.</span> The console</p>
+
+      <h2 id="面板-h">想自己看一眼 wiki 的时候，不必开一场 agent 会话。</h2>
+
+      <p>v4.2 把同一份知识交到你自己手里：<code>mneme serve --open</code> 启动一个<strong>只绑 127.0.0.1</strong> 的前台可视化控制台——不注册开机启动、不写 pidfile、不联网，整个服务端只有 Python 标准库；用完 Ctrl-C 即停。六个面板——总览、搜索、浏览、体检、Dream、图谱——把 <code>lint</code> / <code>search</code> / <code>dream</code> / <code>reindex</code> 变成一屏看得见的健康度。</p>
+
+      <aside class="gloss">面板是无状态的：它自己没有数据库，每次请求直接读 bundle 与 <code>.mneme/</code> 缓存。删掉它，wiki 一个字节不少。</aside>
+
+      <p>P1 是<strong>只读 + 可重建的 disposable 缓存</strong>：面板里唯一的写按钮是「重建索引」，它只重建 <code>.mneme/</code> 下的 FTS5 / Graph 缓存，<span class="v-dream">永不写 Markdown 事实</span>。每次启动会打印一个一次性的 session token，配合 Host 头校验与路径沙箱——同机的其他进程和恶意网页都调不动它。</p>
+
+      <figure class="shot">
+        <img src="assets/serve-overview.png" alt="mneme serve 总览面板：健康度 0 ERROR · 2 WARN，页面统计，FTS5 / Graph / L2 三个索引的就绪状态，以及 log.md 最近动态" />
+        <figcaption>总览 —— 健康度、页面统计、索引新鲜度与最近动态，一屏看完。</figcaption>
+      </figure>
+
+      <p>体检页把每条 lint 诊断列成表格，行尾各有一个「复制提示词」按钮：面板不自己动手修，而是把结构化诊断、bundle 路径、规则出处与硬约束组装成一段提示词，你复制给 agent，就进入了正式的修复流程。Dream 页是只读审计视图（OKF 硬规则与写作纪律逐项打勾打叉）；写盘仍走对话里的 <span class="v-dream">dream</span> 审批流——「确认写入」按钮刻意置灰，留给 P2。</p>
+
+      <figure class="shot">
+        <img src="assets/serve-lint.png" alt="mneme serve 体检面板：按规则聚合的诊断表格，每行带「复制提示词」按钮；下方是孤儿页卡片与「重建索引」按钮" />
+        <figcaption>体检 —— 每条诊断一键复制组装好的修复提示词，粘贴给 agent 即开工。</figcaption>
+      </figure>
+
+      <figure class="shot">
+        <img src="assets/serve-browse.png" alt="mneme serve 浏览面板：左侧按目录分组、孤儿页置灰的目录树，右侧页面渲染（可切换 Markdown 源），底部列出出链与入链" />
+        <figcaption>浏览 —— 目录树、渲染 / 源切换、出链与入链，页面即点即达。</figcaption>
+      </figure>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         VI.  Friends · 朋友
          ═══════════════════════════════════════════════════ -->
     <section id="朋友" aria-labelledby="朋友-h">
-      <p class="kicker"><span class="num">V.</span> Friends of Mneme</p>
+      <p class="kicker"><span class="num">VI.</span> Friends of Mneme</p>
 
       <h2 id="朋友-h">同门师兄弟：森林密语。</h2>
 
@@ -656,7 +712,7 @@
          ═══════════════════════════════════════════════════ -->
     <footer class="signature">
       <span class="press-mark">μνήμη — Mneme</span>
-      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases/tag/v4.1.0">v4.1.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
+      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases">v4.2.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
     </footer>
 
   </main>
