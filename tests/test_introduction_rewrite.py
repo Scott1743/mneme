@@ -1,7 +1,8 @@
-"""Release-gate — Mneme 4.0 public surface.
+"""Release-gate — Mneme 4.1 public surface.
 
-The README and introduction must describe the `dream` + `search` surface,
-the explicit v4 Graph + hybrid retrieval option, and both release downloads.
+The README and introduction must describe the primary `dream` + `search`
+intents, the v4 Graph path, v4.1 Graph enrichment, guarded nightly health,
+and both release downloads.
 
 The introduction page must expose `npx skills add Scott1743/mneme` as
 the install CTA; the README must be self-contained about the four-layer
@@ -60,7 +61,31 @@ def test_readme_states_v4_graph_option() -> None:
 
 def test_introduction_states_current_release() -> None:
     text = _read(INTRO)
-    assert "v4.0" in text
+    assert "<title>Mneme · 记忆女神 · v4.1</title>" in text
+    assert "v4.1" in text
+    assert "Mneme 2.1" not in text
+    assert "两个动词" not in text
+    assert "其余都是细节" not in text
+
+
+def test_introduction_surfaces_v41_graph_enrichment() -> None:
+    text = _read(INTRO)
+    assert "Graph enrichment" in text
+    assert "mneme graph ingest" in text
+    assert "Markdown" in text and "永远不能盖过" in text
+
+
+def test_introduction_states_guarded_nightly_boundary() -> None:
+    text = _read(INTRO)
+    assert "02:00" in text
+    assert "只报告" in text and "受限自动修复" in text
+    assert "超过 5 个概念页" in text
+    assert "自动 commit、自动归档）刻意不发货" not in text
+
+
+def test_introduction_uses_absolute_bundle_relative_citations() -> None:
+    text = _read(INTRO)
+    assert "以 <code>/</code> 开头的 bundle-relative 路径" in text
 
 
 def test_introduction_no_naive_rag() -> None:

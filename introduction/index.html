@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mneme · 记忆女神 · Mneme 2.1</title>
-  <meta name="description" content="本地优先、agent 增量维护的 Markdown 知识库。两个动词：dream 写，search 读。" />
+  <title>Mneme · 记忆女神 · v4.1</title>
+  <meta name="description" content="本地优先、agent 增量维护的 Markdown 知识库。dream 写，search 读；v4.1 加入可审核的 Graph enrichment 与受限夜巡。" />
   <meta name="color-scheme" content="light dark" />
   <meta property="og:title" content="Mneme — agent 维护的本地 Markdown 知识库" />
-  <meta property="og:description" content="两个动词：dream 写，search 读。其余都是细节。" />
+  <meta property="og:description" content="dream 写，search 读；Graph enrichment 把实体与关系接进可删除的本地索引。" />
   <style>
-    /* ── Mneme 2.1 — introduction ──────────────────────────────
+    /* ── Mneme introduction ────────────────────────────────────
      * Designer’s note (for future editors):
-     *  - Two intents (dream + search) are colour-coded throughout
+     *  - The primary intents (dream + search) are colour-coded
      *    the prose: dream = oxide red  §  search = slate blue.
      *  - This is not decoration; it teaches the two verbs by
      *    association, the way a printer’s mark teaches a press.
@@ -530,9 +530,9 @@
          Hero
          ═══════════════════════════════════════════════════ -->
     <header class="hero">
-      <p class="kicker">An agent skill · MIT · v4.0</p>
+      <p class="kicker">An agent skill · MIT · v4.1</p>
       <h1>Mneme</h1>
-      <p class="tagline">让 agent 替你记着点的本地 Markdown 知识库。<br/>两个动词——<span class="v-dream">dream</span> 写，<span class="v-search">search</span> 读。</p>
+      <p class="tagline">让 agent 替你记着点的本地 Markdown 知识库。<br/><span class="v-dream">dream</span> 写，<span class="v-search">search</span> 读；Graph 把知识之间的关系接起来。</p>
 
       <a class="install" href="https://www.skills.sh">
         <span class="verb">$</span> npx skills add Scott1743/mneme
@@ -571,7 +571,7 @@
 
       <h2 id="安装-h">一行命令，然后去跟你的 agent 聊。</h2>
 
-      <p>重启 agent 会话。从这一秒起，你丢任何想法进来，它都会维护你的树。</p>
+      <p>重启 agent 会话。需要记住什么时发起 <span class="v-dream">dream</span>，需要找回来时交给 <span class="v-search">search</span>；每次知识写入仍先由你确认。</p>
 
       <div class="two">
         <div>
@@ -582,7 +582,7 @@
         <div>
           <p class="search-kicker"><span class="v-search">search</span> · 读</p>
           <h3>在树里走</h3>
-          <p>你问一个问题，agent 沿 <code>index.md</code>、tags、链接走，<em>读完整页</em> 再给答案——而不是把命中的 chunk 拼回来。引用是 bundle 内的相对路径。</p>
+          <p>你问一个问题，agent 沿 <code>index.md</code>、tags、链接与本地 Graph 走，<em>读完整页</em> 再给答案——而不是把命中的 chunk 拼回来。引用使用以 <code>/</code> 开头的 bundle-relative 路径。</p>
         </div>
       </div>
 
@@ -609,6 +609,8 @@
 
       <p>v4.0 在 FTS5 之前增加一层可删除的本地 Graph：<code>mneme reindex --graph</code> 从现有页面、tags 和 Markdown links 派生 <code>.mneme/graph.db</code>，并刷新 <code>.mneme/fts.db</code>。Graph 不拥有事实；它消失时，wiki 仍可由 agent 直接读取，搜索也回退到 FTS5/L0。Graph 存在且 L2 未激活时，普通 <code>search</code> 自动使用 hybrid；需要诊断时可用 <code>--mode graph|fts|hybrid</code>。语义召回仍通过用户明确执行一次 <code>reindex --l2</code> 单独启用。</p>
 
+      <p>v4.1 又补了一层可审核的 Graph enrichment：在获批的 <span class="v-dream">dream</span> 写入后，agent 从完整页面提出实体、关系、证据与置信度，连同页面改动一起给你预览；获批后再由确定性的 <code>mneme graph ingest</code> 写入 Graph。抽取结果可以在重建时重放，也可以和 <code>graph.db</code> 一起删除——它帮助导航，但永远不能盖过 Markdown 原文。</p>
+
       <p>召回的下一步留给另一段路：默认<strong>不</strong>下载任何外部模型，也<strong>不</strong>装额外依赖。wiki 本身、agent 的工作流、<code>dream</code> 与 <code>search</code> 的契约都和那段加法无关。</p>
 
       <blockquote class="lift">
@@ -628,7 +630,7 @@
 
       <p>没有矢量模型自动下载，没有权重在后台跑，没有显卡假设，没有你不知道的"隐式索引"在悄悄长。你不会被提醒"已为您下载 X MB 模型"——因为没有人替你下。你不愿意装那种依赖，那就不装；<code>wiki</code> 与 <span class="v-dream">dream</span> / <span class="v-search">search</span> 仍然完整工作。</p>
 
-      <p>定时自动策展（v0.1 时代曾有的形态：<code>mneme dream</code> 每天跑、自动 commit、自动归档）刻意不发货。一个会自己改你事实页、自动 <code>git add -A</code> 的技能，需要先跨过五项安全门禁——那是另一个项目的事。在这之前，<code>mneme dream</code> 只输出报告，落不落盘由你定。</p>
+      <p>Mneme 仍不提供无人监管的事实策展：不会自动改事实正文、碰 raw source、合并归档，也不会 <code>git add</code>、commit 或 push。v4.1 可以在你明确选择后创建每天 02:00 的宿主 agent 健康任务：<strong>只报告</strong>模式完全不写 wiki；<strong>受限自动修复</strong>只处理内容已经明确的 frontmatter、tags、内部链接与索引项，并在有歧义、撞上已有改动或涉及超过 5 个概念页时退回报告。CLI <code>mneme dream</code> 本身始终只读。</p>
     </section>
 
     <!-- ═══════════════════════════════════════════════════
