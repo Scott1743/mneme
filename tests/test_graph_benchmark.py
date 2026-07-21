@@ -52,3 +52,20 @@ def test_ranked_metrics_miss_and_no_answer():
 def test_canonical_path_collapses_duplicate_export_suffix():
     assert benchmark.canonical_path("concepts/example--2.md") == "concepts/example.md"
     assert benchmark.canonical_path("concepts/example.md") == "concepts/example.md"
+
+
+def test_question_audit_lists_all_families_and_queries():
+    qrels = [
+        {"id": "E01", "category": "entity_exact", "query": "Entity", "relevant_paths": ["a.md"], "provenance": "entity"},
+        {"id": "C01", "category": "entity_context", "query": "Context", "relevant_paths": ["b.md"], "provenance": "context"},
+        {"id": "R01", "category": "relation", "query": "A uses B", "relevant_paths": ["c.md"], "provenance": "relation"},
+        {"id": "N01", "category": "no_answer", "query": "missing", "relevant_paths": [], "provenance": "control"},
+    ]
+
+    output = benchmark.question_audit_html(qrels)
+
+    assert "Exact entity" in output
+    assert "Entity context" in output
+    assert "Relation" in output
+    assert "No-answer control" in output
+    assert all(item["query"] in output for item in qrels)

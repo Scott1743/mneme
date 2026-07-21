@@ -485,7 +485,60 @@ def latency_svg(summary: dict[str, Any]) -> str:
     return "".join(parts)
 
 
-def report_html(manifest: dict[str, Any]) -> str:
+def question_audit_html(qrels: list[dict[str, Any]]) -> str:
+    labels = {
+        "entity_exact": "Exact entity",
+        "entity_context": "Entity context",
+        "relation": "Relation",
+        "no_answer": "No-answer control",
+    }
+    descriptions = {
+        "entity_exact": "Extracted entity name; relevant pages explicitly mention it.",
+        "entity_context": "Entity description with its name removed; tests contextual retrieval.",
+        "relation": "Subject + predicate + object; relevant pages support that relation.",
+        "no_answer": "Fixed synthetic token absent from the bundle; tests false positives.",
+    }
+    families = ("entity_exact", "entity_context", "relation", "no_answer")
+    overview_rows, sample_rows, detail_sections = [], [], []
+    for family in families:
+        items = [item for item in qrels if item["category"] == family]
+        overview_rows.append(
+            f"<tr><td>{labels[family]}</td><td>{len(items)}</td><td>{descriptions[family]}</td></tr>"
+        )
+        for item in items[:4]:
+            sample_rows.append(
+                f'<tr><td>{esc(item["id"])}</td><td>{labels[family]}</td>'
+                f'<td class="query-cell">{esc(item["query"])}</td>'
+                f'<td>{len(item["relevant_paths"])}</td></tr>'
+            )
+        rows = "".join(
+            f'<tr><td>{esc(item["id"])}</td><td class="query-cell">{esc(item["query"])}</td>'
+            f'<td>{len(item["relevant_paths"])}</td><td>{esc(item["provenance"])}</td></tr>'
+            for item in items
+        )
+        detail_sections.append(
+            f'<details><summary>{labels[family]} · {len(items)} questions</summary>'
+            f'<div class="table-wrap"><table class="question-table"><thead><tr>'
+            f'<th>ID</th><th>Question</th><th>Relevant classes</th><th>Qrel source</th>'
+            f'</tr></thead><tbody>{rows}</tbody></table></div></details>'
+        )
+    return (
+        "<p>The questions are frozen before scoring. Review their construction and examples before "
+        "interpreting metrics; the first three families share provenance with the extraction manifest "
+        "and measure enrichment coverage rather than independent human relevance.</p>"
+        '<div class="table-wrap"><table class="question-table"><thead><tr><th>Family</th>'
+        "<th>Count</th><th>Construction</th></tr></thead><tbody>"
+        + "".join(overview_rows)
+        + "</tbody></table></div><h3>Representative questions</h3>"
+        '<div class="table-wrap"><table class="question-table"><thead><tr><th>ID</th>'
+        "<th>Family</th><th>Question</th><th>Relevant classes</th></tr></thead><tbody>"
+        + "".join(sample_rows)
+        + "</tbody></table></div><h3>Full frozen question inventory</h3>"
+        + "".join(detail_sections)
+    )
+
+
+def report_html(manifest: dict[str, Any], qrels: list[dict[str, Any]]) -> str:
     summary = manifest["summary"]
     by_family = manifest["by_family"]
     rows = "".join(
@@ -510,12 +563,13 @@ def report_html(manifest: dict[str, Any]) -> str:
 :root{{--bg:#fbfcfd;--fg:#17202a;--muted:#5d6874;--rule:#d7dde3;--soft:#edf1f4;--accent:#245a8d}}
 @media(prefers-color-scheme:dark){{:root{{--bg:#12171c;--fg:#e8edf2;--muted:#aeb7c0;--rule:#39434d;--soft:#202830;--accent:#76a9d5}}}}
 *{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;letter-spacing:0;line-height:1.55}}
-main{{max-width:1120px;margin:0 auto;padding:48px 28px 80px}}h1{{font-size:34px;font-weight:500;margin:0 0 8px}}h2{{font-size:21px;font-weight:500;margin:44px 0 12px;border-bottom:1px solid var(--rule);padding-bottom:8px}}p{{max-width:86ch}}.meta,.caption{{color:var(--muted);font-size:13px}}.lede{{font-size:18px;max-width:84ch}}.finding{{border-left:4px solid var(--accent);padding:8px 0 8px 18px;margin:24px 0;font-size:17px}}.chart{{display:block;width:100%;height:auto;max-height:430px;margin:12px 0 4px;overflow:visible}}.chart text{{fill:var(--fg);font-size:13px;font-weight:400}}.chart .axis,.chart .series-label{{fill:var(--muted);font-size:12px}}.chart .axis-title,.chart .family-label{{font-weight:500}}.chart .grid{{stroke:var(--rule);stroke-width:1}}.chart .zero{{stroke:var(--fg);stroke-width:1.5}}.chart .ci,.chart .ci-cap{{stroke:var(--fg);stroke-width:1.5}}.chart .value{{font-variant-numeric:tabular-nums;font-weight:500}}table{{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}}th,td{{text-align:right;padding:9px 10px;border-bottom:1px solid var(--rule)}}th:first-child,td:first-child{{text-align:left}}th{{font-weight:500;color:var(--muted)}}code{{background:var(--soft);padding:2px 5px;border-radius:3px}}.methods{{columns:2;column-gap:36px}}.methods p{{break-inside:avoid;margin-top:0}}@media(max-width:700px){{main{{padding:28px 16px 60px}}h1{{font-size:27px}}.methods{{columns:1}}.table-wrap{{overflow-x:auto}}}}
+main{{max-width:1120px;margin:0 auto;padding:48px 28px 80px}}h1{{font-size:34px;font-weight:500;margin:0 0 8px}}h2{{font-size:21px;font-weight:500;margin:44px 0 12px;border-bottom:1px solid var(--rule);padding-bottom:8px}}h3{{font-size:16px;font-weight:500;margin:24px 0 8px}}p{{max-width:86ch}}.meta,.caption{{color:var(--muted);font-size:13px}}.lede{{font-size:18px;max-width:84ch}}.finding{{border-left:4px solid var(--accent);padding:8px 0 8px 18px;margin:24px 0;font-size:17px}}.chart{{display:block;width:100%;height:auto;max-height:430px;margin:12px 0 4px;overflow:visible}}.chart text{{fill:var(--fg);font-size:13px;font-weight:400}}.chart .axis,.chart .series-label{{fill:var(--muted);font-size:12px}}.chart .axis-title,.chart .family-label{{font-weight:500}}.chart .grid{{stroke:var(--rule);stroke-width:1}}.chart .zero{{stroke:var(--fg);stroke-width:1.5}}.chart .ci,.chart .ci-cap{{stroke:var(--fg);stroke-width:1.5}}.chart .value{{font-variant-numeric:tabular-nums;font-weight:500}}table{{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}}th,td{{text-align:right;padding:9px 10px;border-bottom:1px solid var(--rule)}}th:first-child,td:first-child{{text-align:left}}th{{font-weight:500;color:var(--muted)}}.question-table th,.question-table td{{text-align:left}}.query-cell{{min-width:320px}}details{{border-bottom:1px solid var(--rule);padding:10px 0}}summary{{cursor:pointer;font-weight:500}}code{{background:var(--soft);padding:2px 5px;border-radius:3px}}.methods{{columns:2;column-gap:36px}}.methods p{{break-inside:avoid;margin-top:0}}@media(max-width:700px){{main{{padding:28px 16px 60px}}h1{{font-size:27px}}.methods{{columns:1}}.table-wrap{{overflow-x:auto}}.query-cell{{min-width:240px}}}}
 </style></head><body><main>
 <p class="meta">Mneme Research · Frozen diagnostic benchmark · {esc(manifest['created_at'])}</p>
 <h1>Graph enrichment retrieval benchmark</h1>
 <p class="lede">A controlled ablation of deterministic Graph, agent enrichment, and global FTS5 fusion on one 142-page Markdown bundle. The benchmark contains 72 construction-aware answerable queries and 8 synthetic no-answer controls.</p>
 <p class="finding">{esc(conclusion)}</p>
+<h2>Benchmark questions</h2>{question_audit_html(qrels)}
 <h2>Overall retrieval quality</h2>{forest_svg(summary)}
 <p class="caption">Points are mean binary nDCG@10; horizontal lines are query-bootstrap 95% confidence intervals (10,000 resamples). No-answer controls are excluded from ranking metrics.</p>
 <h2>Classic metric profile</h2>{classic_metrics_svg(summary)}
@@ -627,7 +681,7 @@ def run(bundle: Path, extraction: Path, qrels_path: Path, out: Path) -> None:
         for stage in STAGES:
             for row in stage_rows[stage]:
                 handle.write(json.dumps(row, ensure_ascii=False) + "\n")
-    stem.with_suffix(".html").write_text(report_html(manifest), encoding="utf-8")
+    stem.with_suffix(".html").write_text(report_html(manifest, qrels), encoding="utf-8")
     print(stem.with_suffix(".html"))
 
 
