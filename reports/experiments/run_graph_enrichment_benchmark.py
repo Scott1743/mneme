@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import zipfile
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,6 +41,7 @@ STAGE_LABELS = {
     "H0": "Hybrid deterministic",
     "H1": "Hybrid enriched",
 }
+CORPORA = ("base", "expanded")
 COLORS = {
     "L1": "#3573b8",
     "G0": "#777777",
@@ -217,6 +219,47 @@ def indexable_paths(bundle: Path) -> list[Path]:
             continue
         paths.append(path)
     return paths
+
+
+def add_event_corpus(
+    archive: Path,
+    bundle: Path,
+    qrels: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Copy Markdown event pages from a zip into an isolated benchmark bundle."""
+    destination = bundle / "events"
+    destination.mkdir(exist_ok=True)
+    members: list[zipfile.ZipInfo] = []
+    with zipfile.ZipFile(archive) as handle:
+        for member in handle.infolist():
+            parts = Path(member.filename).parts
+            if member.is_dir() or not member.filename.endswith(".md"):
+                continue
+            if not parts or parts[0] != "events" or len(parts) != 2:
+                continue
+            if any(part in {"", ".", ".."} for part in parts):
+                raise ValueError(f"unsafe event archive member: {member.filename}")
+            members.append(member)
+        if not members:
+            raise ValueError("event archive contains no events/*.md pages")
+        for member in sorted(members, key=lambda item: item.filename):
+            target = destination / Path(member.filename).name
+            target.write_bytes(handle.read(member))
+
+    event_paths = list(destination.glob("*.md"))
+    bodies = [sha256_file(path) for path in event_paths]
+    texts = [path.read_text(encoding="utf-8").casefold() for path in event_paths]
+    overlaps = [
+        item["id"] for item in (qrels or [])
+        if item["relevant_paths"] and any(str(item["query"]).casefold() in text for text in texts)
+    ]
+    return {
+        "page_count": len(members),
+        "unique_body_count": len(set(bodies)),
+        "archive_sha256": sha256_file(archive),
+        "archive_name": archive.name,
+        "exact_query_overlap_ids": overlaps,
+    }
 
 
 def ranked_metrics(paths: list[str], relevant_paths: list[str]) -> dict[str, float | int | None]:
@@ -485,6 +528,34 @@ def latency_svg(summary: dict[str, Any]) -> str:
     return "".join(parts)
 
 
+def corpus_expansion_svg(base: dict[str, Any], expanded: dict[str, Any]) -> str:
+    width, height = 900, 330
+    left, right, top, row_h = 210, 90, 45, 50
+    plot_w = width - left - right
+    parts = [
+        f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-labelledby="growth-title growth-desc">',
+        '<title id="growth-title">Frozen-target nDCG before and after event corpus expansion</title>',
+        '<desc id="growth-desc">Paired points compare the 142-page base corpus with the 219-page corpus after adding 77 topical event pages.</desc>',
+    ]
+    for tick in (0, .2, .4, .6, .8, 1):
+        x = left + tick * plot_w
+        parts.append(f'<line class="grid" x1="{x:.1f}" x2="{x:.1f}" y1="24" y2="276"/>')
+        parts.append(f'<text class="axis" x="{x:.1f}" y="302" text-anchor="middle">{tick:.1f}</text>')
+    for index, stage in enumerate(STAGES):
+        y = top + index * row_h
+        before = base[stage]["ndcg"]
+        after = expanded[stage]["ndcg"]
+        x1, x2 = left + before * plot_w, left + after * plot_w
+        parts.append(f'<text x="{left-14}" y="{y+5}" text-anchor="end">{esc(STAGE_LABELS[stage])}</text>')
+        parts.append(f'<line class="ci" x1="{x1:.1f}" x2="{x2:.1f}" y1="{y}" y2="{y}"/>')
+        parts.append(f'<circle cx="{x1:.1f}" cy="{y}" r="5" fill="{COLORS[stage]}"><title>Base: {before:.3f}</title></circle>')
+        parts.append(f'<rect x="{x2-5:.1f}" y="{y-5}" width="10" height="10" fill="{COLORS[stage]}"><title>Expanded: {after:.3f}</title></rect>')
+        anchor = min(width - 48, max(x1, x2) + 10)
+        parts.append(f'<text class="value" x="{anchor:.1f}" y="{y+5}">{after-before:+.3f}</text>')
+    parts.append(f'<text class="axis-title" x="{left+plot_w/2:.1f}" y="326" text-anchor="middle">Frozen-target nDCG@10 · circle=base, square=expanded</text></svg>')
+    return "".join(parts)
+
+
 def question_audit_html(qrels: list[dict[str, Any]]) -> str:
     labels = {
         "entity_exact": "Exact entity",
@@ -540,6 +611,7 @@ def question_audit_html(qrels: list[dict[str, Any]]) -> str:
 
 def report_html(manifest: dict[str, Any], qrels: list[dict[str, Any]]) -> str:
     summary = manifest["summary"]
+    base_summary = manifest["base_summary"]
     by_family = manifest["by_family"]
     rows = "".join(
         f"<tr><td>{esc(STAGE_LABELS[stage])}</td><td>{summary[stage]['ndcg']:.3f}</td>"
@@ -550,11 +622,12 @@ def report_html(manifest: dict[str, Any], qrels: list[dict[str, Any]]) -> str:
         for stage in STAGES
     )
     health = manifest["graph_health"]
+    events = manifest["event_corpus"]
     conclusion = (
-        f"Enrichment changes Graph nDCG@10 by {manifest['deltas']['G1-G0']['delta']:+.3f} "
+        f"On the expanded corpus, enrichment changes Graph target nDCG@10 by {manifest['deltas']['G1-G0']['delta']:+.3f} "
         f"and hybrid by {manifest['deltas']['H1-H0']['delta']:+.3f}. "
         f"The H1-L1 paired difference is {manifest['deltas']['H1-L1']['delta']:+.3f}; "
-        "confidence intervals and family breakdowns below define the valid scope of that result."
+        "the added event pages are unjudged, so expanded-corpus scores measure retention of frozen targets, not exhaustive relevance."
     )
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -567,11 +640,13 @@ main{{max-width:1120px;margin:0 auto;padding:48px 28px 80px}}h1{{font-size:34px;
 </style></head><body><main>
 <p class="meta">Mneme Research · Frozen diagnostic benchmark · {esc(manifest['created_at'])}</p>
 <h1>Graph enrichment retrieval benchmark</h1>
-<p class="lede">A controlled ablation of deterministic Graph, agent enrichment, and global FTS5 fusion on one 142-page Markdown bundle. The benchmark contains 72 construction-aware answerable queries and 8 synthetic no-answer controls.</p>
+<p class="lede">A controlled ablation of deterministic Graph, agent enrichment, and global FTS5 fusion on a {manifest['bundle_page_count']}-page Markdown corpus. A paired stress condition adds {events['page_count']} topical AI event pages to the original {manifest['base_page_count']} pages; 72 construction-aware answerable queries and 8 synthetic no-answer controls remain frozen.</p>
 <p class="finding">{esc(conclusion)}</p>
 <h2>Benchmark questions</h2>{question_audit_html(qrels)}
-<h2>Overall retrieval quality</h2>{forest_svg(summary)}
-<p class="caption">Points are mean binary nDCG@10; horizontal lines are query-bootstrap 95% confidence intervals (10,000 resamples). No-answer controls are excluded from ranking metrics.</p>
+<h2>Corpus expansion stress</h2>{corpus_expansion_svg(base_summary, summary)}
+<p class="caption">The same frozen original targets are evaluated before and after adding the event cohort. Event pages were not exhaustively relevance-judged; the expanded score is therefore a target-retention diagnostic, not a complete relevance estimate. Exact query text occurs in the added cohort for {len(events['exact_query_overlap_ids'])} question(s): {esc(', '.join(events['exact_query_overlap_ids']) or 'none')}.</p>
+<h2>Expanded-corpus target retrieval</h2>{forest_svg(summary)}
+<p class="caption">Points are mean binary target nDCG@10 on the expanded corpus; horizontal lines are query-bootstrap 95% confidence intervals (10,000 resamples). No-answer controls are excluded.</p>
 <h2>Classic metric profile</h2>{classic_metrics_svg(summary)}
 <p class="caption">Precision@10 uses a fixed denominator of 10. Accuracy is top-1 relevance, not classification accuracy over documents. Recall and F1 are macro-averaged over answerable queries.</p>
 <h2>Query-family response</h2>{family_svg(by_family)}
@@ -580,61 +655,86 @@ main{{max-width:1120px;margin:0 auto;padding:48px 28px 80px}}h1{{font-size:34px;
 <p class="caption">Positive values favor the second system. Intervals crossing zero do not establish a stable directional effect on this diagnostic set.</p>
 <h2>Latency</h2>{latency_svg(summary)}
 <p class="caption">Warm in-process measurements; each query is repeated {QUERY_REPEATS} times. They describe this local machine and are not service-level benchmarks.</p>
-<h2>Metric table</h2><div class="table-wrap"><table><thead><tr><th>Stage</th><th>nDCG@10</th><th>Top-1 accuracy</th><th>Precision@10</th><th>Macro Recall@10</th><th>Macro F1@10</th><th>Hit@10</th><th>MRR@10</th><th>No-answer FPR</th><th>P50 ms</th><th>P95 ms</th></tr></thead><tbody>{rows}</tbody></table></div>
+<h2>Expanded-corpus metric table</h2><div class="table-wrap"><table><thead><tr><th>Stage</th><th>Target nDCG@10</th><th>Top-1 target accuracy</th><th>Target Precision@10</th><th>Macro target Recall@10</th><th>Macro target F1@10</th><th>Target Hit@10</th><th>Target MRR@10</th><th>No-answer FPR</th><th>P50 ms</th><th>P95 ms</th></tr></thead><tbody>{rows}</tbody></table></div>
 <h2>Graph construction</h2><div class="table-wrap"><table><thead><tr><th>Graph</th><th>Entities</th><th>Relations</th><th>LLM entities</th><th>LLM relations</th><th>Components</th><th>Orphans</th></tr></thead><tbody>
 <tr><td>G0 deterministic</td><td>{health['G0']['entity_count']}</td><td>{health['G0']['relation_count']}</td><td>{health['G0']['llm_entity_count']}</td><td>{health['G0']['llm_relation_count']}</td><td>{health['G0']['connected_component_count']}</td><td>{health['G0']['orphan_entity_count']}</td></tr>
 <tr><td>G1 enriched</td><td>{health['G1']['entity_count']}</td><td>{health['G1']['relation_count']}</td><td>{health['G1']['llm_entity_count']}</td><td>{health['G1']['llm_relation_count']}</td><td>{health['G1']['connected_component_count']}</td><td>{health['G1']['orphan_entity_count']}</td></tr></tbody></table></div>
-<h2>Methods and limits</h2><div class="methods"><p><strong>Corpus.</strong> One private 142-page Feishu Markdown export. Export pairs with identical bodies (<code>foo.md</code>/<code>foo--2.md</code>) are treated as one document equivalence class in qrels and ranked candidates.</p><p><strong>Metrics.</strong> nDCG uses binary relevance and logarithmic rank discount. Recall is macro-averaged per answerable query; Hit records any relevant top-10 result; MRR uses the first relevant top-10 rank. No-answer controls are excluded and reported as FPR.</p><p><strong>Systems.</strong> L1 is global FTS5. G0 derives only pages, tags, and Markdown links. G1 adds the frozen agent extraction manifest. H0/H1 use the production Graph + global FTS union.</p><p><strong>Labels.</strong> Entity, context, and relation qrels are deterministically sampled from the extraction manifest. They are suitable for enrichment ablation, but share construction provenance with G1 and must not be treated as independent human relevance judgments.</p><p><strong>Known boundary.</strong> This report does not compare L2, answer synthesis, citation correctness, or independent user questions. A separate double-annotated benchmark is required for those claims.</p></div>
-<p class="meta">Code <code>{esc(manifest['code_revision'][:12])}</code> · Mneme {esc(manifest['mneme_version'])} · qrels SHA-256 <code>{esc(manifest['qrels_sha256'][:16])}</code> · extraction SHA-256 <code>{esc(manifest['extraction_sha256'][:16])}</code></p>
+<h2>Methods and limits</h2><div class="methods"><p><strong>Corpus.</strong> The base is one private {manifest['base_page_count']}-page Feishu Markdown export. The paired expansion adds {events['page_count']} unique event pages from <code>{esc(events['archive_name'])}</code>, producing {manifest['bundle_page_count']} pages. Export pairs with identical bodies (<code>foo.md</code>/<code>foo--2.md</code>) are treated as one document equivalence class.</p><p><strong>Expansion labels.</strong> Qrels were frozen on the base corpus. Added event pages are topical stress documents, not judged negatives. Expanded-corpus metrics therefore ask whether the original relevant targets remain highly ranked; they cannot penalize or validate the relevance of new event hits.</p><p><strong>Metrics.</strong> nDCG uses binary target labels and logarithmic rank discount. Recall is macro-averaged per answerable query; Hit records any frozen target in the top 10; MRR uses the first frozen target rank. No-answer controls are excluded and reported as FPR.</p><p><strong>Systems.</strong> L1 is global FTS5. G0 derives only pages, tags, and Markdown links. G1 adds the frozen agent extraction manifest for the base corpus. H0/H1 use the production Graph + global FTS union. Event pages receive deterministic Graph indexing but no post-hoc enrichment.</p><p><strong>Labels.</strong> Entity, context, and relation qrels are deterministically sampled from the extraction manifest. They are suitable for enrichment ablation, but share construction provenance with G1 and must not be treated as independent human relevance judgments.</p><p><strong>Known boundary.</strong> This report does not compare L2, answer synthesis, citation correctness, or independent user questions. A separate double-annotated benchmark is required for those claims.</p></div>
+<p class="meta">Code <code>{esc(manifest['code_revision'][:12])}</code> · Mneme {esc(manifest['mneme_version'])} · qrels SHA-256 <code>{esc(manifest['qrels_sha256'][:16])}</code> · events SHA-256 <code>{esc(events['archive_sha256'][:16])}</code> · extraction SHA-256 <code>{esc(manifest['extraction_sha256'][:16])}</code></p>
 </main></body></html>"""
 
 
-def run(bundle: Path, extraction: Path, qrels_path: Path, out: Path) -> None:
+def run_corpus(
+    temp_bundle: Path,
+    extraction_payload: dict[str, Any],
+    qrels: list[dict[str, Any]],
+    corpus: str,
+) -> dict[str, Any]:
+    started = time.perf_counter()
+    indexlib.reindex_paths(indexable_paths(temp_bundle), temp_bundle)
+    fts_build_ms = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    graphlib.rebuild_graph(temp_bundle)
+    g0_build_ms = (time.perf_counter() - started) * 1000
+    g0_health = graphlib.graph_health(graphlib.graph_index_path(temp_bundle))
+
+    fts_db = indexlib.fts_index_path(temp_bundle)
+    graph_db = graphlib.graph_index_path(temp_bundle)
+    stage_rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    searchers: dict[str, Callable[[str], dict[str, Any]]] = {
+        "L1": lambda query: indexlib.search(query, fts_db, k=TOP_K),
+        "G0": lambda query: graphlib.search_graph(graph_db, query, k=TOP_K),
+        "H0": lambda query: indexlib.search_hybrid(temp_bundle, query, k=TOP_K),
+    }
+    for stage in ("L1", "G0", "H0"):
+        for item in qrels:
+            stage_rows[stage].append({
+                "corpus": corpus, "stage": stage, **run_query(searchers[stage], item),
+            })
+
+    started = time.perf_counter()
+    graphlib.ingest_extraction(graph_db, extraction_payload, persist=False)
+    enrichment_ms = (time.perf_counter() - started) * 1000
+    g1_health = graphlib.graph_health(graph_db)
+    searchers = {
+        "G1": lambda query: graphlib.search_graph(graph_db, query, k=TOP_K),
+        "H1": lambda query: indexlib.search_hybrid(temp_bundle, query, k=TOP_K),
+    }
+    for stage in ("G1", "H1"):
+        for item in qrels:
+            stage_rows[stage].append({
+                "corpus": corpus, "stage": stage, **run_query(searchers[stage], item),
+            })
+    return {
+        "rows": stage_rows,
+        "summary": {stage: summarize(stage_rows[stage]) for stage in STAGES},
+        "graph_health": {"G0": g0_health, "G1": g1_health},
+        "build_ms": {"FTS5": fts_build_ms, "G0": g0_build_ms, "enrichment": enrichment_ms},
+        "page_count": len(indexable_paths(temp_bundle)),
+    }
+
+
+def run(bundle: Path, extraction: Path, events_zip: Path, qrels_path: Path, out: Path) -> None:
     qrels = read_qrels(qrels_path)
     if len(qrels) != 80:
         raise ValueError(f"expected 80 frozen qrels, got {len(qrels)}")
     out.mkdir(parents=True, exist_ok=True)
     extraction_payload = load_extractions(extraction)
 
+    corpus_runs: dict[str, dict[str, Any]] = {}
+    event_audit: dict[str, Any] = {}
     with tempfile.TemporaryDirectory(prefix="mneme-graph-benchmark-") as temp_dir:
-        temp_bundle = Path(temp_dir) / "wiki"
-        shutil.copytree(bundle, temp_bundle, ignore=shutil.ignore_patterns(".mneme"))
+        for corpus in CORPORA:
+            temp_bundle = Path(temp_dir) / corpus / "wiki"
+            shutil.copytree(bundle, temp_bundle, ignore=shutil.ignore_patterns(".mneme"))
+            if corpus == "expanded":
+                event_audit = add_event_corpus(events_zip, temp_bundle, qrels)
+            corpus_runs[corpus] = run_corpus(temp_bundle, extraction_payload, qrels, corpus)
 
-        started = time.perf_counter()
-        indexlib.reindex_paths(indexable_paths(temp_bundle), temp_bundle)
-        fts_build_ms = (time.perf_counter() - started) * 1000
-
-        started = time.perf_counter()
-        graphlib.rebuild_graph(temp_bundle)
-        g0_build_ms = (time.perf_counter() - started) * 1000
-        g0_health = graphlib.graph_health(graphlib.graph_index_path(temp_bundle))
-
-        fts_db = indexlib.fts_index_path(temp_bundle)
-        graph_db = graphlib.graph_index_path(temp_bundle)
-        stage_rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
-
-        searchers: dict[str, Callable[[str], dict[str, Any]]] = {
-            "L1": lambda query: indexlib.search(query, fts_db, k=TOP_K),
-            "G0": lambda query: graphlib.search_graph(graph_db, query, k=TOP_K),
-            "H0": lambda query: indexlib.search_hybrid(temp_bundle, query, k=TOP_K),
-        }
-        for stage in ("L1", "G0", "H0"):
-            for item in qrels:
-                stage_rows[stage].append({"stage": stage, **run_query(searchers[stage], item)})
-
-        started = time.perf_counter()
-        graphlib.ingest_extraction(graph_db, extraction_payload, persist=False)
-        enrichment_ms = (time.perf_counter() - started) * 1000
-        g1_health = graphlib.graph_health(graph_db)
-        searchers = {
-            "G1": lambda query: graphlib.search_graph(graph_db, query, k=TOP_K),
-            "H1": lambda query: indexlib.search_hybrid(temp_bundle, query, k=TOP_K),
-        }
-        for stage in ("G1", "H1"):
-            for item in qrels:
-                stage_rows[stage].append({"stage": stage, **run_query(searchers[stage], item)})
-
-    summary = {stage: summarize(stage_rows[stage]) for stage in STAGES}
+    stage_rows = corpus_runs["expanded"]["rows"]
+    summary = corpus_runs["expanded"]["summary"]
+    base_summary = corpus_runs["base"]["summary"]
     families = ("entity_exact", "entity_context", "relation")
     by_family = {
         family: {
@@ -656,7 +756,9 @@ def run(bundle: Path, extraction: Path, qrels_path: Path, out: Path) -> None:
         "code_revision": git_revision(),
         "python": sys.version,
         "platform": platform.platform(),
-        "bundle_page_count": len(indexable_paths(bundle)),
+        "bundle_page_count": corpus_runs["expanded"]["page_count"],
+        "base_page_count": corpus_runs["base"]["page_count"],
+        "event_corpus": event_audit,
         "bundle_path_not_published": True,
         "qrels_count": len(qrels),
         "qrels_sha256": sha256_file(qrels_path),
@@ -666,8 +768,10 @@ def run(bundle: Path, extraction: Path, qrels_path: Path, out: Path) -> None:
         "query_repeats": QUERY_REPEATS,
         "bootstrap_runs": BOOTSTRAP_RUNS,
         "seed": SEED,
-        "build_ms": {"FTS5": fts_build_ms, "G0": g0_build_ms, "enrichment": enrichment_ms},
-        "graph_health": {"G0": g0_health, "G1": g1_health},
+        "build_ms": {corpus: corpus_runs[corpus]["build_ms"] for corpus in CORPORA},
+        "graph_health": corpus_runs["expanded"]["graph_health"],
+        "base_graph_health": corpus_runs["base"]["graph_health"],
+        "base_summary": base_summary,
         "summary": summary,
         "by_family": by_family,
         "deltas": deltas,
@@ -678,9 +782,10 @@ def run(bundle: Path, extraction: Path, qrels_path: Path, out: Path) -> None:
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     with stem.with_suffix(".results.jsonl").open("w", encoding="utf-8") as handle:
-        for stage in STAGES:
-            for row in stage_rows[stage]:
-                handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+        for corpus in CORPORA:
+            for stage in STAGES:
+                for row in corpus_runs[corpus]["rows"][stage]:
+                    handle.write(json.dumps(row, ensure_ascii=False) + "\n")
     stem.with_suffix(".html").write_text(report_html(manifest, qrels), encoding="utf-8")
     print(stem.with_suffix(".html"))
 
@@ -689,6 +794,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--extraction", type=Path, required=True)
+    parser.add_argument(
+        "--events-zip", type=Path,
+        default=ROOT / "reports" / "events.zip",
+        help="topical event corpus added for the paired expansion stress condition",
+    )
     parser.add_argument(
         "--qrels", type=Path,
         default=ROOT / "reports" / "experiments" / "graph-enrichment-benchmark.qrels.jsonl",
@@ -700,7 +810,7 @@ def main() -> None:
         write_qrels(args.qrels, build_qrels(args.extraction))
         print(args.qrels)
         return
-    run(args.bundle, args.extraction, args.qrels, args.out)
+    run(args.bundle, args.extraction, args.events_zip, args.qrels, args.out)
 
 
 if __name__ == "__main__":

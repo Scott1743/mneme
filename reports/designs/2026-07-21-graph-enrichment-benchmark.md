@@ -10,6 +10,7 @@
 1. 在同一份 Markdown bundle 上，enriched Graph 是否比 deterministic Graph 增加实体/关系查询的 Recall@10？
 2. 在 Graph 变稀疏或实体不匹配时，hybrid 是否保持 FTS5 的词法召回？
 3. 增益是否集中在 Graph-native query family，而不是泛化为所有检索任务？
+4. 加入同领域事件文档后，原始相关目标能否继续留在 top-10，还是被新语料挤出？
 
 ## 2. 系统与对照
 
@@ -22,6 +23,13 @@
 | `H1` | G1 | 全局 | enriched hybrid |
 
 同一 bundle、同一 qrels、同一 top-k（10）用于所有阶段。`G1/H1` 的 enrichment 输入是冻结的 `.exp-full/wiki/.mneme/graph-extractions.json`；该输入只用于生成派生索引，不改变 Markdown。
+
+每个阶段同时运行两个配对 corpus condition：
+
+- `base`：原始 142 页私有 Feishu Markdown bundle；
+- `expanded`：在 base 上增加 `reports/events.zip` 中 77 篇互不重复的 AI 事件页，共 219 页。
+
+事件页只接受 pages/tags/links 的 deterministic Graph 构建，不追加事后 enrichment。原始 qrels 在扩增前冻结，事件页没有经过穷尽相关性标注，因此 expanded 指标只解释为“原始目标保留率/排序”，不能把事件命中直接判为错误，也不能当作完整 relevance 质量。
 
 ## 3. Query families
 
@@ -46,6 +54,7 @@
 - `no_answer` false-positive rate；
 - warm query P50/P95 latency；
 - Graph entity/relation/component/orphan counters。
+- base/expanded 配对的 frozen-target nDCG@10 变化。
 
 每个 query 作为 bootstrap 重采样单位，报告 95% percentile confidence interval（10,000 次、固定 seed）。报告 query family small multiples，不把不同 family 混成一个未经解释的总分。延迟使用同一进程 warm cache，索引构建单独报告。
 
@@ -59,10 +68,11 @@
 - `H1 < L1` 是实现回归，必须单独标红，不能用 Graph health 解释带过。
 - `H1 < G1` 说明融合权重或分数校准有问题，报告必须保留该事实。
 - 任何 qrel 由 extraction 自动产生的结果，都标注 construction-aware，不与独立人工 qrels 混合。
+- expanded corpus 中新增事件页属于 unjudged topical additions；报告必须使用 target-retention 表述，不得称其为独立相关性评测。
 
 ## 6. 产物
 
 - `graph-enrichment-benchmark.qrels.jsonl`：冻结 query/qrels/category；
-- `graph-enrichment-benchmark.results.jsonl`：逐 query、逐 stage 结果；
-- `graph-enrichment-benchmark.manifest.json`：corpus/manifest hash、代码 revision、参数、Graph health、统计量；
+- `graph-enrichment-benchmark.results.jsonl`：逐 corpus、逐 query、逐 stage 结果；
+- `graph-enrichment-benchmark.manifest.json`：base/expanded corpus、event archive、manifest hash、代码 revision、参数、Graph health、统计量；
 - `graph-enrichment-benchmark.html`：自包含科研报告，包含置信区间图、按 family 对比图、rank heatmap、延迟图和数据审计表。

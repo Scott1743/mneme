@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import math
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -69,3 +70,32 @@ def test_question_audit_lists_all_families_and_queries():
     assert "Relation" in output
     assert "No-answer control" in output
     assert all(item["query"] in output for item in qrels)
+
+
+def test_add_event_corpus_copies_only_top_level_markdown(tmp_path):
+    archive = tmp_path / "events.zip"
+    with zipfile.ZipFile(archive, "w") as handle:
+        handle.writestr("events/one.md", "---\ntype: Reference\n---\n\nAgentic AI\n")
+        handle.writestr("events/nested/two.md", "ignored")
+        handle.writestr("__MACOSX/events/._one.md", "ignored")
+    bundle = tmp_path / "wiki"
+    bundle.mkdir()
+    qrels = [{"id": "E01", "query": "Agentic AI", "relevant_paths": ["concept.md"]}]
+
+    audit = benchmark.add_event_corpus(archive, bundle, qrels)
+
+    assert audit["page_count"] == 1
+    assert audit["unique_body_count"] == 1
+    assert audit["exact_query_overlap_ids"] == ["E01"]
+    assert (bundle / "events" / "one.md").is_file()
+    assert not (bundle / "events" / "two.md").exists()
+
+
+def test_corpus_expansion_chart_labels_both_conditions():
+    summary = {stage: {"ndcg": 0.5} for stage in benchmark.STAGES}
+    expanded = {stage: {"ndcg": 0.4} for stage in benchmark.STAGES}
+
+    output = benchmark.corpus_expansion_svg(summary, expanded)
+
+    assert "circle=base, square=expanded" in output
+    assert output.count("-0.100") == len(benchmark.STAGES)
