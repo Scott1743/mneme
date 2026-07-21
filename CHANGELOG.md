@@ -58,8 +58,9 @@ for in-flight specs and plans.
 ### Evidence
 
 - The replacement 80-query construction-aware benchmark records enriched
-  Graph nDCG@10 0.719 versus deterministic Graph 0.238, with paired bootstrap
-  delta +0.481 [0.376, 0.588]. These numbers demonstrate extraction coverage,
+  Graph nDCG@10 0.729 versus deterministic Graph 0.235, with paired bootstrap
+  delta +0.494 [0.387, 0.604]. Duplicate Feishu exports with identical bodies
+  are evaluated as one document equivalence class. These numbers demonstrate extraction coverage,
   not independent general-search quality; the full methods and limits are in
   `reports/experiments/graph-enrichment-benchmark.html`.
 

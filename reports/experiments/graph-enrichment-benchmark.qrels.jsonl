@@ -1,75 +1,75 @@
 {"id": "E01", "category": "entity_exact", "query": "供应链优势", "relevant_paths": ["concepts/QMS4dkuW9ojXyExJ8AXcnM5NnVe.md"], "provenance": "extraction entity name"}
-{"id": "E02", "category": "entity_exact", "query": "legal-proposal-generator", "relevant_paths": ["concepts/E3BxdPN2koF0aqxpw9ickWIenAh--2.md", "concepts/E3BxdPN2koF0aqxpw9ickWIenAh.md"], "provenance": "extraction entity name"}
+{"id": "E02", "category": "entity_exact", "query": "legal-proposal-generator", "relevant_paths": ["concepts/E3BxdPN2koF0aqxpw9ickWIenAh.md"], "provenance": "extraction entity name"}
 {"id": "E03", "category": "entity_exact", "query": "设备大师智能体", "relevant_paths": ["concepts/WRBQd0561oSuXjxQ2CccEgZknVe.md"], "provenance": "extraction entity name"}
-{"id": "E04", "category": "entity_exact", "query": "AI员工分类", "relevant_paths": ["concepts/LluudJx3UoBmVkxZILbcEBawnDe--2.md", "concepts/LluudJx3UoBmVkxZILbcEBawnDe.md"], "provenance": "extraction entity name"}
-{"id": "E05", "category": "entity_exact", "query": "MVC框架", "relevant_paths": ["concepts/QKqEdY6tRoUSxlxl7H0coC0In0d--2.md", "concepts/QKqEdY6tRoUSxlxl7H0coC0In0d.md"], "provenance": "extraction entity name"}
-{"id": "E06", "category": "entity_exact", "query": "知识大脑", "relevant_paths": ["concepts/LluudJx3UoBmVkxZILbcEBawnDe--2.md", "concepts/LluudJx3UoBmVkxZILbcEBawnDe.md"], "provenance": "extraction entity name"}
+{"id": "E04", "category": "entity_exact", "query": "AI员工分类", "relevant_paths": ["concepts/LluudJx3UoBmVkxZILbcEBawnDe.md"], "provenance": "extraction entity name"}
+{"id": "E05", "category": "entity_exact", "query": "MVC框架", "relevant_paths": ["concepts/QKqEdY6tRoUSxlxl7H0coC0In0d.md"], "provenance": "extraction entity name"}
+{"id": "E06", "category": "entity_exact", "query": "知识大脑", "relevant_paths": ["concepts/LluudJx3UoBmVkxZILbcEBawnDe.md"], "provenance": "extraction entity name"}
 {"id": "E07", "category": "entity_exact", "query": "飞书先进生产力峰会", "relevant_paths": ["concepts/VdoadFAiyoAnvoxA4YgcOPOMnhh.md"], "provenance": "extraction entity name"}
 {"id": "E08", "category": "entity_exact", "query": "权限与安全", "relevant_paths": ["concepts/L2xZd6rsHoOycLxtaJDcyeasnDf.md"], "provenance": "extraction entity name"}
-{"id": "E09", "category": "entity_exact", "query": "权限分级体系", "relevant_paths": ["concepts/S7mPds1ESoHUBmx1yv4cFj0Mnej--2.md", "concepts/S7mPds1ESoHUBmx1yv4cFj0Mnej.md"], "provenance": "extraction entity name"}
-{"id": "E10", "category": "entity_exact", "query": "小域医", "relevant_paths": ["concepts/RTHcdHf5Po8rKvxKeAFcRvYinyh--2.md", "concepts/RTHcdHf5Po8rKvxKeAFcRvYinyh.md"], "provenance": "extraction entity name"}
+{"id": "E09", "category": "entity_exact", "query": "权限分级体系", "relevant_paths": ["concepts/S7mPds1ESoHUBmx1yv4cFj0Mnej.md"], "provenance": "extraction entity name"}
+{"id": "E10", "category": "entity_exact", "query": "小域医", "relevant_paths": ["concepts/RTHcdHf5Po8rKvxKeAFcRvYinyh.md"], "provenance": "extraction entity name"}
 {"id": "E11", "category": "entity_exact", "query": "飞书消息", "relevant_paths": ["concepts/Iq1edtD6dog6iwxgbhAchut4n2c.md"], "provenance": "extraction entity name"}
 {"id": "E12", "category": "entity_exact", "query": "牛牛AI助手", "relevant_paths": ["concepts/Rg2WdTgDOoi872xiSdycpt9Hnyd.md", "concepts/TkIYdpQryoIeYzxQMDwcuvaUnMf.md"], "provenance": "extraction entity name"}
 {"id": "E13", "category": "entity_exact", "query": "美克会计档案系统", "relevant_paths": ["concepts/UCvpdz5z8oZqXTxCpD2cLAObnse.md"], "provenance": "extraction entity name"}
-{"id": "E14", "category": "entity_exact", "query": "Agent Harness", "relevant_paths": ["concepts/WSNxdjdDUobBr7xD9mocwCIrnCb--2.md", "concepts/WSNxdjdDUobBr7xD9mocwCIrnCb.md"], "provenance": "extraction entity name"}
-{"id": "E15", "category": "entity_exact", "query": "流程重构", "relevant_paths": ["concepts/GXjmdLFGZotC1jxAQymc3j8wnNh--2.md", "concepts/GXjmdLFGZotC1jxAQymc3j8wnNh.md", "concepts/PmFJd150LogOjNxFnzyctpzKnQg.md"], "provenance": "extraction entity name"}
-{"id": "E16", "category": "entity_exact", "query": "世界杯竞猜系统", "relevant_paths": ["concepts/QKqEdY6tRoUSxlxl7H0coC0In0d--2.md", "concepts/QKqEdY6tRoUSxlxl7H0coC0In0d.md"], "provenance": "extraction entity name"}
+{"id": "E14", "category": "entity_exact", "query": "Agent Harness", "relevant_paths": ["concepts/WSNxdjdDUobBr7xD9mocwCIrnCb.md"], "provenance": "extraction entity name"}
+{"id": "E15", "category": "entity_exact", "query": "流程重构", "relevant_paths": ["concepts/GXjmdLFGZotC1jxAQymc3j8wnNh.md", "concepts/PmFJd150LogOjNxFnzyctpzKnQg.md"], "provenance": "extraction entity name"}
+{"id": "E16", "category": "entity_exact", "query": "世界杯竞猜系统", "relevant_paths": ["concepts/QKqEdY6tRoUSxlxl7H0coC0In0d.md"], "provenance": "extraction entity name"}
 {"id": "E17", "category": "entity_exact", "query": "越南项目", "relevant_paths": ["concepts/Sbs8db5p8ogTZ4xakT9cKEdTnhb.md"], "provenance": "extraction entity name"}
-{"id": "E18", "category": "entity_exact", "query": "Agentic AI", "relevant_paths": ["concepts/Sic7dPX3aoxVByxxWqqcZAQunRb--2.md", "concepts/Sic7dPX3aoxVByxxWqqcZAQunRb.md"], "provenance": "extraction entity name"}
+{"id": "E18", "category": "entity_exact", "query": "Agentic AI", "relevant_paths": ["concepts/Sic7dPX3aoxVByxxWqqcZAQunRb.md"], "provenance": "extraction entity name"}
 {"id": "E19", "category": "entity_exact", "query": "飞书文档", "relevant_paths": ["concepts/FHlldhaeGogVBfxxovRcosZyn1X.md"], "provenance": "extraction entity name"}
 {"id": "E20", "category": "entity_exact", "query": "Tavily", "relevant_paths": ["concepts/FHlldhaeGogVBfxxovRcosZyn1X.md"], "provenance": "extraction entity name"}
-{"id": "E21", "category": "entity_exact", "query": "DRAM", "relevant_paths": ["concepts/Sic7dPX3aoxVByxxWqqcZAQunRb--2.md", "concepts/Sic7dPX3aoxVByxxWqqcZAQunRb.md"], "provenance": "extraction entity name"}
+{"id": "E21", "category": "entity_exact", "query": "DRAM", "relevant_paths": ["concepts/Sic7dPX3aoxVByxxWqqcZAQunRb.md"], "provenance": "extraction entity name"}
 {"id": "E22", "category": "entity_exact", "query": "自动化工作流", "relevant_paths": ["concepts/BjeddYvh5ofFaLxvXwLc0Surn2f.md"], "provenance": "extraction entity name"}
 {"id": "E23", "category": "entity_exact", "query": "流水号精确匹配", "relevant_paths": ["concepts/UCvpdz5z8oZqXTxCpD2cLAObnse.md"], "provenance": "extraction entity name"}
-{"id": "E24", "category": "entity_exact", "query": "飞书机器人", "relevant_paths": ["concepts/NqhBdw36XoINh2xvOzxcfZBvnFf--2.md", "concepts/NqhBdw36XoINh2xvOzxcfZBvnFf.md", "concepts/XDdLdSsxDoDyQRxneg1cFhtYnne--2.md", "concepts/XDdLdSsxDoDyQRxneg1cFhtYnne.md"], "provenance": "extraction entity name"}
+{"id": "E24", "category": "entity_exact", "query": "飞书机器人", "relevant_paths": ["concepts/NqhBdw36XoINh2xvOzxcfZBvnFf.md", "concepts/XDdLdSsxDoDyQRxneg1cFhtYnne.md"], "provenance": "extraction entity name"}
 {"id": "C01", "category": "entity_context", "query": "Garry Tan（YC CEO）开源的 Claude Code 工作流技能集，把单兵 agent 升级成 23 人虚拟工程团队", "relevant_paths": ["concepts/AKMedL4gzoLwNwxg1cyc9bdxnPI.md"], "provenance": "entity description without name"}
 {"id": "C02", "category": "entity_context", "query": "OpenClaw 每日凌晨 4 点自动生产 AI 日报的搭建教程", "relevant_paths": ["concepts/FHlldhaeGogVBfxxovRcosZyn1X.md"], "provenance": "entity description without name"}
-{"id": "C03", "category": "entity_context", "query": "一级通用查询/二级业务辅助等分级审批", "relevant_paths": ["concepts/S7mPds1ESoHUBmx1yv4cFj0Mnej--2.md", "concepts/S7mPds1ESoHUBmx1yv4cFj0Mnej.md"], "provenance": "entity description without name"}
-{"id": "C04", "category": "entity_context", "query": "演示极致压缩比与防勒索两大关键功能", "relevant_paths": ["concepts/AdnCd1MfFovJAHxKQfjc1TX0nHe--2.md", "concepts/AdnCd1MfFovJAHxKQfjc1TX0nHe.md", "concepts/FzaCdU13eolX5BxYHG5cb8q4nIg.md"], "provenance": "entity description without name"}
+{"id": "C03", "category": "entity_context", "query": "一级通用查询/二级业务辅助等分级审批", "relevant_paths": ["concepts/S7mPds1ESoHUBmx1yv4cFj0Mnej.md"], "provenance": "entity description without name"}
+{"id": "C04", "category": "entity_context", "query": "演示极致压缩比与防勒索两大关键功能", "relevant_paths": ["concepts/AdnCd1MfFovJAHxKQfjc1TX0nHe.md", "concepts/FzaCdU13eolX5BxYHG5cb8q4nIg.md"], "provenance": "entity description without name"}
 {"id": "C05", "category": "entity_context", "query": "各部门选拔骨干组成的变革推广队伍", "relevant_paths": ["concepts/DuQhdnGo8oxMN7xKHbdc0YV1njb.md"], "provenance": "entity description without name"}
-{"id": "C06", "category": "entity_context", "query": "基础设施/数据打通/通用技术/应用场景四层", "relevant_paths": ["concepts/FpajdZIAZoA5asx27yPcT7i8nCe--2.md", "concepts/FpajdZIAZoA5asx27yPcT7i8nCe.md", "concepts/WSNxdjdDUobBr7xD9mocwCIrnCb--2.md", "concepts/WSNxdjdDUobBr7xD9mocwCIrnCb.md"], "provenance": "entity description without name"}
-{"id": "C07", "category": "entity_context", "query": "提取 Bilibili BV 链接→获取 BV 码→读取视频信息的自动化流程", "relevant_paths": ["concepts/BgUKdDuvwoLyw8xKG0XcHzfGnif.md"], "provenance": "entity description without name"}
-{"id": "C08", "category": "entity_context", "query": "通用堆砌≠落地，跑通才是", "relevant_paths": ["concepts/PVppdrJRFok2Ywxs7TlcOHAWnUb--2.md", "concepts/PVppdrJRFok2Ywxs7TlcOHAWnUb.md"], "provenance": "entity description without name"}
-{"id": "C09", "category": "entity_context", "query": "可复制的成功经验总结：解决具体问题+验证方案可行", "relevant_paths": ["concepts/EB5hdXPK4oVvuIxsERacWvEGnLd.md"], "provenance": "entity description without name"}
-{"id": "C10", "category": "entity_context", "query": "名创优品十年积累，AI 放大而非推翻", "relevant_paths": ["concepts/QMS4dkuW9ojXyExJ8AXcnM5NnVe.md"], "provenance": "entity description without name"}
-{"id": "C11", "category": "entity_context", "query": "收集各信息源 Url 到素材库的扣子智能体", "relevant_paths": ["concepts/BgUKdDuvwoLyw8xKG0XcHzfGnif.md"], "provenance": "entity description without name"}
-{"id": "C12", "category": "entity_context", "query": "人工智能底层技术，模仿人脑 860 亿神经元构造", "relevant_paths": ["concepts/UAaGdsJHxo1EnLxp5jJcgtfuneh.md"], "provenance": "entity description without name"}
-{"id": "C13", "category": "entity_context", "query": "多维表格数据表：周报编号/经营部/汇报人/汇报日期/汇报周期", "relevant_paths": ["concepts/BjeddYvh5ofFaLxvXwLc0Surn2f.md"], "provenance": "entity description without name"}
-{"id": "C14", "category": "entity_context", "query": "2024 年 10 月全员 AI 大赛，业务与技术人员共同提需求", "relevant_paths": ["concepts/LluudJx3UoBmVkxZILbcEBawnDe--2.md", "concepts/LluudJx3UoBmVkxZILbcEBawnDe.md"], "provenance": "entity description without name"}
-{"id": "C15", "category": "entity_context", "query": "反直觉实验：AI 比多数人聪明+通用+人工即为 ，标准一直在变", "relevant_paths": ["concepts/GXjmdLFGZotC1jxAQymc3j8wnNh--2.md", "concepts/GXjmdLFGZotC1jxAQymc3j8wnNh.md", "concepts/PmFJd150LogOjNxFnzyctpzKnQg.md"], "provenance": "entity description without name"}
-{"id": "C16", "category": "entity_context", "query": "区域经理巡店效率提升 51 倍，一人管 40 家门店", "relevant_paths": ["concepts/HHYCdQkaoo8HauxIItTcBzqfnth.md"], "provenance": "entity description without name"}
-{"id": "C17", "category": "entity_context", "query": "跟业务场景打包的 API 封装，方便 AI 通过 CLI 了解系统功能", "relevant_paths": ["concepts/FKS9deovWo6iiGxxKgNc2IJIn8f--2.md", "concepts/FKS9deovWo6iiGxxKgNc2IJIn8f.md"], "provenance": "entity description without name"}
-{"id": "C18", "category": "entity_context", "query": "与妙记 MCP 服务暂不可用，影响数据获取", "relevant_paths": ["concepts/HgzKdAlR1o17yLxjEgpcgFFjnhg.md"], "provenance": "entity description without name"}
-{"id": "C19", "category": "entity_context", "query": "长沙超级卡车工厂的 AI 数字人，业务数据查询/知识库问答/监控调取/系统操作", "relevant_paths": ["concepts/FxbRdWd4loGpKNxcd9xcGoqBnmf.md"], "provenance": "entity description without name"}
-{"id": "C20", "category": "entity_context", "query": "2026-06-01 旗舰，上下文 1,000,000 tokens，MSA 稀疏注意力，支持多模态", "relevant_paths": ["concepts/CWo1dWcxVomMCJxLEzpciodVnDg.md"], "provenance": "entity description without name"}
-{"id": "C21", "category": "entity_context", "query": "G1 GPU HBM→G2 DRAM→G3 NVMe→G3.5 以太网闪存→G4 对象存储", "relevant_paths": ["concepts/Yup7dzxc3o2Qqsxkvb3c1wZ1n1c.md"], "provenance": "entity description without name"}
-{"id": "C22", "category": "entity_context", "query": "佳都科技交易定向通知 7×24 自动化方案，10 个群机器人覆盖 8 个飞书群", "relevant_paths": ["concepts/N3Vwd0JvsosQD5xqbQ9cAS1knJb.md"], "provenance": "entity description without name"}
-{"id": "C23", "category": "entity_context", "query": "蚂蚁集团 C 端 AI 健康朋友，支付宝生态闭环，3000 万月活，蚂蚁百灵大模型", "relevant_paths": ["concepts/RTHcdHf5Po8rKvxKeAFcRvYinyh--2.md", "concepts/RTHcdHf5Po8rKvxKeAFcRvYinyh.md"], "provenance": "entity description without name"}
-{"id": "C24", "category": "entity_context", "query": "单库单表可行，多库多表准确率低，需建数据模型", "relevant_paths": ["concepts/FpajdZIAZoA5asx27yPcT7i8nCe--2.md", "concepts/FpajdZIAZoA5asx27yPcT7i8nCe.md", "concepts/WSNxdjdDUobBr7xD9mocwCIrnCb--2.md", "concepts/WSNxdjdDUobBr7xD9mocwCIrnCb.md"], "provenance": "entity description without name"}
+{"id": "C06", "category": "entity_context", "query": "提取 Bilibili BV 链接→获取 BV 码→读取视频信息的自动化流程", "relevant_paths": ["concepts/BgUKdDuvwoLyw8xKG0XcHzfGnif.md"], "provenance": "entity description without name"}
+{"id": "C07", "category": "entity_context", "query": "通用堆砌≠落地，跑通才是", "relevant_paths": ["concepts/PVppdrJRFok2Ywxs7TlcOHAWnUb.md"], "provenance": "entity description without name"}
+{"id": "C08", "category": "entity_context", "query": "可复制的成功经验总结：解决具体问题+验证方案可行", "relevant_paths": ["concepts/EB5hdXPK4oVvuIxsERacWvEGnLd.md"], "provenance": "entity description without name"}
+{"id": "C09", "category": "entity_context", "query": "名创优品十年积累，AI 放大而非推翻", "relevant_paths": ["concepts/QMS4dkuW9ojXyExJ8AXcnM5NnVe.md"], "provenance": "entity description without name"}
+{"id": "C10", "category": "entity_context", "query": "收集各信息源 Url 到素材库的扣子智能体", "relevant_paths": ["concepts/BgUKdDuvwoLyw8xKG0XcHzfGnif.md"], "provenance": "entity description without name"}
+{"id": "C11", "category": "entity_context", "query": "人工智能底层技术，模仿人脑 860 亿神经元构造", "relevant_paths": ["concepts/UAaGdsJHxo1EnLxp5jJcgtfuneh.md"], "provenance": "entity description without name"}
+{"id": "C12", "category": "entity_context", "query": "多维表格数据表：周报编号/经营部/汇报人/汇报日期/汇报周期", "relevant_paths": ["concepts/BjeddYvh5ofFaLxvXwLc0Surn2f.md"], "provenance": "entity description without name"}
+{"id": "C13", "category": "entity_context", "query": "2024 年 10 月全员 AI 大赛，业务与技术人员共同提需求", "relevant_paths": ["concepts/LluudJx3UoBmVkxZILbcEBawnDe.md"], "provenance": "entity description without name"}
+{"id": "C14", "category": "entity_context", "query": "区域经理巡店效率提升 51 倍，一人管 40 家门店", "relevant_paths": ["concepts/HHYCdQkaoo8HauxIItTcBzqfnth.md"], "provenance": "entity description without name"}
+{"id": "C15", "category": "entity_context", "query": "跟业务场景打包的 API 封装，方便 AI 通过 CLI 了解系统功能", "relevant_paths": ["concepts/FKS9deovWo6iiGxxKgNc2IJIn8f.md"], "provenance": "entity description without name"}
+{"id": "C16", "category": "entity_context", "query": "与妙记 MCP 服务暂不可用，影响数据获取", "relevant_paths": ["concepts/HgzKdAlR1o17yLxjEgpcgFFjnhg.md"], "provenance": "entity description without name"}
+{"id": "C17", "category": "entity_context", "query": "长沙超级卡车工厂的 AI 数字人，业务数据查询/知识库问答/监控调取/系统操作", "relevant_paths": ["concepts/FxbRdWd4loGpKNxcd9xcGoqBnmf.md"], "provenance": "entity description without name"}
+{"id": "C18", "category": "entity_context", "query": "2026-06-01 旗舰，上下文 1,000,000 tokens，MSA 稀疏注意力，支持多模态", "relevant_paths": ["concepts/CWo1dWcxVomMCJxLEzpciodVnDg.md"], "provenance": "entity description without name"}
+{"id": "C19", "category": "entity_context", "query": "G1 GPU HBM→G2 DRAM→G3 NVMe→G3.5 以太网闪存→G4 对象存储", "relevant_paths": ["concepts/Yup7dzxc3o2Qqsxkvb3c1wZ1n1c.md"], "provenance": "entity description without name"}
+{"id": "C20", "category": "entity_context", "query": "佳都科技交易定向通知 7×24 自动化方案，10 个群机器人覆盖 8 个飞书群", "relevant_paths": ["concepts/N3Vwd0JvsosQD5xqbQ9cAS1knJb.md"], "provenance": "entity description without name"}
+{"id": "C21", "category": "entity_context", "query": "蚂蚁集团 C 端 AI 健康朋友，支付宝生态闭环，3000 万月活，蚂蚁百灵大模型", "relevant_paths": ["concepts/RTHcdHf5Po8rKvxKeAFcRvYinyh.md"], "provenance": "entity description without name"}
+{"id": "C22", "category": "entity_context", "query": "单库单表可行，多库多表准确率低，需建数据模型", "relevant_paths": ["concepts/FpajdZIAZoA5asx27yPcT7i8nCe.md", "concepts/WSNxdjdDUobBr7xD9mocwCIrnCb.md"], "provenance": "entity description without name"}
+{"id": "C23", "category": "entity_context", "query": "落地案例基于的平台", "relevant_paths": ["concepts/WSNxdjdDUobBr7xD9mocwCIrnCb.md"], "provenance": "entity description without name"}
+{"id": "C24", "category": "entity_context", "query": "实战案例：从零搭建一个 AI 自动化工作流", "relevant_paths": ["concepts/ZdwxdYSZhoYOn4xgNEnc8Clsnvh.md"], "provenance": "entity description without name"}
 {"id": "R01", "category": "relation", "query": "名创优品 放大 供应链优势", "relevant_paths": ["concepts/QMS4dkuW9ojXyExJ8AXcnM5NnVe.md"], "provenance": "extraction relation"}
-{"id": "R02", "category": "relation", "query": "上海杉木电子 触发 尽职调查", "relevant_paths": ["concepts/KLEydpM9koMtT3xRyhnc30ENnue--2.md", "concepts/KLEydpM9koMtT3xRyhnc30ENnue.md"], "provenance": "extraction relation"}
+{"id": "R02", "category": "relation", "query": "上海杉木电子 触发 尽职调查", "relevant_paths": ["concepts/KLEydpM9koMtT3xRyhnc30ENnue.md"], "provenance": "extraction relation"}
 {"id": "R03", "category": "relation", "query": "长超小福 服务于 北汽福田", "relevant_paths": ["concepts/FxbRdWd4loGpKNxcd9xcGoqBnmf.md"], "provenance": "extraction relation"}
 {"id": "R04", "category": "relation", "query": "视觉检测系统 承载于 飞书多维表格", "relevant_paths": ["concepts/ZAETd2jsHo5PlExtRMKcHlGcntf.md"], "provenance": "extraction relation"}
 {"id": "R05", "category": "relation", "query": "飞书官方插件 属于 OpenClaw", "relevant_paths": ["concepts/MFK7dDFLFoVlOGxWCv5cTXKmnMh.md"], "provenance": "extraction relation"}
-{"id": "R06", "category": "relation", "query": "世界杯竞猜系统 基于 飞书多维表格", "relevant_paths": ["concepts/QKqEdY6tRoUSxlxl7H0coC0In0d--2.md", "concepts/QKqEdY6tRoUSxlxl7H0coC0In0d.md"], "provenance": "extraction relation"}
-{"id": "R07", "category": "relation", "query": "AI五层蛋糕 提出者 黄仁勋", "relevant_paths": ["concepts/GbgtdFyTFob4yGxk1cucfIounWb--2.md", "concepts/GbgtdFyTFob4yGxk1cucfIounWb.md", "concepts/JLOjdNQpsoQ6nExfmatcl2llnhf--2.md", "concepts/JLOjdNQpsoQ6nExfmatcl2llnhf.md"], "provenance": "extraction relation"}
+{"id": "R06", "category": "relation", "query": "世界杯竞猜系统 基于 飞书多维表格", "relevant_paths": ["concepts/QKqEdY6tRoUSxlxl7H0coC0In0d.md"], "provenance": "extraction relation"}
+{"id": "R07", "category": "relation", "query": "AI五层蛋糕 提出者 黄仁勋", "relevant_paths": ["concepts/GbgtdFyTFob4yGxk1cucfIounWb.md", "concepts/JLOjdNQpsoQ6nExfmatcl2llnhf.md"], "provenance": "extraction relation"}
 {"id": "R08", "category": "relation", "query": "数智化效率部 支持 飞书AI先锋大赛", "relevant_paths": ["concepts/BvKjdQOLFoICHkxySLQclQ8Dn5b.md"], "provenance": "extraction relation"}
 {"id": "R09", "category": "relation", "query": "阿维塔 构建 价值交付", "relevant_paths": ["concepts/OLjwdeA21o684wxbthicituAn4g.md"], "provenance": "extraction relation"}
 {"id": "R10", "category": "relation", "query": "回单识别工具 采用 本地化部署", "relevant_paths": ["concepts/ARxXdsmbaoPZYLxcZuVcz6hpnu5.md"], "provenance": "extraction relation"}
-{"id": "R11", "category": "relation", "query": "bid-spider 同步到 飞书多维表格", "relevant_paths": ["concepts/GiCKdwBLwoEUEexApR1cPzsonrc--2.md", "concepts/GiCKdwBLwoEUEexApR1cPzsonrc.md"], "provenance": "extraction relation"}
+{"id": "R11", "category": "relation", "query": "bid-spider 同步到 飞书多维表格", "relevant_paths": ["concepts/GiCKdwBLwoEUEexApR1cPzsonrc.md"], "provenance": "extraction relation"}
 {"id": "R12", "category": "relation", "query": "三安光电 使用 飞书多维表格", "relevant_paths": ["concepts/AjU0dYJLWoTqN6xl61DcUFXznXb.md"], "provenance": "extraction relation"}
-{"id": "R13", "category": "relation", "query": "AI存储 进入 超级周期", "relevant_paths": ["concepts/B1SRddGkdo3DEXxyLehcHh4En2f--2.md", "concepts/B1SRddGkdo3DEXxyLehcHh4En2f.md", "concepts/Sic7dPX3aoxVByxxWqqcZAQunRb--2.md", "concepts/Sic7dPX3aoxVByxxWqqcZAQunRb.md", "concepts/Yup7dzxc3o2Qqsxkvb3c1wZ1n1c.md"], "provenance": "extraction relation"}
+{"id": "R13", "category": "relation", "query": "AI存储 进入 超级周期", "relevant_paths": ["concepts/B1SRddGkdo3DEXxyLehcHh4En2f.md", "concepts/Sic7dPX3aoxVByxxWqqcZAQunRb.md", "concepts/Yup7dzxc3o2Qqsxkvb3c1wZ1n1c.md"], "provenance": "extraction relation"}
 {"id": "R14", "category": "relation", "query": "设备大师智能体 基于 OpenClaw", "relevant_paths": ["concepts/WRBQd0561oSuXjxQ2CccEgZknVe.md"], "provenance": "extraction relation"}
 {"id": "R15", "category": "relation", "query": "深信服AI统一存储 合入 防勒索防护", "relevant_paths": ["concepts/FzaCdU13eolX5BxYHG5cb8q4nIg.md"], "provenance": "extraction relation"}
 {"id": "R16", "category": "relation", "query": "上下文压缩 配置于 OpenClaw", "relevant_paths": ["concepts/CWo1dWcxVomMCJxLEzpciodVnDg.md"], "provenance": "extraction relation"}
 {"id": "R17", "category": "relation", "query": "猪周期 影响 牧原股份", "relevant_paths": ["concepts/Sbs8db5p8ogTZ4xakT9cKEdTnhb.md"], "provenance": "extraction relation"}
 {"id": "R18", "category": "relation", "query": "智检飞虎队 属于 东风康明斯", "relevant_paths": ["concepts/ZAETd2jsHo5PlExtRMKcHlGcntf.md"], "provenance": "extraction relation"}
-{"id": "R19", "category": "relation", "query": "DeepSeek-R1 对标 OpenAI o1", "relevant_paths": ["concepts/HalydaqqkoJTNjxBfVecvWLsnVb--2.md", "concepts/HalydaqqkoJTNjxBfVecvWLsnVb.md"], "provenance": "extraction relation"}
-{"id": "R20", "category": "relation", "query": "HR人才地图 包含 潜在人员脱敏", "relevant_paths": ["concepts/XDdLdSsxDoDyQRxneg1cFhtYnne--2.md", "concepts/XDdLdSsxDoDyQRxneg1cFhtYnne.md"], "provenance": "extraction relation"}
+{"id": "R19", "category": "relation", "query": "DeepSeek-R1 对标 OpenAI o1", "relevant_paths": ["concepts/HalydaqqkoJTNjxBfVecvWLsnVb.md"], "provenance": "extraction relation"}
+{"id": "R20", "category": "relation", "query": "HR人才地图 包含 潜在人员脱敏", "relevant_paths": ["concepts/XDdLdSsxDoDyQRxneg1cFhtYnne.md"], "provenance": "extraction relation"}
 {"id": "R21", "category": "relation", "query": "牧原股份 拓展 越南项目", "relevant_paths": ["concepts/Sbs8db5p8ogTZ4xakT9cKEdTnhb.md"], "provenance": "extraction relation"}
 {"id": "R22", "category": "relation", "query": "AI智能体 助力 研发管理", "relevant_paths": ["concepts/AjU0dYJLWoTqN6xl61DcUFXznXb.md"], "provenance": "extraction relation"}
 {"id": "R23", "category": "relation", "query": "AI Agent 协同 飞书多维表格", "relevant_paths": ["concepts/ZdwxdYSZhoYOn4xgNEnc8Clsnvh.md"], "provenance": "extraction relation"}
-{"id": "R24", "category": "relation", "query": "供应商风险评估 评估 上海杉木电子", "relevant_paths": ["concepts/KLEydpM9koMtT3xRyhnc30ENnue--2.md", "concepts/KLEydpM9koMtT3xRyhnc30ENnue.md"], "provenance": "extraction relation"}
+{"id": "R24", "category": "relation", "query": "供应商风险评估 评估 上海杉木电子", "relevant_paths": ["concepts/KLEydpM9koMtT3xRyhnc30ENnue.md"], "provenance": "extraction relation"}
 {"id": "N01", "category": "no_answer", "query": "__mneme_no_answer_01_749ddb91__", "relevant_paths": [], "provenance": "synthetic no-answer control"}
 {"id": "N02", "category": "no_answer", "query": "__mneme_no_answer_02_4cf23260__", "relevant_paths": [], "provenance": "synthetic no-answer control"}
 {"id": "N03", "category": "no_answer", "query": "__mneme_no_answer_03_50de9d2e__", "relevant_paths": [], "provenance": "synthetic no-answer control"}

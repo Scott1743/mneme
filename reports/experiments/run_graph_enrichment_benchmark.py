@@ -65,6 +65,11 @@ def stable_key(value: str) -> str:
     return hashlib.sha256(f"{SEED}:{value}".encode("utf-8")).hexdigest()
 
 
+def canonical_path(path: str) -> str:
+    """Collapse duplicate Feishu exports with identical Markdown bodies."""
+    return re.sub(r"--2(?=\.md$)", "", path)
+
+
 def git_revision() -> str:
     return subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True,
@@ -118,7 +123,7 @@ def build_qrels(extraction_path: Path) -> list[dict[str, Any]]:
                 "pages": set(),
                 "confidence": confidence,
             })
-            entity["pages"].add(page)
+            entity["pages"].add(canonical_path(page))
             description = str(item.get("description", "")).strip()
             if description:
                 entity["descriptions"].append(description)
@@ -138,7 +143,7 @@ def build_qrels(extraction_path: Path) -> list[dict[str, Any]]:
                 "subject": subject, "predicate": predicate, "object": obj,
                 "pages": set(), "confidence": confidence,
             })
-            relation["pages"].add(page)
+            relation["pages"].add(canonical_path(page))
             relation["confidence"] = max(relation["confidence"], confidence)
 
     entity_candidates = [
@@ -238,14 +243,25 @@ def run_query(search_fn: Callable[[str], dict[str, Any]], item: dict[str, Any]) 
         started = time.perf_counter()
         output = search_fn(item["query"])
         timings.append((time.perf_counter() - started) * 1000)
-    candidates = output.get("candidates", [])[:TOP_K]
-    paths = [candidate.get("path", "") for candidate in candidates]
+    candidates = output.get("candidates", [])
+    paths = []
+    scores = []
+    seen_paths = set()
+    for candidate in candidates:
+        path = canonical_path(candidate.get("path", ""))
+        if not path or path in seen_paths:
+            continue
+        seen_paths.add(path)
+        paths.append(path)
+        scores.append(candidate.get("score"))
+        if len(paths) >= TOP_K:
+            break
     metrics = ranked_metrics(paths, item["relevant_paths"])
     return {
         **item,
         **metrics,
         "candidate_paths": paths,
-        "candidate_scores": [candidate.get("score") for candidate in candidates],
+        "candidate_scores": scores,
         "latency_ms": statistics.median(timings),
         "latency_p95_ms": sorted(timings)[max(0, math.ceil(0.95 * len(timings)) - 1)],
         "false_positive": bool(paths) if not item["relevant_paths"] else False,
@@ -454,11 +470,11 @@ main{{max-width:1120px;margin:0 auto;padding:48px 28px 80px}}h1{{font-size:34px;
 <p class="caption">Positive values favor the second system. Intervals crossing zero do not establish a stable directional effect on this diagnostic set.</p>
 <h2>Latency</h2>{latency_svg(summary)}
 <p class="caption">Warm in-process measurements; each query is repeated {QUERY_REPEATS} times. They describe this local machine and are not service-level benchmarks.</p>
-<h2>Metric table</h2><div class="table-wrap"><table><thead><tr><th>Stage</th><th>nDCG@10</th><th>Recall@10</th><th>Hit@10</th><th>MRR@10</th><th>No-answer FPR</th><th>P50 ms</th><th>P95 ms</th></tr></thead><tbody>{rows}</tbody></table></div>
+<h2>Metric table</h2><div class="table-wrap"><table><thead><tr><th>Stage</th><th>nDCG@10</th><th>Macro Recall@10</th><th>Hit@10</th><th>MRR@10</th><th>No-answer FPR</th><th>P50 ms</th><th>P95 ms</th></tr></thead><tbody>{rows}</tbody></table></div>
 <h2>Graph construction</h2><div class="table-wrap"><table><thead><tr><th>Graph</th><th>Entities</th><th>Relations</th><th>LLM entities</th><th>LLM relations</th><th>Components</th><th>Orphans</th></tr></thead><tbody>
 <tr><td>G0 deterministic</td><td>{health['G0']['entity_count']}</td><td>{health['G0']['relation_count']}</td><td>{health['G0']['llm_entity_count']}</td><td>{health['G0']['llm_relation_count']}</td><td>{health['G0']['connected_component_count']}</td><td>{health['G0']['orphan_entity_count']}</td></tr>
 <tr><td>G1 enriched</td><td>{health['G1']['entity_count']}</td><td>{health['G1']['relation_count']}</td><td>{health['G1']['llm_entity_count']}</td><td>{health['G1']['llm_relation_count']}</td><td>{health['G1']['connected_component_count']}</td><td>{health['G1']['orphan_entity_count']}</td></tr></tbody></table></div>
-<h2>Methods and limits</h2><div class="methods"><p><strong>Corpus.</strong> One private 142-page Feishu Markdown export. Only aggregate hashes, queries, relevant bundle-relative paths, ranks, and timings are written to this report.</p><p><strong>Systems.</strong> L1 is global FTS5. G0 derives only pages, tags, and Markdown links. G1 adds the frozen agent extraction manifest. H0/H1 use the production Graph + global FTS union.</p><p><strong>Labels.</strong> Entity, context, and relation qrels are deterministically sampled from the extraction manifest. They are suitable for enrichment ablation, but share construction provenance with G1 and must not be treated as independent human relevance judgments.</p><p><strong>Known boundary.</strong> This report does not compare L2, answer synthesis, citation correctness, or independent user questions. A separate double-annotated benchmark is required for those claims.</p></div>
+<h2>Methods and limits</h2><div class="methods"><p><strong>Corpus.</strong> One private 142-page Feishu Markdown export. Export pairs with identical bodies (<code>foo.md</code>/<code>foo--2.md</code>) are treated as one document equivalence class in qrels and ranked candidates.</p><p><strong>Metrics.</strong> nDCG uses binary relevance and logarithmic rank discount. Recall is macro-averaged per answerable query; Hit records any relevant top-10 result; MRR uses the first relevant top-10 rank. No-answer controls are excluded and reported as FPR.</p><p><strong>Systems.</strong> L1 is global FTS5. G0 derives only pages, tags, and Markdown links. G1 adds the frozen agent extraction manifest. H0/H1 use the production Graph + global FTS union.</p><p><strong>Labels.</strong> Entity, context, and relation qrels are deterministically sampled from the extraction manifest. They are suitable for enrichment ablation, but share construction provenance with G1 and must not be treated as independent human relevance judgments.</p><p><strong>Known boundary.</strong> This report does not compare L2, answer synthesis, citation correctness, or independent user questions. A separate double-annotated benchmark is required for those claims.</p></div>
 <p class="meta">Code <code>{esc(manifest['code_revision'][:12])}</code> · Mneme {esc(manifest['mneme_version'])} · qrels SHA-256 <code>{esc(manifest['qrels_sha256'][:16])}</code> · extraction SHA-256 <code>{esc(manifest['extraction_sha256'][:16])}</code></p>
 </main></body></html>"""
 

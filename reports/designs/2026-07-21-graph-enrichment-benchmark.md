@@ -41,12 +41,14 @@
 主指标：
 
 - nDCG@10（binary relevance，支持多相关页面）；
-- Recall@10、Hit@10、MRR@10；
+- macro Recall@10、Hit@10、MRR@10；
 - `no_answer` false-positive rate；
 - warm query P50/P95 latency；
 - Graph entity/relation/component/orphan counters。
 
 每个 query 作为 bootstrap 重采样单位，报告 95% percentile confidence interval（10,000 次、固定 seed）。报告 query family small multiples，不把不同 family 混成一个未经解释的总分。延迟使用同一进程 warm cache，索引构建单独报告。
+
+飞书重复导出形成的 `foo.md` / `foo--2.md` 若正文完全相同，评测时视为一个文档等价类：qrels 只保留 canonical path，候选列表也在截取 top-10 前去重。否则重复文件会虚增相关文档分母并占用排名位置。
 
 ## 5. 失效与解释规则
 
