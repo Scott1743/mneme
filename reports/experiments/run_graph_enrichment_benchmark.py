@@ -222,15 +222,24 @@ def indexable_paths(bundle: Path) -> list[Path]:
 def ranked_metrics(paths: list[str], relevant_paths: list[str]) -> dict[str, float | int | None]:
     relevant = set(relevant_paths)
     if not relevant:
-        return {"rank": None, "hit": 0.0, "recall": 0.0, "mrr": 0.0, "ndcg": 0.0}
+        return {
+            "rank": None, "accuracy": 0.0, "precision": 0.0,
+            "recall": 0.0, "f1": 0.0, "hit": 0.0, "mrr": 0.0, "ndcg": 0.0,
+        }
     ranks = [index for index, path in enumerate(paths[:TOP_K], 1) if path in relevant]
     first = min(ranks) if ranks else None
+    precision = len(ranks) / TOP_K
+    recall = len(ranks) / len(relevant)
+    f1 = 0.0 if precision + recall == 0 else 2 * precision * recall / (precision + recall)
     dcg = sum(1.0 / math.log2(rank + 1) for rank in ranks)
     ideal = sum(1.0 / math.log2(rank + 1) for rank in range(1, min(len(relevant), TOP_K) + 1))
     return {
         "rank": first,
+        "accuracy": float(first == 1),
+        "precision": precision,
         "hit": float(bool(ranks)),
-        "recall": len(ranks) / len(relevant),
+        "recall": recall,
+        "f1": f1,
         "mrr": 0.0 if first is None else 1.0 / first,
         "ndcg": 0.0 if ideal == 0 else dcg / ideal,
     }
@@ -288,7 +297,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     answerable = [row for row in rows if row["relevant_paths"]]
     no_answer = [row for row in rows if not row["relevant_paths"]]
     result: dict[str, Any] = {}
-    for field in ("ndcg", "recall", "hit", "mrr"):
+    for field in ("ndcg", "accuracy", "precision", "recall", "f1", "hit", "mrr"):
         result[field] = statistics.mean(float(row[field]) for row in answerable)
         result[f"{field}_ci"] = bootstrap_ci(answerable, field)
     result["false_positive_rate"] = (
@@ -374,6 +383,50 @@ def family_svg(by_family: dict[str, dict[str, Any]]) -> str:
     return "".join(parts)
 
 
+def classic_metrics_svg(summary: dict[str, Any]) -> str:
+    metrics = (
+        ("accuracy", "Top-1 accuracy", "#3573b8", "circle"),
+        ("precision", "Precision@10", "#238b68", "square"),
+        ("recall", "Macro Recall@10", "#c87a18", "diamond"),
+        ("f1", "Macro F1@10", "#a44a8b", "cross"),
+    )
+    width, height = 900, 330
+    left, right, top, row_h = 200, 70, 52, 47
+    plot_w = width - left - right
+    parts = [
+        f'<svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-labelledby="classic-title classic-desc">',
+        '<title id="classic-title">Classic retrieval metric profile</title>',
+        '<desc id="classic-desc">Top-1 accuracy, precision at 10, macro recall at 10, and macro F1 at 10 for five retrieval stages.</desc>',
+    ]
+    for tick in (0, .2, .4, .6, .8, 1):
+        x = left + tick * plot_w
+        parts.append(f'<line class="grid" x1="{x:.1f}" x2="{x:.1f}" y1="38" y2="270"/>')
+        parts.append(f'<text class="axis" x="{x:.1f}" y="298" text-anchor="middle">{tick:.1f}</text>')
+    for index, stage in enumerate(STAGES):
+        y = top + index * row_h
+        parts.append(f'<text x="{left-14}" y="{y+5}" text-anchor="end">{esc(STAGE_LABELS[stage])}</text>')
+        for metric_index, (key, label, color, shape) in enumerate(metrics):
+            value = summary[stage][key]
+            x = left + value * plot_w
+            offset = (metric_index - 1.5) * 8
+            cy = y + offset
+            title = f'{label}: {value:.3f}'
+            if shape == "circle":
+                parts.append(f'<circle cx="{x:.1f}" cy="{cy:.1f}" r="4.5" fill="{color}"><title>{title}</title></circle>')
+            elif shape == "square":
+                parts.append(f'<rect x="{x-4:.1f}" y="{cy-4:.1f}" width="8" height="8" fill="{color}"><title>{title}</title></rect>')
+            elif shape == "diamond":
+                parts.append(f'<path d="M{x:.1f},{cy-5:.1f} L{x+5:.1f},{cy:.1f} L{x:.1f},{cy+5:.1f} L{x-5:.1f},{cy:.1f} Z" fill="{color}"><title>{title}</title></path>')
+            else:
+                parts.append(f'<path d="M{x-4:.1f},{cy-4:.1f} L{x+4:.1f},{cy+4:.1f} M{x+4:.1f},{cy-4:.1f} L{x-4:.1f},{cy+4:.1f}" stroke="{color}" stroke-width="2"><title>{title}</title></path>')
+    legend_x = left
+    for index, (_, label, color, _) in enumerate(metrics):
+        x = legend_x + index * 155
+        parts.append(f'<circle cx="{x:.1f}" cy="20" r="4" fill="{color}"/><text class="axis" x="{x+9:.1f}" y="24">{label}</text>')
+    parts.append(f'<text class="axis-title" x="{left+plot_w/2:.1f}" y="325" text-anchor="middle">Score</text></svg>')
+    return "".join(parts)
+
+
 def delta_svg(deltas: dict[str, dict[str, Any]]) -> str:
     labels = (("G1-G0", "Enrichment: G1 - G0"), ("H1-H0", "Enrichment: H1 - H0"),
               ("H1-L1", "Hybrid safety: H1 - L1"), ("H1-G1", "Fusion effect: H1 - G1"))
@@ -437,7 +490,8 @@ def report_html(manifest: dict[str, Any]) -> str:
     by_family = manifest["by_family"]
     rows = "".join(
         f"<tr><td>{esc(STAGE_LABELS[stage])}</td><td>{summary[stage]['ndcg']:.3f}</td>"
-        f"<td>{summary[stage]['recall']:.3f}</td><td>{summary[stage]['hit']:.3f}</td>"
+        f"<td>{summary[stage]['accuracy']:.3f}</td><td>{summary[stage]['precision']:.3f}</td>"
+        f"<td>{summary[stage]['recall']:.3f}</td><td>{summary[stage]['f1']:.3f}</td><td>{summary[stage]['hit']:.3f}</td>"
         f"<td>{summary[stage]['mrr']:.3f}</td><td>{summary[stage]['false_positive_rate']:.3f}</td>"
         f"<td>{summary[stage]['latency_p50_ms']:.2f}</td><td>{summary[stage]['latency_p95_ms']:.2f}</td></tr>"
         for stage in STAGES
@@ -464,13 +518,15 @@ main{{max-width:1120px;margin:0 auto;padding:48px 28px 80px}}h1{{font-size:34px;
 <p class="finding">{esc(conclusion)}</p>
 <h2>Overall retrieval quality</h2>{forest_svg(summary)}
 <p class="caption">Points are mean binary nDCG@10; horizontal lines are query-bootstrap 95% confidence intervals (10,000 resamples). No-answer controls are excluded from ranking metrics.</p>
+<h2>Classic metric profile</h2>{classic_metrics_svg(summary)}
+<p class="caption">Precision@10 uses a fixed denominator of 10. Accuracy is top-1 relevance, not classification accuracy over documents. Recall and F1 are macro-averaged over answerable queries.</p>
 <h2>Query-family response</h2>{family_svg(by_family)}
 <p class="caption">The family split is essential: entity and relation qrels are derived from the frozen extraction manifest and measure mechanism coverage, not independent general-search quality.</p>
 <h2>Paired effects</h2>{delta_svg(manifest['deltas'])}
 <p class="caption">Positive values favor the second system. Intervals crossing zero do not establish a stable directional effect on this diagnostic set.</p>
 <h2>Latency</h2>{latency_svg(summary)}
 <p class="caption">Warm in-process measurements; each query is repeated {QUERY_REPEATS} times. They describe this local machine and are not service-level benchmarks.</p>
-<h2>Metric table</h2><div class="table-wrap"><table><thead><tr><th>Stage</th><th>nDCG@10</th><th>Macro Recall@10</th><th>Hit@10</th><th>MRR@10</th><th>No-answer FPR</th><th>P50 ms</th><th>P95 ms</th></tr></thead><tbody>{rows}</tbody></table></div>
+<h2>Metric table</h2><div class="table-wrap"><table><thead><tr><th>Stage</th><th>nDCG@10</th><th>Top-1 accuracy</th><th>Precision@10</th><th>Macro Recall@10</th><th>Macro F1@10</th><th>Hit@10</th><th>MRR@10</th><th>No-answer FPR</th><th>P50 ms</th><th>P95 ms</th></tr></thead><tbody>{rows}</tbody></table></div>
 <h2>Graph construction</h2><div class="table-wrap"><table><thead><tr><th>Graph</th><th>Entities</th><th>Relations</th><th>LLM entities</th><th>LLM relations</th><th>Components</th><th>Orphans</th></tr></thead><tbody>
 <tr><td>G0 deterministic</td><td>{health['G0']['entity_count']}</td><td>{health['G0']['relation_count']}</td><td>{health['G0']['llm_entity_count']}</td><td>{health['G0']['llm_relation_count']}</td><td>{health['G0']['connected_component_count']}</td><td>{health['G0']['orphan_entity_count']}</td></tr>
 <tr><td>G1 enriched</td><td>{health['G1']['entity_count']}</td><td>{health['G1']['relation_count']}</td><td>{health['G1']['llm_entity_count']}</td><td>{health['G1']['llm_relation_count']}</td><td>{health['G1']['connected_component_count']}</td><td>{health['G1']['orphan_entity_count']}</td></tr></tbody></table></div>

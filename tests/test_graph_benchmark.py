@@ -42,7 +42,10 @@ def test_ranked_metrics_miss_and_no_answer():
     miss = benchmark.ranked_metrics(["other.md"], ["target.md"])
     no_answer = benchmark.ranked_metrics(["other.md"], [])
 
-    assert miss == {"rank": None, "hit": 0.0, "recall": 0.0, "mrr": 0.0, "ndcg": 0.0}
+    assert miss == {
+        "rank": None, "accuracy": 0.0, "precision": 0.0, "recall": 0.0,
+        "f1": 0.0, "hit": 0.0, "mrr": 0.0, "ndcg": 0.0,
+    }
     assert no_answer == miss
 
 

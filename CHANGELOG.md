@@ -14,7 +14,8 @@ for in-flight specs and plans.
 - Replaced the invalid five-query historical reports with the frozen 80-query
   Graph enrichment diagnostic in `reports/`. The new report separates
   deterministic Graph (`G0`), enriched Graph (`G1`), and their global-FTS
-  hybrids, reports bootstrap confidence intervals, and labels extraction-
+  hybrids, reports bootstrap confidence intervals plus Top-1 accuracy,
+  Precision@10, macro Recall@10, and macro F1@10, and labels extraction-
   derived qrels as construction-aware rather than independent human judgments.
 - FTS5 search now retries punctuation-heavy natural-language queries as quoted
   tokens when SQLite interprets hyphens or other characters as MATCH syntax.
