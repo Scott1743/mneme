@@ -86,6 +86,7 @@ def test_add_event_corpus_copies_only_top_level_markdown(tmp_path):
 
     assert audit["page_count"] == 1
     assert audit["unique_body_count"] == 1
+    assert audit["frontmatter_count"] == 1
     assert audit["exact_query_overlap_ids"] == ["E01"]
     assert (bundle / "events" / "one.md").is_file()
     assert not (bundle / "events" / "two.md").exists()
@@ -99,3 +100,24 @@ def test_corpus_expansion_chart_labels_both_conditions():
 
     assert "circle=base, square=expanded" in output
     assert output.count("-0.100") == len(benchmark.STAGES)
+
+
+def test_corpus_statement_separates_labels_from_event_stress_pages():
+    manifest = {
+        "base_page_count": 142,
+        "bundle_page_count": 219,
+        "event_corpus": {
+            "archive_name": "events.zip",
+            "page_count": 77,
+            "unique_body_count": 77,
+            "frontmatter_count": 77,
+            "event_date_range": ["2026-07-13", "2026-07-21"],
+            "top_tags": [["ai-news", 77]],
+        },
+    }
+
+    output = benchmark.corpus_statement_html(manifest)
+
+    assert "80 qrels belong to the base corpus" in output
+    assert "Unjudged topical stress documents" in output
+    assert "Frozen-target retention" in output

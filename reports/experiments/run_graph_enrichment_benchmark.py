@@ -18,7 +18,7 @@ import sys
 import tempfile
 import time
 import zipfile
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SKILL_SCRIPTS = ROOT / "skills" / "mneme" / "scripts"
 sys.path.insert(0, str(SKILL_SCRIPTS))
 
-from mneme import __version__, graphlib, indexlib  # noqa: E402
+from mneme import __version__, graphlib, indexlib, okflib  # noqa: E402
 
 TOP_K = 10
 QUERY_REPEATS = 5
@@ -248,7 +248,16 @@ def add_event_corpus(
 
     event_paths = list(destination.glob("*.md"))
     bodies = [sha256_file(path) for path in event_paths]
-    texts = [path.read_text(encoding="utf-8").casefold() for path in event_paths]
+    raw_texts = [path.read_text(encoding="utf-8") for path in event_paths]
+    texts = [text.casefold() for text in raw_texts]
+    metadata = [okflib.parse_frontmatter(text) for text in raw_texts]
+    metadata = [parsed[0] for parsed in metadata if parsed is not None]
+    tag_counts = Counter(
+        str(tag) for meta in metadata for tag in meta.get("tags", [])
+    )
+    event_dates = sorted(
+        str(meta["event_date"]) for meta in metadata if meta.get("event_date")
+    )
     overlaps = [
         item["id"] for item in (qrels or [])
         if item["relevant_paths"] and any(str(item["query"]).casefold() in text for text in texts)
@@ -259,6 +268,9 @@ def add_event_corpus(
         "archive_sha256": sha256_file(archive),
         "archive_name": archive.name,
         "exact_query_overlap_ids": overlaps,
+        "frontmatter_count": len(metadata),
+        "event_date_range": [event_dates[0], event_dates[-1]] if event_dates else [],
+        "top_tags": tag_counts.most_common(8),
     }
 
 
@@ -556,6 +568,30 @@ def corpus_expansion_svg(base: dict[str, Any], expanded: dict[str, Any]) -> str:
     return "".join(parts)
 
 
+def corpus_statement_html(manifest: dict[str, Any]) -> str:
+    events = manifest["event_corpus"]
+    date_range = " to ".join(events["event_date_range"]) or "not declared"
+    tags = ", ".join(f"{tag} ({count})" for tag, count in events["top_tags"])
+    return (
+        "<p>The relevance labels and the retrieval corpus do not have the same scope. "
+        "All 80 qrels belong to the base corpus; the event cohort is an unjudged, topical "
+        "stress addition and is never treated as a labeled negative set.</p>"
+        '<div class="table-wrap"><table class="question-table"><thead><tr>'
+        "<th>Partition</th><th>Content pages</th><th>Graph treatment</th><th>Evaluation role</th>"
+        "</tr></thead><tbody>"
+        f"<tr><td>Base Feishu corpus</td><td>{manifest['base_page_count']}</td>"
+        "<td>Deterministic + frozen enrichment</td><td>80 frozen qrels</td></tr>"
+        f"<tr><td>Event cohort</td><td>{events['page_count']}</td>"
+        "<td>Deterministic only</td><td>Unjudged topical stress documents</td></tr>"
+        f"<tr><td>Expanded working corpus</td><td>{manifest['bundle_page_count']}</td>"
+        "<td>Production hybrid ablation</td><td>Frozen-target retention</td></tr>"
+        "</tbody></table></div>"
+        f'<p class="caption">Event archive: <code>{esc(events["archive_name"])}</code>; '
+        f'{events["unique_body_count"]} unique bodies; {events["frontmatter_count"]} pages with '
+        f'frontmatter; event dates {esc(date_range)}. Most frequent tags: {esc(tags)}.</p>'
+    )
+
+
 def question_audit_html(qrels: list[dict[str, Any]]) -> str:
     labels = {
         "entity_exact": "Exact entity",
@@ -594,7 +630,7 @@ def question_audit_html(qrels: list[dict[str, Any]]) -> str:
             f'</tr></thead><tbody>{rows}</tbody></table></div></details>'
         )
     return (
-        "<p>The questions are frozen before scoring. Review their construction and examples before "
+        "<p>The questions were frozen on the base corpus before event expansion. Review their construction and examples before "
         "interpreting metrics; the first three families share provenance with the extraction manifest "
         "and measure enrichment coverage rather than independent human relevance.</p>"
         '<div class="table-wrap"><table class="question-table"><thead><tr><th>Family</th>'
@@ -623,11 +659,15 @@ def report_html(manifest: dict[str, Any], qrels: list[dict[str, Any]]) -> str:
     )
     health = manifest["graph_health"]
     events = manifest["event_corpus"]
+    fusion = manifest["deltas"]["H1-G1"]
+    fusion_low, fusion_high = fusion["ci"]
     conclusion = (
-        f"On the expanded corpus, enrichment changes Graph target nDCG@10 by {manifest['deltas']['G1-G0']['delta']:+.3f} "
-        f"and hybrid by {manifest['deltas']['H1-H0']['delta']:+.3f}. "
-        f"The H1-L1 paired difference is {manifest['deltas']['H1-L1']['delta']:+.3f}; "
-        "the added event pages are unjudged, so expanded-corpus scores measure retention of frozen targets, not exhaustive relevance."
+        f"On the expanded corpus, G1 target nDCG@10 is {summary['G1']['ndcg']:.3f} and H1 is "
+        f"{summary['H1']['ndcg']:.3f}, down {summary['H1']['ndcg']-base_summary['H1']['ndcg']:+.3f} "
+        f"from base H1. The H1-G1 difference is {fusion['delta']:+.3f} "
+        f"[{fusion_low:+.3f}, {fusion_high:+.3f}]; enrichment still improves H1 over H0 by "
+        f"{manifest['deltas']['H1-H0']['delta']:+.3f}. These are frozen-target retention results, "
+        "not exhaustive relevance judgments for the event cohort."
     )
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -642,13 +682,14 @@ main{{max-width:1120px;margin:0 auto;padding:48px 28px 80px}}h1{{font-size:34px;
 <h1>Graph enrichment retrieval benchmark</h1>
 <p class="lede">A controlled ablation of deterministic Graph, agent enrichment, and global FTS5 fusion on a {manifest['bundle_page_count']}-page Markdown corpus. A paired stress condition adds {events['page_count']} topical AI event pages to the original {manifest['base_page_count']} pages; 72 construction-aware answerable queries and 8 synthetic no-answer controls remain frozen.</p>
 <p class="finding">{esc(conclusion)}</p>
+<h2>Corpus and label scope</h2>{corpus_statement_html(manifest)}
 <h2>Benchmark questions</h2>{question_audit_html(qrels)}
 <h2>Corpus expansion stress</h2>{corpus_expansion_svg(base_summary, summary)}
 <p class="caption">The same frozen original targets are evaluated before and after adding the event cohort. Event pages were not exhaustively relevance-judged; the expanded score is therefore a target-retention diagnostic, not a complete relevance estimate. Exact query text occurs in the added cohort for {len(events['exact_query_overlap_ids'])} question(s): {esc(', '.join(events['exact_query_overlap_ids']) or 'none')}.</p>
 <h2>Expanded-corpus target retrieval</h2>{forest_svg(summary)}
 <p class="caption">Points are mean binary target nDCG@10 on the expanded corpus; horizontal lines are query-bootstrap 95% confidence intervals (10,000 resamples). No-answer controls are excluded.</p>
 <h2>Classic metric profile</h2>{classic_metrics_svg(summary)}
-<p class="caption">Precision@10 uses a fixed denominator of 10. Accuracy is top-1 relevance, not classification accuracy over documents. Recall and F1 are macro-averaged over answerable queries.</p>
+<p class="caption">Precision@10 uses a fixed denominator of 10. Accuracy means whether rank 1 is a frozen target, not document-classification accuracy. Recall and F1 are macro-averaged over answerable base-corpus targets.</p>
 <h2>Query-family response</h2>{family_svg(by_family)}
 <p class="caption">The family split is essential: entity and relation qrels are derived from the frozen extraction manifest and measure mechanism coverage, not independent general-search quality.</p>
 <h2>Paired effects</h2>{delta_svg(manifest['deltas'])}
