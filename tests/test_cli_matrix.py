@@ -12,7 +12,7 @@ from mneme import cli, indexlib, tools_helpers
 pytestmark = pytest.mark.unit
 
 
-EXPECTED_COMMANDS = {"init", "lint", "reindex", "search", "dream", "convert", "graph"}
+EXPECTED_COMMANDS = {"init", "lint", "reindex", "search", "dream", "convert", "graph", "serve"}
 
 
 def _subcommands(parser: argparse.ArgumentParser) -> dict[str, argparse.ArgumentParser]:

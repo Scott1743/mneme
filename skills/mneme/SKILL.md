@@ -1,6 +1,6 @@
 ---
 name: mneme
-version: 4.1.0
+version: 4.2.0
 description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including a disposable SQLite knowledge graph, agent-extracted graph enrichment via graph ingest, hybrid graph + FTS5 retrieval, and optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, rebuild graph navigation, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v4 keeps Markdown authoritative, derives graph.db from pages/tags/links, keeps FTS5 zero-dependency, and preserves explicitly activated L2 semantic mode."
 allowed-tools:
   - Read
@@ -24,7 +24,8 @@ python3 ~/.claude/skills/mneme/scripts/mneme.py <subcmd> [args]
 
 The user surface has exactly two intents: `dream` writes after preview and
 approval; `search` reads and answers. `init`, `lint`, `reindex`, `dream`,
-`search`, and `convert` are internal CLI operations used by those workflows.
+`search`, `convert`, and `serve` are internal CLI operations used by those
+workflows.
 
 ## Resolve the bundle once per task
 
@@ -166,6 +167,23 @@ plausible candidates, cited answers, semantic recall, or uncertainty about
 retrieval and authority. A simple known-path or exact-title lookup does not
 require it.
 
+## Optional visual panel (`mneme serve`)
+
+Proactively mention the local web console when it helps the user:
+
+- after `init` completes,
+- after every approved dream write finishes,
+- when the user asks about wiki health or wants to browse the wiki.
+
+Tell them they can run
+`python3 ~/.claude/skills/mneme/scripts/mneme.py serve --open`
+(or the equivalent entry point) to start a localhost-only visual panel with
+overview, search, browse, lint, and dream-audit tabs. It binds 127.0.0.1 by
+default, prints a per-process session token at startup, stops with Ctrl-C,
+and is read-only plus disposable-cache reindex — it never writes factual
+Markdown. Do not start or keep the server running on the user's behalf
+unless the user explicitly asks; just offer the command.
+
 ## Internal maintenance commands
 
 - `init <path>` scaffolds an OKF bundle and records its location.
@@ -189,6 +207,10 @@ require it.
 - `convert <source> --output <path>` creates derived readable text with an
   already-installed compatible converter; it never installs software and
   refuses overwrite unless the user explicitly requests `--force`.
+- `serve [--bundle <path>] [--host 127.0.0.1] [--port 8620] [--open]` starts
+  the foreground localhost web console (read-only + reindex; Ctrl-C stops).
+  It prints a session token; a bundle without `index.md` opens on the
+  empty-bundle guide page.
 
 Load `references/workflow-lint.md` only for an explicit wiki health check or
 when post-dream validation fails. Load `references/index-design.md` only for

@@ -9,6 +9,47 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-07-21 - `mneme serve` localhost web console (P1)
+
+### Added
+
+- **`mneme serve [--bundle PATH] [--config PATH] [--host 127.0.0.1]
+  [--port 8620] [--open]`** — a user-launched, foreground, Ctrl-C-stopped,
+  stdlib-only web console over the bundle. It is not a daemon: no launchd /
+  systemd registration, no pidfile, no background fork. A bundle without
+  `index.md` opens the UI on an empty-bundle guide page instead of failing.
+  Design: `docs/design/webserver-prototype.md`.
+- **`webserver.py`** — `ThreadingHTTPServer` with the P1 JSON API:
+  `GET /api/status`, `/api/lint`, `/api/search?q=&k=&mode=`,
+  `/api/pages?type=&tag=`, `/api/page?path=`, `/api/dream`, `/api/graph`,
+  and the single write endpoint `POST /api/reindex` (rebuilds the
+  disposable FTS5 cache always and Graph when present; never touches
+  Markdown). Errors are uniform `{"error", "code"}` payloads. Factual-write
+  endpoints (`/api/dream/preview|apply`) are P2 and intentionally absent.
+- **Security model (spec §7)**: binds `127.0.0.1` by default (`--host
+  0.0.0.0` prints a loud startup warning); a `secrets.token_urlsafe`
+  session token is printed to the terminal and injected into `GET /`;
+  every `/api/*` request — including GETs — requires a matching
+  `X-Mneme-Token` header; the `Host` header must be localhost / 127.0.0.1 /
+  ::1; page paths resolve inside the bundle (`..` escapes rejected, 1 MB
+  request-body cap, no static file serving outside `GET /`, no cookies).
+- **`webui.py`** — the entire frontend as one embedded `INDEX_HTML`
+  string (zero CDN, zero npm, offline-friendly): overview (health, page
+  stats, index freshness, recent `log.md`), search with mode selector,
+  browse with directory tree / render-source toggle / out- and in-links,
+  lint diagnostics with a client-assembled copyable repair prompt, the
+  dream read-only audit view (re-audit button, agent-instruction modal for
+  "start dream", disabled P2 "confirm write" button), and a canvas
+  force-directed link graph.
+- **`tests/test_webserver.py`** — 25 endpoint tests on an ephemeral-port
+  server: status/lint/search/pages/page/dream/graph, path sandbox,
+  token and Host enforcement, body cap, reindex idempotence and
+  Markdown-untouched invariant, and the uninitialized-bundle guide state.
+- **SKILL.md** gains an "Optional visual panel (`mneme serve`)" section so
+  agents proactively offer the panel after `init`, after approved dream
+  writes, and on wiki-health questions, without ever starting the server
+  on the user's behalf unprompted.
+
 ### Changed
 
 - Replaced the invalid five-query historical reports with the frozen 80-query
@@ -20,6 +61,14 @@ for in-flight specs and plans.
   derived qrels as construction-aware rather than independent human judgments.
 - FTS5 search now retries punctuation-heavy natural-language queries as quoted
   tokens when SQLite interprets hyphens or other characters as MATCH syntax.
+
+### Preserved
+
+- The user surface stays `dream` + `search`; `serve` is an internal CLI
+  operation like `reindex`. No new runtime dependencies — server and UI are
+  stdlib-only, enforced by `test_zero_dep.py`. Markdown remains the only
+  source of truth; the server holds no state of its own and reads the
+  bundle and `.mneme/` caches fresh per request.
 
 ## [4.1.0] - 2026-07-21 - agent-extracted graph enrichment (`graph ingest`)
 

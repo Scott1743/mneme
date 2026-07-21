@@ -530,6 +530,28 @@ def cmd_graph_ingest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    """Run the localhost web console (P1: read-only + reindex).
+
+    Foreground process; Ctrl-C stops it. The server binds 127.0.0.1 by
+    default, generates a per-process session token (printed to the
+    terminal and injected into ``GET /``), and never writes factual
+    Markdown — the only write endpoint rebuilds the disposable
+    ``.mneme/`` caches. A bundle without ``index.md`` opens the UI on
+    the empty-bundle guide page instead of failing.
+    """
+    from .webserver import serve
+
+    bundle = _resolve_bundle(args)
+    return serve(
+        bundle=bundle,
+        config_path=_config_path(args),
+        host=args.host,
+        port=args.port,
+        open_browser=getattr(args, "open_browser", False),
+    )
+
+
 def cmd_dream(args: argparse.Namespace) -> int:
     """`mneme dream` — read-only audit; ``--schedule`` / ``--unschedule``
     print platform-specific scheduler snippets for the user to install.
@@ -895,6 +917,34 @@ def build_parser() -> argparse.ArgumentParser:
     graph_ingest.add_argument("--bundle", dest="bundle", default=None)
     graph_ingest.add_argument("--config", default=None)
     graph_ingest.set_defaults(handler=cmd_graph_ingest)
+
+    serve_parser = subparsers.add_parser(
+        "serve",
+        help=(
+            "start the localhost web console (P1: read-only + reindex; "
+            "foreground, Ctrl-C to stop)"
+        ),
+    )
+    serve_parser.add_argument("--bundle", dest="bundle", default=None)
+    serve_parser.add_argument("--config", default=None)
+    serve_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="bind address (default: 127.0.0.1; 0.0.0.0 prints a loud warning)",
+    )
+    serve_parser.add_argument(
+        "--port",
+        type=int,
+        default=8620,
+        help="listen port (default: 8620; 0 picks an ephemeral port)",
+    )
+    serve_parser.add_argument(
+        "--open",
+        dest="open_browser",
+        action="store_true",
+        help="open the console in the default browser after startup",
+    )
+    serve_parser.set_defaults(handler=cmd_serve)
     return parser
 
 

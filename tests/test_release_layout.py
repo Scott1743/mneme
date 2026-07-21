@@ -74,6 +74,8 @@ def test_skills_mneme_scripts_layout():
         SCRIPTS_PKG / "tools_helpers.py",
         SCRIPTS_PKG / "toml_writer.py",
         SCRIPTS_PKG / "convert.py",
+        SCRIPTS_PKG / "webserver.py",
+        SCRIPTS_PKG / "webui.py",
         SKILL_MD,
         REFERENCES_DIR / "workflow-dream.md",
         REFERENCES_DIR / "workflow-search.md",

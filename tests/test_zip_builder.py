@@ -87,6 +87,17 @@ def test_zip_contents_match_skills_tree():
             assert n.startswith("mneme/"), f"arcname missing mneme/ prefix: {n!r}"
 
 
+def test_zip_contains_web_console_modules():
+    """v4.2 ships the `mneme serve` console inside the skill zip."""
+    cp = _run_builder(out_dir=OUT)
+    assert cp.returncode == 0, cp.stdout + cp.stderr
+    version = _read_version()
+    with zipfile.ZipFile(OUT / f"mneme-{version}.zip") as zf:
+        names = set(zf.namelist())
+    assert "mneme/scripts/mneme/webserver.py" in names
+    assert "mneme/scripts/mneme/webui.py" in names
+
+
 def test_excludes_pycache_and_egg_info():
     cp = _run_builder(out_dir=OUT)
     assert cp.returncode == 0, cp.stdout + cp.stderr

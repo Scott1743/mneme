@@ -124,6 +124,25 @@ def test_okflib_imports_stdlib_only():
     )
 
 
+def test_web_console_modules_import_stdlib_only():
+    """``webserver.py`` / ``webui.py`` (``mneme serve``, v4.2) must stay
+    stdlib-only — the whole point of the web console is that it works in a
+    clean venv with no third-party packages (design spec §2).
+    """
+    bad: list[str] = []
+    for name in ("webserver.py", "webui.py"):
+        for lineno, mod in _imports_in(PKG / name):
+            if mod.startswith("."):  # intra-package relative import
+                continue
+            top = mod.split(".")[0]
+            if top not in _STDLIB_OK:
+                bad.append(f"{name}:{lineno}: {mod!r}")
+    assert not bad, (
+        "the `mneme serve` web console must remain stdlib-only:\n"
+        + "\n".join(f"  {b}" for b in bad)
+    )
+
+
 def test_validate_okf_default_no_yaml():
     """``validate_okf.py`` (the lint CLI) must not import PyYAML by default.
 
