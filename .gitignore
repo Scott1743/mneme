@@ -50,3 +50,9 @@ build/
 
 # Chinese translation of SKILL.md (local reference only, not shipped)
 skills/mneme/skill_cn.md
+
+# Recall-benchmark experiment scratch (temp wikis, extraction data)
+.exp-*/
+
+# Local agent memory (workbuddy)
+.workbuddy/
