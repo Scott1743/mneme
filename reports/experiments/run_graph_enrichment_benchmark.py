@@ -30,6 +30,7 @@ sys.path.insert(0, str(SKILL_SCRIPTS))
 from mneme import __version__, graphlib, indexlib, okflib  # noqa: E402
 
 TOP_K = 10
+CANDIDATE_POOL_K = 100
 QUERY_REPEATS = 5
 BOOTSTRAP_RUNS = 10_000
 SEED = 20260721
@@ -616,6 +617,15 @@ def metric_design_html() -> str:
     )
 
 
+def construction_warning_html() -> str:
+    return (
+        '<p class="caption"><strong>Interpretation boundary.</strong> '
+        'A ceiling score on this construction-aware diagnostic means the retrieval mechanism '
+        'covers the entities, descriptions, and relations present in the same frozen extraction '
+        'manifest. It is not an estimate of independent user-search relevance.</p>'
+    )
+
+
 def question_audit_html(qrels: list[dict[str, Any]]) -> str:
     labels = {
         "entity_exact": "Exact entity",
@@ -710,6 +720,7 @@ main{{max-width:1120px;margin:0 auto;padding:48px 28px 80px}}h1{{font-size:34px;
 <h1>Graph enrichment retrieval benchmark</h1>
 <p class="lede">A controlled ablation of deterministic Graph, agent enrichment, and global FTS5 fusion on a {manifest['bundle_page_count']}-page Markdown corpus. A paired stress condition adds {events['page_count']} topical AI event pages to the original {manifest['base_page_count']} pages; 72 construction-aware answerable queries and 8 synthetic no-answer controls remain frozen.</p>
 <p class="finding">{esc(conclusion)}</p>
+{construction_warning_html()}
 <h2>Corpus and label scope</h2>{corpus_statement_html(manifest)}
 <h2>Metric design</h2>{metric_design_html()}
 <h2>Benchmark questions</h2>{question_audit_html(qrels)}
@@ -753,9 +764,9 @@ def run_corpus(
     graph_db = graphlib.graph_index_path(temp_bundle)
     stage_rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
     searchers: dict[str, Callable[[str], dict[str, Any]]] = {
-        "L1": lambda query: indexlib.search(query, fts_db, k=TOP_K),
-        "G0": lambda query: graphlib.search_graph(graph_db, query, k=TOP_K),
-        "H0": lambda query: indexlib.search_hybrid(temp_bundle, query, k=TOP_K),
+        "L1": lambda query: indexlib.search(query, fts_db, k=CANDIDATE_POOL_K),
+        "G0": lambda query: graphlib.search_graph(graph_db, query, k=CANDIDATE_POOL_K),
+        "H0": lambda query: indexlib.search_hybrid(temp_bundle, query, k=CANDIDATE_POOL_K),
     }
     for stage in ("L1", "G0", "H0"):
         for item in qrels:
@@ -768,8 +779,8 @@ def run_corpus(
     enrichment_ms = (time.perf_counter() - started) * 1000
     g1_health = graphlib.graph_health(graph_db)
     searchers = {
-        "G1": lambda query: graphlib.search_graph(graph_db, query, k=TOP_K),
-        "H1": lambda query: indexlib.search_hybrid(temp_bundle, query, k=TOP_K),
+        "G1": lambda query: graphlib.search_graph(graph_db, query, k=CANDIDATE_POOL_K),
+        "H1": lambda query: indexlib.search_hybrid(temp_bundle, query, k=CANDIDATE_POOL_K),
     }
     for stage in ("G1", "H1"):
         for item in qrels:

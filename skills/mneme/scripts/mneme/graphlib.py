@@ -722,6 +722,36 @@ def _row_to_entity(row: sqlite3.Row) -> Dict[str, Any]:
     return item
 
 
+def _entity_match_score(item: Dict[str, Any], term: str, full_query: str) -> float:
+    """Rank full-query evidence above incidental token overlap."""
+    folded = term.casefold()
+    is_full_query = folded == full_query.casefold()
+    name = str(item.get("name", "")).casefold()
+    page_path = str(item.get("page_path", "") or "").casefold()
+    description = str(item.get("description", "") or "").casefold()
+    properties = json.dumps(
+        item.get("properties", {}), ensure_ascii=False, sort_keys=True,
+    ).casefold()
+
+    if name == folded:
+        return 1.0 if is_full_query else 0.72
+    if description == folded:
+        return 0.95 if is_full_query else 0.65
+    if name.startswith(folded):
+        return 0.88 if is_full_query else 0.62
+    if description.startswith(folded):
+        return 0.82 if is_full_query else 0.52
+    if folded in name:
+        return 0.78 if is_full_query else 0.48
+    if folded in description:
+        return 0.74 if is_full_query else 0.40
+    if folded in properties:
+        return 0.64 if is_full_query else 0.34
+    if folded in page_path:
+        return 0.30
+    return 0.0
+
+
 def find_entity_by_name(conn: sqlite3.Connection, query: str, limit: int = 20) -> List[Dict[str, Any]]:
     """Find entities using the full query and simple mention tokens.
 
@@ -730,7 +760,9 @@ def find_entity_by_name(conn: sqlite3.Connection, query: str, limit: int = 20) -
     (often the first prose line of the page), so excluding it caused Graph
     search to miss obvious entity mentions for pages whose name is just a
     path or slug. ``name`` exact matches rank first, then ``name`` prefix
-    matches, then everything else.
+    matches, then full-query description evidence. Token-only overlap is
+    deliberately weaker so common words cannot crowd an exact description
+    match out of the seed limit.
     """
     terms: List[str] = []
     raw = str(query or "").strip()
@@ -761,9 +793,7 @@ def find_entity_by_name(conn: sqlite3.Connection, query: str, limit: int = 20) -
         ).fetchall()
         for row in rows:
             item = _row_to_entity(row)
-            name = str(item.get("name", "")).casefold()
-            folded = term.casefold()
-            item["_match_score"] = 1.0 if name == folded else 0.75 if name.startswith(folded) else 0.5
+            item["_match_score"] = _entity_match_score(item, term, raw)
             entity_id = int(row[0])
             if entity_id not in found or item["_match_score"] > found[entity_id]["_match_score"]:
                 found[entity_id] = item
@@ -771,6 +801,38 @@ def find_entity_by_name(conn: sqlite3.Connection, query: str, limit: int = 20) -
         found.values(),
         key=lambda item: (-item["_match_score"], str(item.get("name", ""))),
     )[:limit]
+
+
+def find_relation_evidence(conn: sqlite3.Connection, query: str) -> Dict[str, Dict[str, Any]]:
+    """Return source pages for relation triples stated by the query."""
+    folded_query = str(query or "").casefold()
+    if not folded_query:
+        return {}
+    rows = conn.execute(
+        """
+        SELECT s.name, r.predicate, o.name, r.source_page,
+               COALESCE(r.confidence, r.weight, 1.0)
+        FROM relations r
+        JOIN entities s ON s.id = r.subject_id
+        JOIN entities o ON o.id = r.object_id
+        WHERE r.source_page IS NOT NULL AND r.source_page != ''
+        """
+    ).fetchall()
+    evidence: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        subject, predicate, obj, source_page = (str(row[index] or "") for index in range(4))
+        if not subject or not predicate or not obj:
+            continue
+        if not all(value.casefold() in folded_query for value in (subject, predicate, obj)):
+            continue
+        score = max(0.0, min(1.0, float(row[4])))
+        current = evidence.get(source_page)
+        if current is None or score > current["score"]:
+            evidence[source_page] = {
+                "score": score,
+                "relation": f"{subject} {predicate} {obj}",
+            }
+    return evidence
 
 
 def bfs_neighborhood(
@@ -805,6 +867,7 @@ def bfs_neighborhood(
             relation_rows[relation_id] = dict(row)
             neighbor = int(row[3]) if int(row[1]) == current else int(row[1])
             edge_score = max(0.0, min(1.0, float(row[4])))
+            decay = 0.5
             if row[2] == "tagged_by":
                 tag_id = int(row[3])
                 degree = int(conn.execute(
@@ -813,8 +876,11 @@ def bfs_neighborhood(
                 ).fetchone()[0])
                 edge_score *= 1.0 / max(1.0, degree ** 0.5)
             elif row[2] == MENTIONS_PREDICATE:
-                edge_score *= 0.8
-            candidate_score = scores[current] * edge_score * 0.5
+                # An extracted entity is directly supported by its source
+                # page. Preserve that evidence path more strongly than an
+                # arbitrary graph hop while still applying edge confidence.
+                decay = 0.8
+            candidate_score = scores[current] * edge_score * decay
             if neighbor not in distances:
                 distances[neighbor] = current_depth + 1
                 scores[neighbor] = candidate_score
@@ -835,7 +901,8 @@ def graph_page_candidates(
     conn = open_graph(db_path)
     try:
         seeds = find_entity_by_name(conn, query, limit=50)
-        if not seeds:
+        relation_evidence = find_relation_evidence(conn, query)
+        if not seeds and not relation_evidence:
             return []
         seed_scores = {int(item["id"]): float(item.get("_match_score", 1.0)) for item in seeds}
         neighborhood = bfs_neighborhood(
@@ -850,16 +917,23 @@ def graph_page_candidates(
         candidates = []
         for row in rows:
             entity_id = int(row[0])
-            if entity_id not in distances:
+            page_path = str(row[3] or "")
+            relation_match = relation_evidence.get(page_path)
+            if entity_id not in distances and relation_match is None:
                 continue
             entity = _row_to_entity(row)
             if entity["properties"].get("missing"):
                 continue
-            entity["distance"] = distances[entity_id]
-            entity["graph_score"] = float(neighborhood["scores"].get(entity_id, 0.0))
+            entity["distance"] = 0 if relation_match is not None else distances[entity_id]
+            entity["graph_score"] = max(
+                float(neighborhood["scores"].get(entity_id, 0.0)),
+                float(relation_match["score"]) if relation_match is not None else 0.0,
+            )
             entity["matched_entities"] = [
                 name for seed_id, name in seed_names.items() if distances.get(seed_id) == 0
             ]
+            if relation_match is not None:
+                entity["matched_entities"].append(relation_match["relation"])
             candidates.append(entity)
         candidates.sort(key=lambda item: (-item["graph_score"], item["distance"], item["page_path"] or item["name"]))
         return candidates[:limit]

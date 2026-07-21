@@ -282,6 +282,53 @@ def test_find_entity_by_name_matches_description_field(tmp_path):
         conn.close()
 
 
+def test_full_query_description_outranks_incidental_token_match(tmp_path):
+    bundle = _bundle(tmp_path)
+    rebuilt = graphlib.rebuild_graph(bundle)
+    query = "automatic process with AI"
+    graphlib.ingest_extraction(
+        rebuilt.db_path,
+        {
+            "version": 1,
+            "pages": [
+                {
+                    "page": "concepts/alpha.md",
+                    "entities": [{
+                        "name": "Workflow",
+                        "type": "process",
+                        "description": query,
+                        "confidence": 0.9,
+                    }],
+                    "relations": [],
+                },
+                {
+                    "page": "concepts/beta.md",
+                    "entities": [{
+                        "name": "AI",
+                        "type": "technology",
+                        "description": "generic token match",
+                        "confidence": 0.9,
+                    }],
+                    "relations": [],
+                },
+            ],
+        },
+        persist=False,
+    )
+
+    conn = graphlib.open_graph(rebuilt.db_path)
+    try:
+        hits = graphlib.find_entity_by_name(conn, query, limit=10)
+    finally:
+        conn.close()
+    assert hits[0]["name"] == "Workflow"
+    assert hits[0]["_match_score"] == pytest.approx(0.95)
+
+    candidates = graphlib.graph_page_candidates(rebuilt.db_path, query, limit=10)
+    assert candidates[0]["page_path"] == "concepts/alpha.md"
+    assert candidates[0]["graph_score"] == pytest.approx(0.95 * 0.9 * 0.8)
+
+
 def test_search_graph_returns_candidates_via_description_match(tmp_path):
     """End-to-end graph search must return a page when only its description
     matches the query (the v4.0.0 release returned 0 candidates for this
@@ -417,6 +464,23 @@ def test_ingest_extraction_adds_entities_relations_and_mentions(tmp_path):
         assert mention[1] == graphlib.REL_SOURCE_LLM
     finally:
         conn.close()
+
+
+def test_relation_query_prioritizes_its_evidence_page(tmp_path):
+    bundle = _bundle(tmp_path)
+    rebuilt = graphlib.rebuild_graph(bundle)
+    graphlib.ingest_extraction(rebuilt.db_path, _extraction_payload(), persist=False)
+
+    conn = graphlib.open_graph(rebuilt.db_path)
+    try:
+        evidence = graphlib.find_relation_evidence(conn, "Alpha uses GraphDB")
+    finally:
+        conn.close()
+    assert evidence["concepts/alpha.md"]["score"] == pytest.approx(0.85)
+
+    out = graphlib.search_graph(rebuilt.db_path, "Alpha uses GraphDB", k=5)
+    assert out["candidates"][0]["path"] == "concepts/alpha.md"
+    assert "Alpha uses GraphDB" in out["candidates"][0]["graph_context"]["matched_entities"]
 
 
 def test_ingest_makes_extracted_entity_reachable_from_graph_search(tmp_path):

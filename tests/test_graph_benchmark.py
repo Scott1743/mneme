@@ -14,6 +14,12 @@ assert SPEC and SPEC.loader
 benchmark = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(benchmark)
 
+ANNOTATION_SCRIPT = ROOT / "reports" / "experiments" / "prepare_relevance_annotation.py"
+ANNOTATION_SPEC = importlib.util.spec_from_file_location("relevance_annotation", ANNOTATION_SCRIPT)
+assert ANNOTATION_SPEC and ANNOTATION_SPEC.loader
+annotation = importlib.util.module_from_spec(ANNOTATION_SPEC)
+ANNOTATION_SPEC.loader.exec_module(annotation)
+
 
 def test_ranked_metrics_single_relevant_document():
     metrics = benchmark.ranked_metrics(["other.md", "target.md"], ["target.md"])
@@ -56,6 +62,25 @@ def test_ranked_metrics_miss_and_no_answer():
 def test_canonical_path_collapses_duplicate_export_suffix():
     assert benchmark.canonical_path("concepts/example--2.md") == "concepts/example.md"
     assert benchmark.canonical_path("concepts/example.md") == "concepts/example.md"
+
+
+def test_run_query_deduplicates_before_top_k_cutoff():
+    candidates = [
+        {"path": "concepts/a.md"},
+        {"path": "concepts/a--2.md"},
+        *({"path": f"concepts/noise-{index}.md"} for index in range(1, 9)),
+        {"path": "concepts/target.md"},
+    ]
+    item = {
+        "id": "E01", "category": "entity_exact", "query": "target",
+        "relevant_paths": ["concepts/target.md"], "provenance": "test",
+    }
+
+    output = benchmark.run_query(lambda _query: {"candidates": candidates}, item)
+
+    assert len(output["candidate_paths"]) == benchmark.TOP_K
+    assert output["candidate_paths"][-1] == "concepts/target.md"
+    assert output["rank"] == benchmark.TOP_K
 
 
 def test_question_audit_lists_all_families_and_queries():
@@ -136,6 +161,13 @@ def test_metric_design_excludes_sparse_classification_metrics_from_headline():
     assert "excluded from the headline" in output
 
 
+def test_construction_warning_rejects_general_relevance_claim():
+    output = benchmark.construction_warning_html()
+
+    assert "construction-aware diagnostic" in output
+    assert "not an estimate of independent user-search relevance" in output
+
+
 def test_summary_reports_recovery_success_and_reading_cost():
     rows = [
         {"relevant_paths": ["a.md"], "candidate_paths": ["a.md"], "retrieved_targets": 1,
@@ -156,3 +188,37 @@ def test_summary_reports_recovery_success_and_reading_cost():
     assert output["target_total_count"] == 2
     assert output["first_hit_cost"] == 6.0
     assert output["missed_query_count"] == 1
+
+
+def test_annotation_pool_is_deduplicated_and_blind():
+    qrel = {"id": "E01", "relevant_paths": ["target.md"]}
+    rows = [
+        {"stage": "L1", "candidate_paths": ["noise.md", "target--2.md"]},
+        {"stage": "H1", "candidate_paths": ["target.md", "other.md"]},
+    ]
+
+    output = annotation.pool_candidates(qrel, rows)
+
+    assert sorted(output) == ["noise.md", "other.md", "target.md"]
+    assert all(stage not in output for stage in annotation.STAGES)
+
+
+def test_annotation_page_keeps_stage_and_target_identity_hidden(tmp_path):
+    bundle = tmp_path / "wiki"
+    bundle.mkdir()
+    (bundle / "target.md").write_text("---\ntype: Concept\ntitle: Target\n---\n\n# Target\nEvidence", encoding="utf-8")
+    (bundle / "noise.md").write_text("---\ntype: Concept\ntitle: Noise\n---\n\n# Noise\nOther", encoding="utf-8")
+    qrels = [{"id": "E01", "category": "entity_exact", "query": "question", "relevant_paths": ["target.md"]}]
+    results = [
+        {"corpus": "expanded", "stage": stage, "id": "E01", "hit": stage == "H1", "candidate_paths": ["noise.md"]}
+        for stage in annotation.STAGES
+    ]
+
+    payload = annotation.build_payload(qrels, results, bundle, tmp_path / "unused.zip", count=1)
+    page = annotation.render_html(payload)
+
+    assert "Evidence" in page
+    assert "Hybrid enriched" not in page
+    assert "relevant_paths" not in page
+    assert "直接支持" in page
+    assert "题目是否合理" in page
