@@ -659,7 +659,7 @@ main{{max-width:1120px;margin:0 auto;padding:48px 28px 80px}}h1{{font-size:34px;
 <h2>Graph construction</h2><div class="table-wrap"><table><thead><tr><th>Graph</th><th>Entities</th><th>Relations</th><th>LLM entities</th><th>LLM relations</th><th>Components</th><th>Orphans</th></tr></thead><tbody>
 <tr><td>G0 deterministic</td><td>{health['G0']['entity_count']}</td><td>{health['G0']['relation_count']}</td><td>{health['G0']['llm_entity_count']}</td><td>{health['G0']['llm_relation_count']}</td><td>{health['G0']['connected_component_count']}</td><td>{health['G0']['orphan_entity_count']}</td></tr>
 <tr><td>G1 enriched</td><td>{health['G1']['entity_count']}</td><td>{health['G1']['relation_count']}</td><td>{health['G1']['llm_entity_count']}</td><td>{health['G1']['llm_relation_count']}</td><td>{health['G1']['connected_component_count']}</td><td>{health['G1']['orphan_entity_count']}</td></tr></tbody></table></div>
-<h2>Methods and limits</h2><div class="methods"><p><strong>Corpus.</strong> The base is one private {manifest['base_page_count']}-page Feishu Markdown export. The paired expansion adds {events['page_count']} unique event pages from <code>{esc(events['archive_name'])}</code>, producing {manifest['bundle_page_count']} pages. Export pairs with identical bodies (<code>foo.md</code>/<code>foo--2.md</code>) are treated as one document equivalence class.</p><p><strong>Expansion labels.</strong> Qrels were frozen on the base corpus. Added event pages are topical stress documents, not judged negatives. Expanded-corpus metrics therefore ask whether the original relevant targets remain highly ranked; they cannot penalize or validate the relevance of new event hits.</p><p><strong>Metrics.</strong> nDCG uses binary target labels and logarithmic rank discount. Recall is macro-averaged per answerable query; Hit records any frozen target in the top 10; MRR uses the first frozen target rank. No-answer controls are excluded and reported as FPR.</p><p><strong>Systems.</strong> L1 is global FTS5. G0 derives only pages, tags, and Markdown links. G1 adds the frozen agent extraction manifest for the base corpus. H0/H1 use the production Graph + global FTS union. Event pages receive deterministic Graph indexing but no post-hoc enrichment.</p><p><strong>Labels.</strong> Entity, context, and relation qrels are deterministically sampled from the extraction manifest. They are suitable for enrichment ablation, but share construction provenance with G1 and must not be treated as independent human relevance judgments.</p><p><strong>Known boundary.</strong> This report does not compare L2, answer synthesis, citation correctness, or independent user questions. A separate double-annotated benchmark is required for those claims.</p></div>
+<h2>Methods and limits</h2><div class="methods"><p><strong>Corpus.</strong> The base is one private {manifest['base_page_count']}-content-page Feishu Markdown export. The paired expansion adds {events['page_count']} unique event pages from <code>{esc(events['archive_name'])}</code>, producing {manifest['bundle_page_count']} content pages. FTS5 also indexes the reserved <code>index.md</code>/<code>log.md</code> files ({manifest['base_indexed_markdown_count']} and {manifest['indexed_markdown_count']} Markdown files respectively). Export pairs with identical bodies (<code>foo.md</code>/<code>foo--2.md</code>) are treated as one document equivalence class.</p><p><strong>Expansion labels.</strong> Qrels were frozen on the base corpus. Added event pages are topical stress documents, not judged negatives. Expanded-corpus metrics therefore ask whether the original relevant targets remain highly ranked; they cannot penalize or validate the relevance of new event hits.</p><p><strong>Metrics.</strong> nDCG uses binary target labels and logarithmic rank discount. Recall is macro-averaged per answerable query; Hit records any frozen target in the top 10; MRR uses the first frozen target rank. No-answer controls are excluded and reported as FPR.</p><p><strong>Systems.</strong> L1 is global FTS5. G0 derives only pages, tags, and Markdown links. G1 adds the frozen agent extraction manifest for the base corpus. H0/H1 use the production Graph + global FTS union. Event pages receive deterministic Graph indexing but no post-hoc enrichment.</p><p><strong>Labels.</strong> Entity, context, and relation qrels are deterministically sampled from the extraction manifest. They are suitable for enrichment ablation, but share construction provenance with G1 and must not be treated as independent human relevance judgments.</p><p><strong>Known boundary.</strong> This report does not compare L2, answer synthesis, citation correctness, or independent user questions. A separate double-annotated benchmark is required for those claims.</p></div>
 <p class="meta">Code <code>{esc(manifest['code_revision'][:12])}</code> · Mneme {esc(manifest['mneme_version'])} · qrels SHA-256 <code>{esc(manifest['qrels_sha256'][:16])}</code> · events SHA-256 <code>{esc(events['archive_sha256'][:16])}</code> · extraction SHA-256 <code>{esc(manifest['extraction_sha256'][:16])}</code></p>
 </main></body></html>"""
 
@@ -711,7 +711,10 @@ def run_corpus(
         "summary": {stage: summarize(stage_rows[stage]) for stage in STAGES},
         "graph_health": {"G0": g0_health, "G1": g1_health},
         "build_ms": {"FTS5": fts_build_ms, "G0": g0_build_ms, "enrichment": enrichment_ms},
-        "page_count": len(indexable_paths(temp_bundle)),
+        "indexed_markdown_count": len(indexable_paths(temp_bundle)),
+        "content_page_count": sum(
+            path.name not in {"index.md", "log.md"} for path in indexable_paths(temp_bundle)
+        ),
     }
 
 
@@ -756,8 +759,10 @@ def run(bundle: Path, extraction: Path, events_zip: Path, qrels_path: Path, out:
         "code_revision": git_revision(),
         "python": sys.version,
         "platform": platform.platform(),
-        "bundle_page_count": corpus_runs["expanded"]["page_count"],
-        "base_page_count": corpus_runs["base"]["page_count"],
+        "bundle_page_count": corpus_runs["expanded"]["content_page_count"],
+        "base_page_count": corpus_runs["base"]["content_page_count"],
+        "indexed_markdown_count": corpus_runs["expanded"]["indexed_markdown_count"],
+        "base_indexed_markdown_count": corpus_runs["base"]["indexed_markdown_count"],
         "event_corpus": event_audit,
         "bundle_path_not_published": True,
         "qrels_count": len(qrels),
