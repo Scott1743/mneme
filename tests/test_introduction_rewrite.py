@@ -1,9 +1,11 @@
 """Release-gate — Mneme 4.2 public surface.
 
-The README and introduction must describe the primary `dream` + `search`
-intents, the v4 Graph path, v4.1 Graph enrichment, the v4.2 `mneme serve`
-localhost console (with its three real screenshots), guarded nightly
-health, and both release downloads.
+The README and introduction must describe the four-verb surface —
+mneme (记) / dream (整理) / search (读) / serve (看) — and the v4.2
+`mneme serve` localhost console (with its three real screenshots),
+plus both release downloads. The deep-dive sections (Graph internals,
+nightly-task boundary) were deliberately cut from the landing page in
+favour of a shorter marketing read; their gates live elsewhere.
 
 The introduction page must expose `npx skills add Scott1743/mneme` as
 the install CTA; the README must be self-contained about the four-layer
@@ -12,6 +14,7 @@ state L2 defers to v2.1.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 import pytest
 
@@ -48,6 +51,28 @@ def test_introduction_has_dream_and_search() -> None:
     assert "search" in text, "introduction page must mention `search` as a user verb"
 
 
+def test_introduction_tagline_has_four_verbs() -> None:
+    """v4.2 narrative frame: mneme 记 / dream 整理 / search 读 / serve 看."""
+    text = _read(INTRO)
+    m = re.search(r'<p class="tagline">(.*?)</p>', text, re.S)
+    assert m, "hero tagline is missing"
+    tagline = m.group(1)
+    for verb in ("mneme", "dream", "search", "serve"):
+        assert verb in tagline, f"tagline must weave in {verb!r}: {tagline!r}"
+    assert "dream 写，search 读" not in text, (
+        "the old two-verb framing 'dream 写，search 读' must be gone"
+    )
+
+
+def test_introduction_serve_section_is_marketing_voice() -> None:
+    """The §V console section keeps the user-approved short marketing copy."""
+    text = _read(INTRO)
+    assert "开了一扇窗" in text
+    assert "复制提示词" in text
+    assert "就当它没来过" in text
+    assert "serve</span> 是这一切的那扇窗" in text
+
+
 def test_readme_surfaces_dream_and_search() -> None:
     text = _read(README).lower()
     assert "dream" in text and "search" in text, (
@@ -62,8 +87,8 @@ def test_readme_states_v4_graph_option() -> None:
 
 def test_introduction_states_current_release() -> None:
     text = _read(INTRO)
-    assert "<title>Mneme · 记忆女神 · v4.2</title>" in text
-    assert "v4.2" in text
+    assert "<title>Mneme · 记忆女神 · v4.3</title>" in text
+    assert "v4.3" in text
     assert "Mneme 2.1" not in text
     assert "两个动词" not in text
     assert "其余都是细节" not in text
@@ -79,21 +104,6 @@ def test_introduction_surfaces_v42_serve_console() -> None:
         rel = f"assets/{name}.png"
         assert rel in text, f"introduction page must embed {rel}"
         assert (INTRO.parent / rel).is_file(), f"missing screenshot {rel}"
-
-
-def test_introduction_surfaces_v41_graph_enrichment() -> None:
-    text = _read(INTRO)
-    assert "Graph enrichment" in text
-    assert "mneme graph ingest" in text
-    assert "Markdown" in text and "永远不能盖过" in text
-
-
-def test_introduction_states_guarded_nightly_boundary() -> None:
-    text = _read(INTRO)
-    assert "02:00" in text
-    assert "只报告" in text and "受限自动修复" in text
-    assert "超过 5 个概念页" in text
-    assert "自动 commit、自动归档）刻意不发货" not in text
 
 
 def test_introduction_uses_absolute_bundle_relative_citations() -> None:

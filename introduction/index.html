@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mneme · 记忆女神 · v4.2</title>
-  <meta name="description" content="本地优先、agent 增量维护的 Markdown 知识库。dream 写，search 读；v4.2 加入只绑 localhost 的 mneme serve 可视化控制台。" />
+  <title>Mneme · 记忆女神 · v4.3</title>
+  <meta name="description" content="本地优先、agent 增量维护的 Markdown 知识库。mneme 记，dream 整理，search 读，serve 看——一座会做梦的 wiki。" />
   <meta name="color-scheme" content="light dark" />
   <meta property="og:title" content="Mneme — agent 维护的本地 Markdown 知识库" />
-  <meta property="og:description" content="dream 写，search 读；Graph enrichment 把实体与关系接进可删除的本地索引。" />
+  <meta property="og:description" content="mneme 记，dream 整理，search 读，serve 看；Graph 把知识之间的关系接进可删除的本地索引。" />
   <style>
     /* ── Mneme introduction ────────────────────────────────────
      * Designer’s note (for future editors):
@@ -553,24 +553,22 @@
          Hero
          ═══════════════════════════════════════════════════ -->
     <header class="hero">
-      <p class="kicker">An agent skill · MIT · v4.2</p>
+      <p class="kicker">An agent skill · MIT · v4.3</p>
       <h1>Mneme</h1>
-      <p class="tagline">让 agent 替你记着点的本地 Markdown 知识库。<br/><span class="v-dream">dream</span> 写，<span class="v-search">search</span> 读；Graph 把知识之间的关系接起来。</p>
+      <p class="tagline">让 agent 替你记着点的本地 Markdown 知识库。<br/>白天 <span class="v-dream">mneme</span> 一下它就记住，深夜它自己 <span class="v-dream">dream</span> 整理，你问它 <span class="v-search">search</span> 就答——想自己看，就推开 <span class="v-search">serve</span> 这扇窗。</p>
 
       <a class="install" href="https://www.skills.sh">
         <span class="verb">$</span> npx skills add Scott1743/mneme
       </a>
-      <p class="byline"><a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip">v2.2.0 基础版下载</a> · <a href="https://github.com/Scott1743/mneme/releases/download/v4.1.0/mneme-4.1.0.zip">v4.1.0 发布版下载</a> · v4.2.0 在 main</p>
+      <p class="byline"><a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip">v2.2.0 基础版下载</a> · <a href="https://github.com/Scott1743/mneme/releases/download/v4.1.0/mneme-4.1.0.zip">v4.1.0 发布版下载</a> · v4.3.0 在 main</p>
 
       <p class="byline">— μνήμη · 记忆女神 —</p>
 
       <nav class="quick" aria-label="Page navigation">
         <a href="#初衷">I · Why this exists</a>
         <a href="#安装">II · First prompts</a>
-        <a href="#原理">III · The walk</a>
-        <a href="#为什么">IV · Why this is what it is</a>
-        <a href="#面板">V · The console</a>
-        <a href="#朋友">VI · Friends of Mneme</a>
+        <a href="#面板">III · The console</a>
+        <a href="#朋友">IV · Friends of Mneme</a>
       </nav>
     </header>
 
@@ -582,7 +580,7 @@
 
       <h2 id="初衷-h">我为什么不想再让 LLM "重新检索"了。</h2>
 
-      <p>RAG 是冷的缓存。你三周前读过的论文里那句话，跟你今天写的那段代码——它不知道。除非那句话被你写进过某个属于你的地方。<span class="v-dream">Dream</span> 把读过的资料编译进一棵本地 Markdown 树；<span class="v-search">search</span> 在那棵树上走，agent 不用每次从零开始。</p>
+      <p>RAG 是冷的缓存。你三周前读过的论文里那句话，跟你今天写的那段代码——它不知道。除非那句话被你写进过某个属于你的地方。跟 agent 说一句，它就替你记进一棵本地 Markdown 树；<span class="v-search">search</span> 在那棵树上走，agent 不用每次从零开始。</p>
 
       <p>这棵树只用三种规则（YAML frontmatter、一个 <code>type</code> 字段、保留 <code>index.md</code> 与 <code>log.md</code>），全部来自 <a href="https://github.com/google/open-knowledge-format">OKF v0.1</a>。普通目录，能 <code>cat</code>、<code>git clone</code>、<code>diff blame branch</code>，能被你写的脚本解析。LLM Wiki 的这个思路最早由 Karpathy 在 2026 年 4 月的 <a href="https://gist.github.com/karpathy/">gist</a> 里摊开——Mneme 只是把它做成一个能落到 <code>~/.claude/skills/mneme/</code> 的小工具。</p>
     </section>
@@ -595,18 +593,18 @@
 
       <h2 id="安装-h">一行命令，然后去跟你的 agent 聊。</h2>
 
-      <p>重启 agent 会话。需要记住什么时发起 <span class="v-dream">dream</span>，需要找回来时交给 <span class="v-search">search</span>；每次知识写入仍先由你确认。</p>
+      <p>重启 agent 会话。想记住什么，跟它说一句；想找回来，问它一句——写是对话，不是命令。</p>
 
       <div class="two">
         <div>
-          <p class="dream-kicker"><span class="v-dream">dream</span> · 写</p>
-          <h3>把读过的资料编译进树</h3>
-          <p>论文、网页、对话、PDF 里的文字——丢给 agent。agent 调 <code>mneme dream</code>，给你一份预览（哪些页面要新建、哪些要更新、tag 怎么设），你点头之后才落盘。</p>
+          <p class="dream-kicker"><span class="v-dream">mneme</span> · 记</p>
+          <h3>说一句，它就记住</h3>
+          <p>论文、网页、对话、PDF——跟 agent 说「mneme 一下」。它先给你一份预览（建哪些页、改哪些页、tag 怎么设），你点头才落盘。</p>
         </div>
         <div>
           <p class="search-kicker"><span class="v-search">search</span> · 读</p>
           <h3>在树里走</h3>
-          <p>你问一个问题，agent 沿 <code>index.md</code>、tags、链接与本地 Graph 走，<em>读完整页</em> 再给答案——而不是把命中的 chunk 拼回来。引用使用以 <code>/</code> 开头的 bundle-relative 路径。</p>
+          <p>你问一个问题，agent 沿 <code>index.md</code>、tags 与 Graph 走，<em>读完整页</em> 再回答——而不是把命中的 chunk 拼回来。引用使用以 <code>/</code> 开头的 bundle-relative 路径。</p>
         </div>
       </div>
 
@@ -618,82 +616,42 @@
     </section>
 
     <!-- ═══════════════════════════════════════════════════
-         III.  The walk · 原理
-         ═══════════════════════════════════════════════════ -->
-    <section id="原理" aria-labelledby="原理-h">
-      <p class="kicker"><span class="num">III.</span> The walk</p>
-
-      <h2 id="原理-h">知识是 graph，不是向量近邻——它得被人走过来。</h2>
-
-      <p>一张页面要先被写出来，再能被<em>找到</em>。Mneme 把"被找到"这件事分给三个不同形态的标记：</p>
-
-      <p><code>type</code> 描述<em>这份文档做什么</em>（<code>Concept</code>、<code>Reference</code>、<code>Source</code>、<code>Summary</code>，或你自己造的新类型）。<code>tags</code> 描述<em>这份文档谈什么</em>（无 schema，由 wiki 自己长出来）。Markdown 链接描述<em>这份文档和哪份文档有关</em>——这是 <span class="v-search">search</span> 的骨头，agent 沿链接在 graph 里走，而不是按近邻相似度从一堆 embedding 里拽回来。</p>
-
-      <aside class="gloss">不能反过来用：<code>type</code> 在 frontmatter 里有协议语义（OKF §4.1）；<code>tags</code> 是你想给它什么语义就是什么——OKF 留给写者的自由。</aside>
-
-      <p>v4.0 在 FTS5 之前增加一层可删除的本地 Graph：<code>mneme reindex --graph</code> 从现有页面、tags 和 Markdown links 派生 <code>.mneme/graph.db</code>，并刷新 <code>.mneme/fts.db</code>。Graph 不拥有事实；它消失时，wiki 仍可由 agent 直接读取，搜索也回退到 FTS5/L0。Graph 存在且 L2 未激活时，普通 <code>search</code> 自动使用 hybrid；需要诊断时可用 <code>--mode graph|fts|hybrid</code>。语义召回仍通过用户明确执行一次 <code>reindex --l2</code> 单独启用。</p>
-
-      <p>v4.1 又补了一层可审核的 Graph enrichment：在获批的 <span class="v-dream">dream</span> 写入后，agent 从完整页面提出实体、关系、证据与置信度，连同页面改动一起给你预览；获批后再由确定性的 <code>mneme graph ingest</code> 写入 Graph。抽取结果可以在重建时重放，也可以和 <code>graph.db</code> 一起删除——它帮助导航，但永远不能盖过 Markdown 原文。</p>
-
-      <p>召回的下一步留给另一段路：默认<strong>不</strong>下载任何外部模型，也<strong>不</strong>装额外依赖。wiki 本身、agent 的工作流、<code>dream</code> 与 <code>search</code> 的契约都和那段加法无关。</p>
-
-      <blockquote class="lift">
-        <p><em>search</em> 没有索引也能跑，<br/>索引烂掉也不会伤到事实。</p>
-      </blockquote>
-    </section>
-
-    <!-- ═══════════════════════════════════════════════════
-         IV.  Why this is what it is · 为什么
-         ═══════════════════════════════════════════════════ -->
-    <section id="为什么" aria-labelledby="为什么-h">
-      <p class="kicker"><span class="num">IV.</span> Why this is what it is</p>
-
-      <h2 id="为什么-h">我没有写的那些功能，正是它有用的原因。</h2>
-
-      <p>没有必须常驻的 GUI，没有服务端进程，没有云同步。装它的那一秒它就在；不装它的那一秒它就不在——这没什么损失。整个运行时是 Python 标准库加一份 <code>~/.claude/skills/mneme/</code> 目录下的 Markdown。v4.2 的 <code>mneme serve</code> 也不是例外：它是你显式拉起、Ctrl-C 即停的前台面板（见下节），不是长在后台的服务。</p>
-
-      <p>没有矢量模型自动下载，没有权重在后台跑，没有显卡假设，没有你不知道的"隐式索引"在悄悄长。你不会被提醒"已为您下载 X MB 模型"——因为没有人替你下。你不愿意装那种依赖，那就不装；<code>wiki</code> 与 <span class="v-dream">dream</span> / <span class="v-search">search</span> 仍然完整工作。</p>
-
-      <p>Mneme 仍不提供无人监管的事实策展：不会自动改事实正文、碰 raw source、合并归档，也不会 <code>git add</code>、commit 或 push。v4.1 可以在你明确选择后创建每天 02:00 的宿主 agent 健康任务：<strong>只报告</strong>模式完全不写 wiki；<strong>受限自动修复</strong>只处理内容已经明确的 frontmatter、tags、内部链接与索引项，并在有歧义、撞上已有改动或涉及超过 5 个概念页时退回报告。CLI <code>mneme dream</code> 本身始终只读。</p>
-    </section>
-
-    <!-- ═══════════════════════════════════════════════════
-         V.  The console · 面板（v4.2 新增）
+         III.  The console · 面板（v4.2 新增）
          ═══════════════════════════════════════════════════ -->
     <section id="面板" aria-labelledby="面板-h">
-      <p class="kicker"><span class="num">V.</span> The console</p>
+      <p class="kicker"><span class="num">III.</span> The console</p>
 
       <h2 id="面板-h">想自己看一眼 wiki 的时候，不必开一场 agent 会话。</h2>
 
-      <p>v4.2 把同一份知识交到你自己手里：<code>mneme serve --open</code> 启动一个<strong>只绑 127.0.0.1</strong> 的前台可视化控制台——不注册开机启动、不写 pidfile、不联网，整个服务端只有 Python 标准库；用完 Ctrl-C 即停。六个面板——总览、搜索、浏览、体检、Dream、图谱——把 <code>lint</code> / <code>search</code> / <code>dream</code> / <code>reindex</code> 变成一屏看得见的健康度。</p>
+      <p>v4.2 给这座 wiki 开了一扇窗：<code>mneme serve --open</code>，浏览器里就是你的知识库——健康度一屏看完，搜索即问即答，页面点着链接逛，诊断列成表。</p>
 
-      <aside class="gloss">面板是无状态的：它自己没有数据库，每次请求直接读 bundle 与 <code>.mneme/</code> 缓存。删掉它，wiki 一个字节不少。</aside>
+      <aside class="gloss">只绑 localhost，只读。</aside>
 
-      <p>P1 是<strong>只读 + 可重建的 disposable 缓存</strong>：面板里唯一的写按钮是「重建索引」，它只重建 <code>.mneme/</code> 下的 FTS5 / Graph 缓存，<span class="v-dream">永不写 Markdown 事实</span>。每次启动会打印一个一次性的 session token，配合 Host 头校验与路径沙箱——同机的其他进程和恶意网页都调不动它。</p>
+      <p>看到不顺眼的，点一下「复制提示词」，丢给 agent 就开工。它只读你的 wiki，不动一个字——写，永远等你点头。</p>
 
       <figure class="shot">
         <img src="assets/serve-overview.png" alt="mneme serve 总览面板：健康度 0 ERROR · 2 WARN，页面统计，FTS5 / Graph / L2 三个索引的就绪状态，以及 log.md 最近动态" />
-        <figcaption>总览 —— 健康度、页面统计、索引新鲜度与最近动态，一屏看完。</figcaption>
+        <figcaption>总览 —— 健康度一屏看完。</figcaption>
       </figure>
-
-      <p>体检页把每条 lint 诊断列成表格，行尾各有一个「复制提示词」按钮：面板不自己动手修，而是把结构化诊断、bundle 路径、规则出处与硬约束组装成一段提示词，你复制给 agent，就进入了正式的修复流程。Dream 页是只读审计视图（OKF 硬规则与写作纪律逐项打勾打叉）；写盘仍走对话里的 <span class="v-dream">dream</span> 审批流——「确认写入」按钮刻意置灰，留给 P2。</p>
 
       <figure class="shot">
         <img src="assets/serve-lint.png" alt="mneme serve 体检面板：按规则聚合的诊断表格，每行带「复制提示词」按钮；下方是孤儿页卡片与「重建索引」按钮" />
-        <figcaption>体检 —— 每条诊断一键复制组装好的修复提示词，粘贴给 agent 即开工。</figcaption>
+        <figcaption>体检 —— 诊断列成表，「复制提示词」一键丢给 agent。</figcaption>
       </figure>
 
       <figure class="shot">
         <img src="assets/serve-browse.png" alt="mneme serve 浏览面板：左侧按目录分组、孤儿页置灰的目录树，右侧页面渲染（可切换 Markdown 源），底部列出出链与入链" />
-        <figcaption>浏览 —— 目录树、渲染 / 源切换、出链与入链，页面即点即达。</figcaption>
+        <figcaption>浏览 —— 点着链接逛你的知识库。</figcaption>
       </figure>
+
+      <p>不用装任何东西，不联网，不用的时候 Ctrl-C，就当它没来过。<span class="v-dream">mneme</span> 记，<span class="v-dream">dream</span> 整理，<span class="v-search">search</span> 读——<span class="v-search">serve</span> 是这一切的那扇窗。</p>
     </section>
 
     <!-- ═══════════════════════════════════════════════════
-         VI.  Friends · 朋友
+         IV.  Friends · 朋友
          ═══════════════════════════════════════════════════ -->
     <section id="朋友" aria-labelledby="朋友-h">
-      <p class="kicker"><span class="num">VI.</span> Friends of Mneme</p>
+      <p class="kicker"><span class="num">IV.</span> Friends of Mneme</p>
 
       <h2 id="朋友-h">同门师兄弟：森林密语。</h2>
 
@@ -712,7 +670,7 @@
          ═══════════════════════════════════════════════════ -->
     <footer class="signature">
       <span class="press-mark">μνήμη — Mneme</span>
-      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases">v4.2.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
+      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases">v4.3.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
     </footer>
 
   </main>

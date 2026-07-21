@@ -9,6 +9,28 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-07-22 - graph evidence retrieval and benchmark integrity
+
+### Fixed
+
+- Graph entity lookup now prioritizes full-query description evidence over
+  incidental token matches, preventing common terms such as `AI` and `API`
+  from crowding the correct source page out of the seed set.
+- Extracted `mentions` edges preserve the stronger evidence path back to the
+  page that supports an entity.
+- Relation queries can match an extracted `subject + predicate + object`
+  triple and return its recorded source page directly.
+- The benchmark now pools a larger candidate set, collapses duplicate export
+  paths before applying Top-10, and records the construction-aware ceiling
+  limitation beside the headline result.
+
+### Evidence
+
+- On the frozen 219-page construction-aware diagnostic, enriched Graph and
+  enriched hybrid both recover 80/80 targets at Recall@10. This is mechanism
+  coverage, not an independent user-search quality estimate; an independent
+  held-out human benchmark remains required.
+
 ## [4.2.0] - 2026-07-21 - `mneme serve` localhost web console (P1)
 
 ### Added

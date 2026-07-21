@@ -22,7 +22,7 @@ pytestmark = pytest.mark.release
 ROOT = Path(__file__).resolve().parents[1]
 INTRO_HTML = ROOT / "introduction" / "index.html"
 
-REQUIRED_SECTION_IDS = ("初衷", "安装", "原理", "为什么", "朋友")
+REQUIRED_SECTION_IDS = ("初衷", "安装", "面板", "朋友")
 
 CANONICAL_FOREST_URLS = (
     "https://github.com/Scott1743/tarot-confessional",
@@ -95,8 +95,10 @@ def test_single_h1():
     )
 
 
-def test_three_sections_present():
-    """The page exposes three <section id=...> elements covering the marketing tri-fold."""
+def test_landing_sections_present():
+    """The page exposes its four <section id=...> elements: thesis, install,
+    serve console, friends. (The deep-dive 原理/为什么 sections were cut in
+    v4.2 to keep the landing page a short marketing read.)"""
     _, parser = _read_page()
     missing = [sid for sid in REQUIRED_SECTION_IDS if sid not in parser.section_ids]
     assert not missing, (
