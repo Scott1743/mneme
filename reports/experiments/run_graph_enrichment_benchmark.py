@@ -663,7 +663,8 @@ def report_html(manifest: dict[str, Any], qrels: list[dict[str, Any]]) -> str:
     fusion_low, fusion_high = fusion["ci"]
     conclusion = (
         f"On the expanded corpus, G1 target nDCG@10 is {summary['G1']['ndcg']:.3f} and H1 is "
-        f"{summary['H1']['ndcg']:.3f}, down {summary['H1']['ndcg']-base_summary['H1']['ndcg']:+.3f} "
+        f"{summary['H1']['ndcg']:.3f}, a change of "
+        f"{summary['H1']['ndcg']-base_summary['H1']['ndcg']:+.3f} "
         f"from base H1. The H1-G1 difference is {fusion['delta']:+.3f} "
         f"[{fusion_low:+.3f}, {fusion_high:+.3f}]; enrichment still improves H1 over H0 by "
         f"{manifest['deltas']['H1-H0']['delta']:+.3f}. These are frozen-target retention results, "
