@@ -151,12 +151,13 @@ def test_validate_okf_default_no_yaml():
     CLAUDE.md §"分层依赖" + plan §2.2.
     """
     # Block yaml at import time and re-import in a subprocess.
+    sample_bundle = ROOT / "sample-bundle"
     code = (
         "import sys\n"
         "sys.modules['yaml'] = None\n"
         "from mneme import validate_okf\n"
         "report = validate_okf.validate_bundle(\n"
-        "    validate_okf.Path('/Users/scott1743/opc/mneme/sample-bundle')\n"
+        f"    validate_okf.Path({str(sample_bundle)!r})\n"
         ")\n"
         "assert any(v.rule == 'strict-validation-disabled' for v in report.warnings), \\\n"
         "    f'expected strict-validation-disabled warning; got {[(v.rule, v.detail) for v in report.warnings]}'\n"

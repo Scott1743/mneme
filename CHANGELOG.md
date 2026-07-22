@@ -44,7 +44,8 @@ for in-flight specs and plans.
 
 - Explicit `--config` paths now resolve the exact file instead of assuming a
   sibling named `config.toml`. CI now imports Mneme from the delivered Skill
-  package path, matching the no-wheel release model across Python 3.11-3.13.
+  package path and resolves zero-dependency fixtures from the repository root,
+  matching the no-wheel release model across Python 3.11-3.13.
 
 ### Preserved
 
