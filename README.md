@@ -7,7 +7,7 @@
 *把知识编译一次，让每一次提问都从已经整理好的地方继续向前。*
 
 [![MIT License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.3.0-blue.svg)](CHANGELOG.md)
 [![Skills.sh](https://img.shields.io/badge/skills.sh-available-2ea44f.svg)](https://www.skills.sh/?q=mneme)
 
 </div>
@@ -76,7 +76,7 @@ npx skills add Scott1743/mneme
 ### 方式二：下载 Skill zip
 
 - 零依赖基础版：[mneme-2.2.0.zip](https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip)
-- 最新版：[mneme-4.1.0.zip](https://github.com/Scott1743/mneme/releases/download/v4.1.0/mneme-4.1.0.zip)
+- 最新版：[mneme-4.3.0.zip](https://github.com/Scott1743/mneme/releases/download/v4.3.0/mneme-4.3.0.zip)
 
 解压到 Agent 的 skills 目录即可。Mneme 不提供 wheel 或全包 `pip install`，唯一交付物就是一个普通 Skill zip。
 
@@ -85,15 +85,19 @@ npx skills add Scott1743/mneme
 ## 💬 使用示例
 
 ```text
-把这份调研资料 dream 进我的 wiki，先给我看变更预览。
+把这份会议纪要 dream 进我的 wiki。先展示页面、标签、互链和 Graph 实体/关系预览，等我批准后再写入。
 ```
 
 ```text
-search 我的 wiki：我们为什么选择 OKF，而不是自定义知识格式？
+search 我的 wiki：哪些项目使用了飞书多维表格，它们之间有什么关系？请读完整页面并引用来源。
 ```
 
 ```text
-检查这座 wiki 的健康状况，但不要修改任何文件。
+打开 Mneme 本地可视化面板，我想浏览页面、搜索知识图谱并检查健康状态。
+```
+
+```text
+为这座 wiki 设置每天 02:00 夜巡，只报告问题，不自动修改。
 ```
 
 ---

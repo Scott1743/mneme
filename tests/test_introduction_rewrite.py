@@ -1,4 +1,4 @@
-"""Release-gate — Mneme 4.2 public surface.
+"""Release-gate — Mneme 4.3 public surface.
 
 The README and introduction must describe the four-verb surface —
 mneme (记) / dream (整理) / search (读) / serve (看) — and the v4.2
@@ -35,7 +35,7 @@ def _read(path: Path) -> str:
 def test_release_downloads_are_present(path: Path) -> None:
     text = _read(path)
     assert "releases/download/v2.2.0/mneme-2.2.0.zip" in text
-    assert "releases/download/v4.1.0/mneme-4.1.0.zip" in text
+    assert "releases/download/v4.3.0/mneme-4.3.0.zip" in text
 
 
 def test_introduction_install_command_present() -> None:
@@ -43,6 +43,10 @@ def test_introduction_install_command_present() -> None:
     assert "npx skills add Scott1743/mneme" in text, (
         "introduction page must surface the skill.sh install one-liner as the CTA"
     )
+
+
+def test_readme_version_badge_matches_release() -> None:
+    assert "version-4.3.0-blue.svg" in _read(README)
 
 
 def test_introduction_has_dream_and_search() -> None:
