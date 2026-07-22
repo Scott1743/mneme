@@ -41,7 +41,7 @@ v4.0：新增可删除的 SQLite Graph 与 Graph + FTS5 hybrid 检索
 
 | 层 | 角色 | 谁拥有 | 在 mneme 中的位置 |
 |---|---|---|---|
-| **Raw sources** | 不可变原始资料 | 用户只读 | `wiki/sources/`（或外部路径引用） |
+| **Raw sources** | 不可变原始资料 | 用户只读 | `wiki/raw-sources/`（Markdown 原件用 `*.md.raw`，或外部路径引用） |
 | **OKF Wiki** | 唯一真相源；type + tags + links | LLM agent 完全维护 | `wiki/` —— OKF bundle 本体 |
 | **Agent Skill** | 行为规约 | 人 + agent 共写 | `~/.claude/skills/mneme/SKILL.md` + `references/` |
 | **Disposable accelerator** | 可删除的导航缓存 | 不拥有事实 | `wiki/.mneme/graph.db` + `wiki/.mneme/fts.db` + `wiki/.mneme/l2.db`（显式启用后） |
@@ -105,6 +105,7 @@ okf_version: "0.1"           # 仅 bundle 根 index.md 可带
 - **仅本地文件系统**：无远程数据库、服务端、SDK、云；允许本地 disposable SQLite Graph/FTS5/L2 缓存，不提供常驻服务。能 `cat` 就能读，能 `git clone` 就能 ship。
 - **载体是 agent skill**：遵循 Claude Code skill 格式（`SKILL.md` + YAML frontmatter：`name` / `description` / `allowed-tools` 等，可附 `references/` 支撑文档与 `scripts/` 脚本）。
 - **git-native**：bundle 即仓库/目录，知识像代码一样 diff / branch / review / blame。
+- **严格 OKF 边界**：`sources/*.md` 是带 frontmatter 的 `type: Source` 溯源页；不可变原件放 `raw-sources/`。原件若以 `.md` 结尾，落盘时追加 `.raw`，避免被 OKF §3.1 解释为概念页。校验、Dream、索引与 Web UI 不得对任何业务目录设置 `.md` 豁免。
 - **分层依赖**：OKF 核心、FTS5 与 v4 Graph（`okflib` + `sqlite3` + FTS5）保持 stdlib 零依赖。Graph 由 `reindex --graph` 显式重建，存在时普通 search 使用 hybrid；删除后自动回退 FTS5/L0。L2 仅在用户显式执行一次 `reindex --l2` 时启用，依赖由用户自行安装；成功后模式持久化。skill 不自动执行 `pip install`，激活的 L2 失败时不静默回退。
 - **disposable accelerator**：`graph.db` / `fts.db` / `l2.db` 可删可重建；不是事实来源；删除后 wiki 仍然完整。v4 Phase 1 只从页面、tags 与 Markdown links 派生 Graph，不把结构化事实从 OKF 正文迁出。
 - **按需、无自建常驻服务**：dream / search 走 host-agent 本地工具（Read / Write / Edit / Bash / Grep / Glob），skill 自身只提供 OKF 合规骨架与确定性 CLI（`mneme init / lint / reindex / search / dream / convert`）；每天 02:00 的可选夜巡由宿主 agent 的 recurring-task 能力唤醒，不引入 Mneme daemon，MCP 暂不实现。

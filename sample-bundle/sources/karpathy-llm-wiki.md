@@ -1,13 +1,14 @@
 ---
 type: Source
 title: Karpathy LLM Wiki (pointer)
-description: Pointer page. Raw, immutable excerpt lives at external-sources/karpathy-llm-wiki.md (relative to the bundle root).
-resource: file:///./external-sources/karpathy-llm-wiki.md
+description: Pointer page. Raw, immutable excerpt lives at raw-sources/karpathy-llm-wiki.md.raw (relative to the bundle root).
+resource: /raw-sources/karpathy-llm-wiki.md.raw
 tags: [source, llm-wiki, karpathy]
 timestamp: 2026-07-13T00:00:00Z
 ---
 
-The raw excerpt is bundled alongside this pointer for end-to-end demonstration. Real bundles keep raw content outside the OKF directory and link it via `resource:`.
+The raw excerpt is bundled as an opaque artifact. Its `.md.raw` suffix preserves
+the original bytes without making it an OKF concept document.
 
 This page is an OKF `Source` pointer. The original gist is:
 

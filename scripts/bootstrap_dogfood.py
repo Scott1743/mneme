@@ -9,9 +9,10 @@ retrieval benchmarking.
 The mapping:
 
   1. run `mneme init <bundle> --config <cfg>` to scaffold
-  2. copy each `<src>/foo.md` into `<bundle>/sources/foo.md`
-  3. for each source, write one concept page under
-     `<bundle>/concepts/<slug>.md` with frontmatter
+  2. copy each `<src>/foo.md` unchanged into
+     `<bundle>/raw-sources/foo.md.raw`
+  3. for each source, write one OKF Source page under
+     `<bundle>/sources/<slug>.md` with frontmatter
      `type: Source / title / description / tags / timestamp / resource`
      and body = the source's full text
   4. extend `<bundle>/index.md` so each concept has a `## Sources`
@@ -21,8 +22,8 @@ The mapping:
 
 After this script returns, the bundle's:
 
-  - sources/      — every original `.md` (raw immutable inputs)
-  - concepts/     — one concept page per source, type=Source
+  - raw-sources/  — every original `.md` as byte-identical `.md.raw`
+  - sources/      — one OKF provenance page per source, type=Source
   - index.md      — root with okf_version, plus a single ## Sources
                     section listing every concept
   - log.md        — one entry per source, **newest-first**
@@ -123,8 +124,8 @@ def bootstrap(corpus: Path, bundle: Path, cfg: Path) -> None:
 
     sources_dir = bundle / "sources"
     sources_dir.mkdir(exist_ok=True)
-    concepts_dir = bundle / "concepts"
-    concepts_dir.mkdir(exist_ok=True)
+    raw_sources_dir = bundle / "raw-sources"
+    raw_sources_dir.mkdir(exist_ok=True)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -135,7 +136,7 @@ def bootstrap(corpus: Path, bundle: Path, cfg: Path) -> None:
             continue
 
         # Step 2: copy raw source.
-        dest_source = sources_dir / src.name
+        dest_source = raw_sources_dir / f"{src.name}.raw"
         shutil.copy(src, dest_source)
 
         # Step 3: write concept page (type=Source, body = source verbatim).
@@ -146,7 +147,7 @@ def bootstrap(corpus: Path, bundle: Path, cfg: Path) -> None:
         # `"` characters — descriptions starting with `>`, `|`, `&`
         # are otherwise interpreted as YAML block-scalar anchors.
         escaped_desc = desc.replace("\\", "\\\\").replace('"', '\\"')
-        concept_path = concepts_dir / f"{slug}.md"
+        concept_path = sources_dir / f"{slug}.md"
         concept_path.write_text(
             "---\n"
             "type: Source\n"
@@ -154,7 +155,7 @@ def bootstrap(corpus: Path, bundle: Path, cfg: Path) -> None:
             f'description: "{escaped_desc}"\n'
             "tags: [dogfood, source, feishu]\n"
             f"timestamp: {timestamp}\n"
-            f"resource: {src.name}\n"
+            f"resource: /raw-sources/{src.name}.raw\n"
             "---\n\n"
             f"{body}\n",
             encoding="utf-8",
@@ -185,9 +186,9 @@ def bootstrap(corpus: Path, bundle: Path, cfg: Path) -> None:
         j += 1
 
     new_bullets = [
-        f"* [{title}](concepts/{slug}.md) — {title}."
+        f"* [{title}](sources/{slug}.md) — {title}."
         for slug, title in new_pages
-        if f"* [{title}](concepts/{slug}.md) — {title}." not in existing_bullets
+        if f"* [{title}](sources/{slug}.md) — {title}." not in existing_bullets
     ]
     lines = lines[: sources_section_idx + 1] + new_bullets + lines[sources_section_idx + 1 :]
     index_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -206,13 +207,6 @@ def bootstrap(corpus: Path, bundle: Path, cfg: Path) -> None:
         rest = log_lines
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    per_source_entries = [
-        f"## {today} ingest | {src.name}",
-        "",
-        f"Auto-distilled into `concepts/{_slug_for(src.name)}.md`.",
-        "",
-    ]
-    # Flatten per_source_entries into a single block to insert at top.
     new_block_lines = []
     for src, slug in records:
         if not slug:
@@ -220,13 +214,13 @@ def bootstrap(corpus: Path, bundle: Path, cfg: Path) -> None:
         new_block_lines.append(f"## {today} ingest | {src.name}")
         new_block_lines.append("")
         new_block_lines.append(
-            f"Auto-distilled into `concepts/{slug}.md`."
+            f"Preserved in `raw-sources/{src.name}.raw` and described by `sources/{slug}.md`."
         )
         new_block_lines.append("")
     final_log = head + new_block_lines + rest
     log_path.write_text("\n".join(final_log) + "\n", encoding="utf-8")
 
-    print(f"wrote {len(new_pages)} concept pages into {bundle}")
+    print(f"wrote {len(new_pages)} Source pages into {bundle}")
 
 
 def main(argv: list[str]) -> int:

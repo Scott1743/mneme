@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mneme · 记忆女神 · v4.3</title>
+  <title>Mneme · 记忆女神 · v4.4</title>
   <meta name="description" content="本地优先、agent 增量维护的 Markdown 知识库。mneme 记，dream 整理，search 读，serve 看——一座会做梦的 wiki。" />
   <meta name="color-scheme" content="light dark" />
   <meta property="og:title" content="Mneme — agent 维护的本地 Markdown 知识库" />
@@ -553,14 +553,14 @@
          Hero
          ═══════════════════════════════════════════════════ -->
     <header class="hero">
-      <p class="kicker">An agent skill · MIT · v4.3</p>
+      <p class="kicker">An agent skill · MIT · v4.4</p>
       <h1>Mneme</h1>
       <p class="tagline">让 agent 替你记着点的本地 Markdown 知识库。<br/>白天 <span class="v-dream">mneme</span> 一下它就记住，深夜它自己 <span class="v-dream">dream</span> 整理，你问它 <span class="v-search">search</span> 就答——想自己看，就推开 <span class="v-search">serve</span> 这扇窗。</p>
 
       <a class="install" href="https://www.skills.sh">
         <span class="verb">$</span> npx skills add Scott1743/mneme
       </a>
-      <p class="byline"><a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip">v2.2.0 基础版下载</a> · <a href="https://github.com/Scott1743/mneme/releases/download/v4.3.0/mneme-4.3.0.zip">v4.3.0 发布版下载</a></p>
+      <p class="byline"><a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip">v2.2.0 基础版下载</a> · <a href="https://github.com/Scott1743/mneme/releases/download/v4.4.0/mneme-4.4.0.zip">v4.4.0 发布版下载</a></p>
 
       <p class="byline">— μνήμη · 记忆女神 —</p>
 
@@ -616,14 +616,16 @@
     </section>
 
     <!-- ═══════════════════════════════════════════════════
-         III.  The console · 面板（v4.2 新增）
+         III.  The console · 面板
          ═══════════════════════════════════════════════════ -->
     <section id="面板" aria-labelledby="面板-h">
       <p class="kicker"><span class="num">III.</span> The console</p>
 
       <h2 id="面板-h">想自己看一眼 wiki 的时候，不必开一场 agent 会话。</h2>
 
-      <p>v4.2 给这座 wiki 开了一扇窗：<code>mneme serve --open</code>，浏览器里就是你的知识库——健康度一屏看完，搜索即问即答，页面点着链接逛，诊断列成表。</p>
+      <p><code>mneme serve --open</code> 给这座 wiki 开了一扇窗：浏览器里就是你的知识库——健康度一屏看完，搜索即问即答，页面点着链接逛，诊断列成表。v4.4 的图谱工作台把关系分成「基础」与「富化」两层，也能合并查看；点开节点或关系，就能回到证据与来源页面。</p>
+
+      <p>基础层来自 Markdown 页面、tags 与链接，随时可以重建；富化层只接收你在 dream 预览里批准过的 agent 提取。没有批准过的富化数据，面板会明确显示为空，不会替你编造关系。</p>
 
       <aside class="gloss">只绑 localhost，只读。</aside>
 
@@ -670,7 +672,7 @@
          ═══════════════════════════════════════════════════ -->
     <footer class="signature">
       <span class="press-mark">μνήμη — Mneme</span>
-      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases">v4.3.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
+      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases">v4.4.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
     </footer>
 
   </main>

@@ -9,6 +9,44 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.4.0] - 2026-07-22 - two-layer graph workbench and strict OKF sources
+
+### Added
+
+- The localhost Graph console now exposes the complete two-layer model:
+  **combined**, deterministic **base**, and approved agent **enrichment**
+  slices, with node-kind, predicate, and keyword filters.
+- Graph node and relation details include confidence, evidence, provenance,
+  related Markdown pages, and direct relations. Browse pages now show the
+  reverse Graph context for the current authoritative page.
+- `graphlib.graph_snapshot()` and `/api/graph` expose layer-aware nodes,
+  relations, source pages, freshness, and per-layer counts. `/api/reindex`
+  builds Graph on first use instead of requiring an existing `graph.db`.
+- The Graph toolbar includes an in-place explanation of combined, base, and
+  enrichment semantics, plus explicit missing, stale, and empty-enrichment
+  states on desktop and mobile.
+
+### Changed
+
+- OKF Source pages under `sources/*.md` now participate in lint, search,
+  Graph, orphan analysis, and Web UI navigation like every other concept.
+  Immutable source artifacts live under `raw-sources/`; Markdown originals
+  use the opaque `*.md.raw` suffix so OKF section 3.1 cannot mistake them for
+  concept documents.
+- L2 retrieval oversamples chunks, keeps the best chunk per page, preserves
+  page distance in CLI and Web API results, and applies the default model's
+  distance gate so unrelated candidates can return an honest empty set.
+- The force-directed Graph layout now anchors page hubs and uses a stable
+  spring force, preventing high-degree pages and labels from collapsing at
+  opposite canvas corners.
+
+### Preserved
+
+- Markdown remains authoritative. Base Graph data is disposable and fully
+  rebuildable; enrichment still requires dream preview approval before
+  `graph ingest`, and an empty enrichment layer never fabricates data.
+- The core, FTS5, Graph, Web UI, and server remain standard-library only.
+
 ## [4.3.0] - 2026-07-22 - graph evidence retrieval and benchmark integrity
 
 ### Fixed

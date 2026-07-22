@@ -15,4 +15,4 @@ okf_version: "0.1"
 
 ## Sources
 
-- [/sources/karpathy-llm-wiki.md](/sources/karpathy-llm-wiki.md) — OKF `Source` pointer; raw excerpt at `external-sources/karpathy-llm-wiki.md`.
+- [/sources/karpathy-llm-wiki.md](/sources/karpathy-llm-wiki.md) — OKF `Source` pointer; raw excerpt at `raw-sources/karpathy-llm-wiki.md.raw`.

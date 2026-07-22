@@ -42,7 +42,7 @@ DOGFOOD_BUNDLE = Path.home() / "mneme-dogfood-2026-07-12"
 # Each tuple: (search query, expected concept slug). The slug is
 # the part of the source filename after the leading NNN_ prefix;
 # that matches what `scripts/bootstrap_dogfood.py` writes to
-# `concepts/<slug>.md`.
+# `sources/<slug>.md`.
 BENCHMARK_QUERIES: list[tuple[str, str]] = [
     ("gstack", "AKMedL4gzoLwNwxg1cyc9bdxnPI"),
     ("Claude Code 工作流", "AKMedL4gzoLwNwxg1cyc9bdxnPI"),
@@ -114,7 +114,7 @@ def test_benchmark_query_finds_expected_concept_in_top_3(
     hits = _search(query, cfg, k=5)
     assert hits, f"search for {query!r} returned no hits"
     top3 = {h["concept_id"] for h in hits[:3]}
-    expected = f"concepts/{expected_slug}"
+    expected = f"sources/{expected_slug}"
     assert expected in top3, (
         f"expected concept {expected!r} missing from top-3 for "
         f"{query!r}; got {sorted(top3)}"
@@ -125,7 +125,7 @@ def test_benchmark_corpus_is_real(dogfood_bundle):
     """Sanity check that we actually indexed Feishu dump content, not
     an empty placeholder bundle."""
     bundle, cfg = dogfood_bundle
-    counts = list(bundle.glob("concepts/*.md"))
+    counts = list(bundle.glob("sources/*.md"))
     assert len(counts) >= 50, (
         f"expected at least 50 concept pages in dogfood bundle; "
         f"got {len(counts)}"

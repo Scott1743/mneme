@@ -200,7 +200,9 @@ def test_search_falls_back_to_grep_when_no_index(tmp_path, capsys):
         encoding="utf-8",
     )
     (bundle / "index.md").write_text("# Index\n", encoding="utf-8")
-    rc = cli.main(["search", "rareword", "--bundle", str(bundle), "--json"])
+    rc = cli.main([
+        "search", "rareword", "--bundle", str(bundle), "--mode", "fts", "--json"
+    ])
     assert rc == 0, "L0 grep fallback must succeed (no crash)"
     payload = json.loads(capsys.readouterr().out)
     assert payload["query"] == "rareword"
@@ -219,16 +221,17 @@ def test_search_grep_fallback_suggests_reindex(tmp_path, capsys):
     bundle = tmp_path / "wiki"
     bundle.mkdir()
     (bundle / "index.md").write_text("# Index\n", encoding="utf-8")
-    cli.main(["search", "anything", "--bundle", str(bundle), "--json"])
+    cli.main([
+        "search", "anything", "--bundle", str(bundle), "--mode", "fts", "--json"
+    ])
     err = capsys.readouterr().err
     assert "reindex" in err.lower(), (
         f"expected stderr to nudge toward `mneme reindex`; got {err!r}"
     )
 
 
-def test_search_grep_fallback_excludes_mneme_and_sources(tmp_path, capsys):
-    """L0 grep must not descend into ``.mneme/`` (that's where the
-    index lives) or ``sources/`` (immutable raw inputs)."""
+def test_search_grep_fallback_indexes_source_pages_not_raw_artifacts(tmp_path, capsys):
+    """L0 grep indexes OKF Source pages while opaque artifacts stay out."""
     bundle = tmp_path / "wiki"
     (bundle / "concepts").mkdir(parents=True)
     (bundle / "concepts" / "real.md").write_text(
@@ -236,7 +239,15 @@ def test_search_grep_fallback_excludes_mneme_and_sources(tmp_path, capsys):
         encoding="utf-8",
     )
     (bundle / "sources").mkdir(parents=True)
-    (bundle / "sources" / "raw.md").write_text("needle in raw source\n", encoding="utf-8")
+    (bundle / "sources" / "source.md").write_text(
+        "---\ntype: Source\ntitle: Source\ntags: [source]\n"
+        "timestamp: 2026-07-22\n---\nneedle in source page\n",
+        encoding="utf-8",
+    )
+    (bundle / "raw-sources").mkdir(parents=True)
+    (bundle / "raw-sources" / "raw.md.raw").write_text(
+        "needle in raw artifact\n", encoding="utf-8"
+    )
     # Create .mneme/ but WITHOUT fts.db so we exercise the L0 grep
     # path. If grep descended into .mneme/, it would pick up stray
     # files; we want to confirm the rglob filter excludes the dir
@@ -247,13 +258,13 @@ def test_search_grep_fallback_excludes_mneme_and_sources(tmp_path, capsys):
     )
     (bundle / "index.md").write_text("# Index\n", encoding="utf-8")
 
-    rc = cli.main(["search", "needle", "--bundle", str(bundle), "--json"])
+    rc = cli.main([
+        "search", "needle", "--bundle", str(bundle), "--mode", "fts", "--json"
+    ])
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
     paths = [c["path"] for c in payload["candidates"]]
-    assert paths == ["concepts/real.md"], (
-        f"expected only concepts/real.md; got {paths!r}"
-    )
+    assert paths == ["concepts/real.md", "sources/source.md"]
 
 
 def test_search_exit_codes_missing_bundle(tmp_path):
@@ -270,7 +281,7 @@ def test_search_human_output_is_path_title_snippet(tmp_path, capsys):
     """Human (non-JSON) output is one line per candidate:
     ``path <TAB> title <TAB> snippet``."""
     bundle = _seed_bundle_with_index(tmp_path)
-    rc = cli.main(["search", "rareword", "--bundle", str(bundle)])
+    rc = cli.main(["search", "rareword", "--bundle", str(bundle), "--mode", "fts"])
     assert rc == 0
     out_lines = [l for l in capsys.readouterr().out.splitlines() if l.strip()]
     assert out_lines, "human output must have at least one line"
@@ -290,7 +301,7 @@ def test_search_subprocess_json_via_shim(tmp_path):
     shim = ROOT / "skills" / "mneme" / "scripts" / "mneme.py"
     r = subprocess.run(
         [sys.executable, str(shim), "search", "rareword",
-         "--bundle", str(bundle), "--json"],
+         "--bundle", str(bundle), "--mode", "fts", "--json"],
         capture_output=True, text=True,
         cwd=str(ROOT / "skills" / "mneme" / "scripts"),
         env={"PYTHONPATH": str(ROOT / "skills" / "mneme" / "scripts")},

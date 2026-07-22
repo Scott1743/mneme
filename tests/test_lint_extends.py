@@ -83,6 +83,21 @@ def test_lint_flags_missing_tags_on_mneme_written_page(tmp_path):
     assert sev["MNEME-TAG-MISSING"] == "ERROR"
 
 
+def test_lint_applies_writer_rules_to_source_pages(tmp_path):
+    b = _seed_bundle(tmp_path)
+    (b / "sources").mkdir()
+    (b / "sources" / "pointer.md").write_text(
+        "---\ntype: Source\ntitle: Pointer\ntimestamp: 2026-07-22\n---\nbody\n"
+    )
+
+    report = okflib.lint_bundle(b, require_tags=True)
+
+    assert any(
+        d["path"] == "sources/pointer.md" and d["code"] == "MNEME-TAG-MISSING"
+        for d in report["diagnostics"]
+    )
+
+
 def test_lint_demotes_missing_tags_for_external_okf(tmp_path):
     """External OKF bundle (okf_external=True): missing tags = WARN only.
 

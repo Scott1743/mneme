@@ -64,6 +64,7 @@
 | G4 | **git-native**：bundle 即仓库/目录 | 知识像代码一样 diff / branch / review |
 | G5 | **零第三方依赖**：脚本只用标准库 | 与 OKF “无运行时”一致；产物须过一致性校验 |
 | G6 | **最小意见、自由扩展** | 只标准化自描述所需最小结构集；余者留给生产者 |
+| G7 | **raw/OKF 命名空间分离**：`sources/*.md` 只放 OKF `Source` 页；不可变原件放 `raw-sources/`，Markdown 原件追加 `.raw` 后缀 | SPEC §3.1 把所有非保留 `.md` 定义为概念文档；不能靠目录豁免绕过 MUST |
 
 ## H. 命名与约定
 

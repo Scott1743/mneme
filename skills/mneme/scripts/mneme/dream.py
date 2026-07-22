@@ -24,23 +24,9 @@ workflow, after the user explicitly approves the audit report.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-# Reserved OKF v0.1 filenames (§6, §7). Not subject to the per-page
-# "missing frontmatter" rule.
-_OKF_RESERVED = ("index.md", "log.md")
-
-
-def _iter_md_files(bundle: Path) -> List[Path]:
-    """Return the bundle's non-`.mneme` Markdown files, sorted."""
-    return sorted(
-        p for p in bundle.rglob("*.md")
-        if p.is_file() and ".mneme" not in p.relative_to(bundle).parts
-    )
-
-
-def _read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
+from . import okflib
 
 
 def dream_audit(bundle: Path) -> Dict[str, Any]:
@@ -75,28 +61,23 @@ def dream_audit(bundle: Path) -> Dict[str, Any]:
         report["_meta"]["error"] = f"bundle path is not a directory: {bundle}"
         return report
 
-    candidate_pages: List[str] = []
-    for p in _iter_md_files(bundle):
-        rel = p.relative_to(bundle).as_posix()
-        if rel in _OKF_RESERVED:
-            continue
-        text = _read_text(p)
-        # OKF §4 — non-reserved `.md` files MUST have YAML frontmatter.
-        if not text.lstrip().startswith("---"):
-            report["okf_hard_rules"].append({
-                "path": rel,
-                "rule": "OKF-NO-FRONTMATTER",
-            })
-            continue
-        # Mneme writer rule — every Mneme-written concept page has
-        # >=1 `tags` value (external OKF bundles only get a WARN at
-        # lint time, not here; dream reports candidate pages only).
-        if "tags:" not in text:
-            report["mneme_writer_rules"].append({
-                "path": rel,
-                "rule": "MNEME-TAG-MISSING",
-            })
-        candidate_pages.append(rel)
+    concepts = okflib.list_concepts(bundle)
+    diagnostics = okflib.lint_bundle(bundle, require_tags=True)["diagnostics"]
+    invalid_paths = set()
+    for diagnostic in diagnostics:
+        item = {
+            "path": diagnostic["path"],
+            "rule": diagnostic["code"],
+            "detail": diagnostic["detail"],
+        }
+        if diagnostic["code"] == "MNEME-TAG-MISSING":
+            report["mneme_writer_rules"].append(item)
+        elif diagnostic["severity"] == "ERROR":
+            report["okf_hard_rules"].append(item)
+            invalid_paths.add(diagnostic["path"])
 
-    report["_meta"]["candidate_count"] = len(candidate_pages)
+    report["_meta"]["candidate_count"] = len(concepts)
+    report["_meta"]["valid_candidate_count"] = sum(
+        1 for concept in concepts if f"{concept}.md" not in invalid_paths
+    )
     return report

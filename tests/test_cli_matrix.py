@@ -153,7 +153,9 @@ def test_search_exit_code_is_zero_for_empty_candidates(tmp_path, monkeypatch, ca
     (bundle / ".mneme").mkdir()
     (bundle / ".mneme" / "fts.db").write_bytes(b"")
 
-    assert cli.main(["search", "absent", "--bundle", str(bundle), "--json"]) == 0
+    assert cli.main([
+        "search", "absent", "--bundle", str(bundle), "--mode", "fts", "--json"
+    ]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload == {"query": "absent", "candidates": []}
 

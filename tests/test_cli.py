@@ -15,6 +15,7 @@ def test_init_scaffolds_bundle_and_config(tmp_path):
     assert (bundle / "index.md").exists()
     assert (bundle / "log.md").exists()
     assert (bundle / "sources").is_dir()
+    assert (bundle / "raw-sources").is_dir()
     assert "okf_version" in (bundle / "index.md").read_text()
     assert f'bundle_path = "{bundle}"' in cfg.read_text()
 

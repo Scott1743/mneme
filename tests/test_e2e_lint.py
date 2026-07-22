@@ -20,7 +20,7 @@ Two fixtures live under `tests/fixtures/e2e_lint/`:
     d-list-type.md       `type:` is a list (`type-not-scalar`)
     e-empty-type.md      `type:` is whitespace (`empty-type`)
     f-broken-link.md     references `/concepts/nowhere.md` (`broken-link` warning)
-    sources/raw-source.md raw input that MUST NOT be flagged (carve-out)
+    raw-sources/raw-source.md.raw opaque raw input that is not an OKF page
 
   Plus the index and log: index.md carries an illegal extra key
   (`root-index-extra-key`); log.md is out of newest-first order
@@ -142,13 +142,13 @@ def test_dirty_bundle_catches_every_pr2_rule():
         f"got warnings: {parsed['warnings']}"
     )
 
-    # sources/raw-source.md MUST NOT appear in the report at all.
+    # Opaque raw artifacts MUST NOT appear in the Markdown diagnostics.
     sources_paths = (
         {p for p, _, _ in parsed["errors"]} |
         {p for p, _, _ in parsed["warnings"]}
     )
-    assert "sources/raw-source.md" not in sources_paths, (
-        "raw source was flagged — sources/ validator carve-out regressed"
+    assert "raw-sources/raw-source.md.raw" not in sources_paths, (
+        "opaque raw artifact was incorrectly treated as an OKF page"
     )
 
 

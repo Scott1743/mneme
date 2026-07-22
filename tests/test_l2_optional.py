@@ -61,14 +61,24 @@ def test_active_l2_search_does_not_require_a_flag(tmp_path, monkeypatch, capsys)
         indexlib,
         "search_bundle",
         lambda root, query, k, embed_fn: [
-            {"path": "concepts/a.md", "title": "A", "text": "semantic hit"}
+            {
+                "path": "concepts/a.md",
+                "title": "A",
+                "text": "semantic hit",
+                "distance": 0.42,
+            }
         ],
     )
 
     assert cli.main(["search", "question", "--config", str(config), "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["candidates"] == [
-        {"path": "concepts/a.md", "title": "A", "snippet": "semantic hit"}
+        {
+            "path": "concepts/a.md",
+            "title": "A",
+            "snippet": "semantic hit",
+            "distance": 0.42,
+        }
     ]
 
 

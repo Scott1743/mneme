@@ -51,6 +51,14 @@ database does not silently discard enrichment. Both files remain derived cache:
 Markdown is the authority, and deleting `.mneme/` restores the plain FTS5/L0
 behavior without losing wiki content.
 
+`mneme serve` visualizes these provenance layers rather than reconstructing a
+page-only graph from Markdown. Its Graph tab can slice the deterministic base
+layer and approved enrichment layer, inspect relation confidence/evidence, and
+return every entity or relation to its Markdown source pages. The Browse tab
+shows the same graph context for the current page. The console's reindex action
+can create the base Graph on first use; enrichment still enters only through an
+approved `graph ingest` payload.
+
 ## Explicit opt-in: L2
 
 Only when the user requests semantic recall:
@@ -73,6 +81,9 @@ The old `<bundle>/.mneme/index.db` is a disposable derived cache. Version 4.0
 does not reuse it: run `mneme reindex` for FTS5, `mneme reindex --graph` for
 hybrid graph navigation, or `mneme reindex --l2` to build and activate L2 once.
 
-L2 returns chunks and raw distances for navigation, not truth or calibrated
-similarity decisions. Always read complete Markdown pages before answering,
-citing, merging, or proposing curation.
+L2 ranks chunks internally, then collapses them to one best chunk per concept
+page before applying top-k. For the default normalized BGE model, an L2 distance
+above 1.10 is treated as outside the conservative recall boundary; custom
+embedders remain unfiltered because their distance scale is unknown. Returned
+raw distances are navigation evidence, not truth. Always read complete Markdown
+pages before answering, citing, merging, or proposing curation.

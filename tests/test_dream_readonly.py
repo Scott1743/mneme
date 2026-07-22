@@ -103,6 +103,26 @@ def test_dream_audit_handles_missing_bundle(tmp_path: Path) -> None:
     assert "error" in report["_meta"]
 
 
+def test_dream_and_lint_share_okf_hard_errors(tmp_path: Path) -> None:
+    bundle = _seed(tmp_path)
+    (bundle / "sources").mkdir()
+    (bundle / "sources" / "raw.md").write_text("# Raw source\n", encoding="utf-8")
+
+    from mneme import okflib
+    from mneme.dream import dream_audit
+
+    dream_errors = {
+        (item["path"], item["rule"])
+        for item in dream_audit(bundle)["okf_hard_rules"]
+    }
+    lint_errors = {
+        (item["path"], item["code"])
+        for item in okflib.lint_bundle(bundle)["diagnostics"]
+        if item["severity"] == "ERROR" and item["code"] != "MNEME-TAG-MISSING"
+    }
+    assert dream_errors == lint_errors == {("sources/raw.md", "no-frontmatter")}
+
+
 def test_dream_cli_resolves_bundle_via_config_without_bundle_flag(tmp_path: Path) -> None:
     """`mneme dream` without --bundle must resolve via config.toml, not crash.
 

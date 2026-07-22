@@ -7,6 +7,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.l2]
 
 from mneme.indexlib import (
     CorruptIndexError,
+    DEFAULT_MODEL,
     Embedder,
     IndexNotFoundError,
     chunk_markdown,
@@ -31,6 +32,25 @@ def fake_embed(texts, dim=8):
 
 
 _E = Embedder(lambda texts: fake_embed(texts, 8), model_name="test-8d")
+
+
+def page_embed(texts):
+    vectors = []
+    for text in texts:
+        if text == "query":
+            vectors.append([1.0, 0.0])
+        elif text == "unrelated":
+            vectors.append([-1.0, 0.0])
+        elif "First" in text:
+            vectors.append([1.0, 0.0])
+        elif "Second" in text:
+            vectors.append([0.9, 0.1])
+        else:
+            vectors.append([0.0, 1.0])
+    return vectors
+
+
+_PAGE_E = Embedder(page_embed, model_name="page-test")
 
 
 def write_concept(root: Path, rel: str, title: str, body: str, concept_type="Concept"):
@@ -83,6 +103,56 @@ def test_search_returns_ranked_chunks_and_filters_type(tmp_path):
     assert search_semantic(conn, exact, 1, _E)[0]["concept_id"] == "c1"
     assert search_semantic(conn, exact, 2, _E, concept_type="Reference")[0]["concept_id"] == "c2"
     conn.close()
+
+
+def test_search_returns_distinct_pages_and_keeps_each_best_chunk(tmp_path):
+    conn = open_index(tmp_path / "index.db", require_vector=True)
+    ensure_schema(conn)
+    upsert_concept(
+        conn,
+        "c1",
+        "c1.md",
+        "One",
+        "Concept",
+        "# First\nclosest\n## Second\nalso close",
+        "[]",
+        "",
+        _PAGE_E,
+    )
+    upsert_concept(
+        conn, "c2", "c2.md", "Two", "Concept", "# Other\nfar", "[]", "", _PAGE_E
+    )
+
+    hits = search_semantic(conn, "query", 10, _PAGE_E)
+
+    assert [hit["concept_id"] for hit in hits] == ["c1", "c2"]
+    assert "First" in hits[0]["text"]
+    conn.close()
+
+
+def test_search_distance_gate_can_return_no_candidates(tmp_path):
+    conn = open_index(tmp_path / "index.db", require_vector=True)
+    ensure_schema(conn)
+    upsert_concept(
+        conn, "c1", "c1.md", "One", "Concept", "# First\nbody", "[]", "", _PAGE_E
+    )
+    upsert_concept(
+        conn, "c2", "c2.md", "Two", "Concept", "# Other\nbody", "[]", "", _PAGE_E
+    )
+
+    assert search_semantic(
+        conn, "unrelated", 10, _PAGE_E, max_distance=1.10
+    ) == []
+    conn.close()
+
+
+def test_search_bundle_applies_default_model_distance_gate(tmp_path):
+    bundle = tmp_path / "wiki"
+    write_concept(bundle, "concepts/a.md", "A", "First")
+    embedder = Embedder(page_embed, model_name=DEFAULT_MODEL)
+    reindex_bundle(bundle, embedder)
+
+    assert search_bundle(bundle, "unrelated", k=10, embed_fn=embedder) == []
 
 
 @pytest.mark.parametrize("query,k", [("", 1), ("x", 0), ("x", 101)])

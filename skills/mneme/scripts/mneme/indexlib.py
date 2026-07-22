@@ -19,6 +19,9 @@ from typing import Callable, Dict, Iterable, List, Optional
 EmbedFn = Callable[[List[str]], List[List[float]]]
 INDEX_SCHEMA_VERSION = "1"
 DEFAULT_MODEL = "BAAI/bge-small-zh-v1.5"
+DEFAULT_MODEL_MAX_L2_DISTANCE = 1.10
+SEMANTIC_OVERSAMPLE_FACTOR = 20
+SEMANTIC_MIN_CANDIDATE_POOL = 100
 
 
 def fts_index_path(bundle_path: Path | str) -> Path:
@@ -311,6 +314,7 @@ def search_semantic(
     k: int,
     embed_fn: EmbedFn | Embedder,
     concept_type: Optional[str] = None,
+    max_distance: Optional[float] = None,
 ) -> List[Dict]:
     """L2 vector-search backend (sqlite-vec + fastembed).
 
@@ -329,10 +333,17 @@ def search_semantic(
         raise ValueError("query must not be empty")
     if not 1 <= k <= 100:
         raise ValueError("limit must be between 1 and 100")
+    if max_distance is not None and max_distance < 0:
+        raise ValueError("max_distance must be non-negative")
     embedder = _as_embedder(embed_fn)
     qvec = embedder([query])[0]
     _validate_search_index(conn, len(qvec), embedder.model_name)
-    candidate_limit = min(1000, max(k, k * 5 if concept_type else k))
+    # sqlite-vec ranks chunks, while Mneme's public search contract returns
+    # pages. Pull a wider chunk pool so one long page cannot consume top-k.
+    candidate_limit = min(
+        1000,
+        max(SEMANTIC_MIN_CANDIDATE_POOL, k * SEMANTIC_OVERSAMPLE_FACTOR),
+    )
     try:
         rows = conn.execute(
             "SELECT chunk_id, distance FROM vec_chunks "
@@ -342,14 +353,21 @@ def search_semantic(
     except sqlite3.Error as exc:
         raise CorruptIndexError(f"vector search failed: {exc}") from exc
     out = []
+    seen_concepts = set()
     for chunk_id, distance in rows:
+        distance = float(distance)
+        if max_distance is not None and distance > max_distance:
+            # Rows are ordered by distance, so every remaining row is also
+            # outside the relevance gate.
+            break
         sql = "SELECT concept_id,path,title,type,text FROM chunks WHERE chunk_id=?"
         params: tuple = (chunk_id,)
         if concept_type is not None:
             sql += " AND type=?"
             params = (chunk_id, concept_type)
         row = conn.execute(sql, params).fetchone()
-        if row:
+        if row and row[0] not in seen_concepts:
+            seen_concepts.add(row[0])
             out.append(
                 {
                     "concept_id": row[0],
@@ -357,12 +375,25 @@ def search_semantic(
                     "title": row[2],
                     "type": row[3],
                     "text": row[4],
-                    "distance": float(distance),
+                    "distance": distance,
                 }
             )
             if len(out) == k:
                 break
     return out
+
+
+def _semantic_max_distance(meta: Dict[str, str]) -> Optional[float]:
+    """Return a calibrated relevance gate for known normalized embeddings.
+
+    FastEmbed normalizes BGE-small-zh-v1.5 vectors and sqlite-vec's schema uses
+    Euclidean distance. A 1.10 cutoff corresponds to cosine similarity around
+    0.395. Custom embedders keep raw top-k behavior because their scale is not
+    known and must not inherit a model-specific threshold.
+    """
+    if meta.get("embedding_model") == DEFAULT_MODEL:
+        return DEFAULT_MODEL_MAX_L2_DISTANCE
+    return None
 
 
 def default_embed_fn(model: str = DEFAULT_MODEL) -> Embedder:
@@ -512,10 +543,18 @@ def search_bundle(
         raise IndexNotFoundError(f"index not found at {db_path}; run mneme reindex")
     conn = open_index(db_path, require_vector=True)
     try:
-        if read_index_meta(conn).get("indexed_concepts") == "0":
+        meta = read_index_meta(conn)
+        if meta.get("indexed_concepts") == "0":
             return []
         embedder = _as_embedder(embed_fn) if embed_fn is not None else default_embed_fn()
-        return search_semantic(conn, query, k, embedder, concept_type=concept_type)
+        return search_semantic(
+            conn,
+            query,
+            k,
+            embedder,
+            concept_type=concept_type,
+            max_distance=_semantic_max_distance(meta),
+        )
     finally:
         conn.close()
 

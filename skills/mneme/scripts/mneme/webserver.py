@@ -1,17 +1,17 @@
-"""``mneme serve`` — localhost-only, stdlib-only web console (P1).
+"""``mneme serve`` — localhost-only, stdlib-only web console.
 
 Design contract: ``docs/design/webserver-prototype.md``.
 
-P1 scope is **read-only + disposable-cache rebuild**:
+The console scope is **read-only + disposable-cache rebuild**:
 
 - ``GET /`` serves the single-file UI (``webui.INDEX_HTML``) with a
   per-process session token injected.
 - ``GET /api/*`` endpoints serialize ``okflib`` / ``indexlib`` /
   ``graphlib`` / ``dream`` results as JSON.
 - ``POST /api/reindex`` is the ONLY write endpoint; it rebuilds the
-  disposable ``.mneme/`` caches (FTS5 always, Graph when present) and
-  never touches Markdown. Factual-body writes (dream apply) are P2 and
-  intentionally NOT implemented here.
+  disposable ``.mneme/`` caches (FTS5 and Graph) and
+  never touches Markdown. Factual-body writes (dream apply) are intentionally
+  NOT implemented here.
 
 Security model (spec §7):
 
@@ -53,7 +53,7 @@ _WILDCARD_HOSTS = frozenset({"0.0.0.0", "::", ""})
 _LINK_RE = re.compile(r"\]\((/[^)\s]+\.md)\)")
 
 _RESERVED = ("index.md", "log.md")
-_SKIP_DIRS = (".mneme", "sources", "external-sources")
+_SKIP_DIRS = (".mneme",)
 
 
 class ApiError(Exception):
@@ -97,7 +97,7 @@ class ServeState:
 
 
 def _iter_page_files(bundle: Path) -> List[Path]:
-    """Non-reserved, non-``.mneme``/``sources`` Markdown files, sorted."""
+    """Non-reserved, non-``.mneme`` Markdown files, sorted."""
     out: List[Path] = []
     for p in sorted(bundle.rglob("*.md")):
         if not p.is_file():
@@ -154,7 +154,7 @@ def _page_links(bundle: Path, page_rel: str) -> Tuple[List[str], List[str]]:
     """Outlinks / inlinks for one page, computed from Markdown links.
 
     Graph Phase 1 derives its page-link edges from the same Markdown
-    links, so this file-derived view matches ``graph.db`` for the P1
+    links, so this file-derived view matches ``graph.db`` for the base
     browse page while staying available when no graph index exists.
     """
     pages = _page_summaries(bundle)
@@ -216,12 +216,18 @@ def _index_status(bundle: Path) -> Dict[str, Any]:
     fts_db = indexlib.fts_index_path(bundle)
     graph_db = graphlib.graph_index_path(bundle)
     l2_db = indexlib.l2_index_path(bundle)
+    graph_status: Dict[str, Any] = {
+        "exists": graph_db.is_file(),
+        "fresh": graphlib.graph_is_fresh(bundle) if graph_db.is_file() else False,
+    }
+    if graph_db.is_file():
+        try:
+            graph_status.update(graphlib.graph_health(graph_db))
+        except Exception as exc:  # pragma: no cover - defensive
+            graph_status["error"] = str(exc)
     return {
         "fts5": {"exists": fts_db.is_file()},
-        "graph": {
-            "exists": graph_db.is_file(),
-            "fresh": graphlib.graph_is_fresh(bundle) if graph_db.is_file() else False,
-        },
+        "graph": graph_status,
         "l2": {"exists": l2_db.is_file()},
     }
 
@@ -348,6 +354,11 @@ def _search_payload(
                     "path": h.get("path", ""),
                     "title": h.get("title", ""),
                     "snippet": h.get("text", ""),
+                    **(
+                        {"distance": float(h["distance"])}
+                        if h.get("distance") is not None
+                        else {}
+                    ),
                 }
                 for h in hits
             ],
@@ -370,13 +381,14 @@ def _search_payload(
         path = str(cand.get("path", ""))
         if path and not path.startswith("/"):
             path = "/" + path
-        candidates.append(
-            {
-                "path": path,
-                "title": str(cand.get("title", "") or ""),
-                "snippet": str(cand.get("snippet", "") or "").replace("\n", " ").strip(),
-            }
-        )
+        item = {
+            "path": path,
+            "title": str(cand.get("title", "") or ""),
+            "snippet": str(cand.get("snippet", "") or "").replace("\n", " ").strip(),
+        }
+        if cand.get("distance") is not None:
+            item["distance"] = float(cand["distance"])
+        candidates.append(item)
     return {"query": query, "mode": mode, "candidates": candidates}
 
 
@@ -420,6 +432,7 @@ def _page_payload(state: ServeState, raw_path: str) -> Dict[str, Any]:
         "raw": text,
         "outlinks": outlinks,
         "inlinks": inlinks,
+        "graph": _page_graph_context(state, rel),
     }
 
 
@@ -440,51 +453,145 @@ def _dream_payload(state: ServeState) -> Dict[str, Any]:
 
 
 def _graph_payload(state: ServeState) -> Dict[str, Any]:
-    """Nodes/edges for the graph tab.
-
-    P1 builds the link graph from Markdown directly (always available);
-    when ``graph.db`` exists its health counters ride along as stats.
-    """
+    """Return both graph provenance layers for the graph workbench."""
     bundle = state.bundle
     if not (bundle and bundle.is_dir()):
-        return {"nodes": [], "edges": [], "stats": {"nodes": 0, "edges": 0}}
-    pages = _page_summaries(bundle)
-    known = {p["path"] for p in pages}
-    nodes = [
-        {
-            "id": p["path"],
-            "label": p["title"] or Path(p["path"]).stem,
-            "type": p["type"] or "Concept",
+        return {
+            "available": False,
+            "fresh": False,
+            "nodes": [],
+            "edges": [],
+            "stats": {"nodes": 0, "edges": 0, "markdown_pages": 0},
         }
-        for p in pages
-    ]
-    edges: List[List[str]] = []
-    for p in pages:
-        try:
-            text = (bundle / p["path"].lstrip("/")).read_text(
-                encoding="utf-8", errors="replace"
-            )
-        except OSError:
-            continue
-        for target in dict.fromkeys(_LINK_RE.findall(text)):
-            if target in known and target != p["path"]:
-                edges.append([p["path"], target])
-    stats: Dict[str, Any] = {"nodes": len(nodes), "edges": len(edges)}
     from . import graphlib
 
     graph_db = graphlib.graph_index_path(bundle)
-    if graph_db.is_file():
-        try:
-            stats["graph_db"] = graphlib.graph_health(graph_db)
-        except Exception as exc:  # pragma: no cover - defensive
-            stats["graph_db"] = {"error": str(exc)}
-    return {"nodes": nodes, "edges": edges, "stats": stats}
+    if not graph_db.is_file():
+        return {
+            "available": False,
+            "fresh": False,
+            "nodes": [],
+            "edges": [],
+            "stats": {
+                "nodes": 0,
+                "edges": 0,
+                "markdown_pages": len(_page_summaries(bundle)),
+            },
+        }
+    try:
+        snapshot = graphlib.graph_snapshot(graph_db)
+        health = graphlib.graph_health(graph_db)
+    except Exception as exc:  # pragma: no cover - defensive
+        return {
+            "available": False,
+            "fresh": False,
+            "nodes": [],
+            "edges": [],
+            "stats": {"nodes": 0, "edges": 0, "error": str(exc)},
+        }
+
+    nodes: List[Dict[str, Any]] = []
+    for node in snapshot["nodes"]:
+        item = dict(node)
+        item["id"] = f"entity:{node['id']}"
+        if item.get("page_path"):
+            item["page_path"] = "/" + str(item["page_path"]).lstrip("/")
+        item["related_pages"] = [
+            "/" + str(path).lstrip("/") for path in item.get("related_pages", [])
+        ]
+        nodes.append(item)
+
+    edges: List[Dict[str, Any]] = []
+    for edge in snapshot["edges"]:
+        item = dict(edge)
+        item["id"] = f"relation:{edge['id']}"
+        item["source_id"] = f"entity:{edge['subject_id']}"
+        item["target_id"] = f"entity:{edge['object_id']}"
+        item.pop("subject_id", None)
+        item.pop("object_id", None)
+        item["sources"] = [
+            {
+                **source,
+                "page": "/" + str(source.get("page", "")).lstrip("/"),
+            }
+            for source in item.get("sources", [])
+            if source.get("page")
+        ]
+        edges.append(item)
+
+    stats: Dict[str, Any] = {
+        **health,
+        "nodes": len(nodes),
+        "edges": len(edges),
+        "base_nodes": sum(1 for node in nodes if node["layer"] == "base"),
+        "enriched_nodes": sum(1 for node in nodes if node["layer"] == "enriched"),
+        "base_edges": sum(1 for edge in edges if "base" in edge["layers"]),
+        "enriched_edges": sum(1 for edge in edges if "enriched" in edge["layers"]),
+    }
+    return {
+        "available": True,
+        "fresh": graphlib.graph_is_fresh(bundle, graph_db),
+        "nodes": nodes,
+        "edges": edges,
+        "stats": stats,
+    }
+
+
+def _page_graph_context(state: ServeState, page_path: str) -> Dict[str, Any]:
+    """Return graph neighbors and sourced relations for one Markdown page."""
+    graph = _graph_payload(state)
+    if not graph["available"]:
+        return {"available": False, "fresh": False, "entities": [], "relations": []}
+    node_by_id = {node["id"]: node for node in graph["nodes"]}
+    page_node = next(
+        (node for node in graph["nodes"] if node.get("page_path") == page_path),
+        None,
+    )
+    relevant_edges: List[Dict[str, Any]] = []
+    relevant_node_ids = set()
+    for edge in graph["edges"]:
+        sourced_here = any(source.get("page") == page_path for source in edge["sources"])
+        incident = bool(
+            page_node
+            and page_node["id"] in {edge["source_id"], edge["target_id"]}
+        )
+        if not (sourced_here or incident):
+            continue
+        relevant_edges.append(edge)
+        relevant_node_ids.update((edge["source_id"], edge["target_id"]))
+
+    entities = [
+        node
+        for node_id, node in node_by_id.items()
+        if node_id in relevant_node_ids and (not page_node or node_id != page_node["id"])
+    ]
+    relations = []
+    for edge in relevant_edges:
+        relations.append(
+            {
+                **edge,
+                "subject_label": node_by_id.get(edge["source_id"], {}).get(
+                    "label", edge["source_id"]
+                ),
+                "object_label": node_by_id.get(edge["target_id"], {}).get(
+                    "label", edge["target_id"]
+                ),
+            }
+        )
+    return {
+        "available": True,
+        "fresh": graph["fresh"],
+        "entities": entities,
+        "relations": relations,
+    }
 
 
 def _reindex_payload(state: ServeState) -> Dict[str, Any]:
-    """Rebuild disposable caches. FTS5 always; Graph only when a graph
-    index already exists (keeps L2/FTS5 mode persistence untouched and
-    never installs anything). Idempotent; never touches Markdown."""
+    """Rebuild the disposable FTS5 and Graph caches.
+
+    This creates ``graph.db`` on the first run, keeps L2/FTS5 mode
+    persistence untouched, never installs anything, and never writes Markdown.
+    """
     bundle = state.bundle
     if not state.initialized:
         raise ApiError(409, "bundle is not initialized", "not_found")
@@ -496,17 +603,15 @@ def _reindex_payload(state: ServeState) -> Dict[str, Any]:
         fts_pages = indexlib.reindex_paths(paths, bundle)
     except Exception as exc:
         raise ApiError(500, f"reindex (FTS5) failed: {exc}", "internal")
-    graph_result: Optional[Dict[str, Any]] = None
-    if graphlib.graph_index_path(bundle).is_file():
-        try:
-            result = graphlib.rebuild_graph(bundle)
-        except Exception as exc:
-            raise ApiError(500, f"reindex (graph) failed: {exc}", "internal")
-        graph_result = {
-            "pages": result.indexed_pages,
-            "entities": result.indexed_entities,
-            "relations": result.indexed_relations,
-        }
+    try:
+        result = graphlib.rebuild_graph(bundle)
+    except Exception as exc:
+        raise ApiError(500, f"reindex (graph) failed: {exc}", "internal")
+    graph_result: Dict[str, Any] = {
+        "pages": result.indexed_pages,
+        "entities": result.indexed_entities,
+        "relations": result.indexed_relations,
+    }
     return {
         "fts_pages": fts_pages,
         "graph": graph_result,
@@ -685,7 +790,7 @@ def _make_handler(state: ServeState):
                             413, "request body exceeds 1 MB", "payload_too_large"
                         )
                     if size:
-                        self.rfile.read(size)  # drain; P1 endpoints take no body
+                        self.rfile.read(size)  # drain; current endpoints take no body
                 if parsed.path == "/api/reindex":
                     self._send_json(_reindex_payload(state))
                     return
@@ -732,7 +837,7 @@ def serve(
     bound_host, bound_port = httpd.server_address[0], httpd.server_address[1]
     url = f"http://{bound_host}:{bound_port}/"
 
-    print("Mneme Web UI (P1 · read-only + reindex)", file=sys.stderr)
+    print("Mneme Web UI (read-only + disposable-cache reindex)", file=sys.stderr)
     print(f"  bundle:  {state.bundle if state.bundle else '(unresolved)'}", file=sys.stderr)
     if not state.initialized:
         print(

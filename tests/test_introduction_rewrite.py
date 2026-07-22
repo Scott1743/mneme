@@ -1,4 +1,4 @@
-"""Release-gate — Mneme 4.3 public surface.
+"""Release-gate — Mneme 4.4 public surface.
 
 The README and introduction must describe the four-verb surface —
 mneme (记) / dream (整理) / search (读) / serve (看) — and the v4.2
@@ -35,7 +35,7 @@ def _read(path: Path) -> str:
 def test_release_downloads_are_present(path: Path) -> None:
     text = _read(path)
     assert "releases/download/v2.2.0/mneme-2.2.0.zip" in text
-    assert "releases/download/v4.3.0/mneme-4.3.0.zip" in text
+    assert "releases/download/v4.4.0/mneme-4.4.0.zip" in text
 
 
 def test_introduction_install_command_present() -> None:
@@ -46,7 +46,7 @@ def test_introduction_install_command_present() -> None:
 
 
 def test_readme_version_badge_matches_release() -> None:
-    assert "version-4.3.0-blue.svg" in _read(README)
+    assert "version-4.4.0-blue.svg" in _read(README)
 
 
 def test_introduction_has_dream_and_search() -> None:
@@ -95,8 +95,8 @@ def test_readme_states_v4_graph_option() -> None:
 
 def test_introduction_states_current_release() -> None:
     text = _read(INTRO)
-    assert "<title>Mneme · 记忆女神 · v4.3</title>" in text
-    assert "v4.3" in text
+    assert "<title>Mneme · 记忆女神 · v4.4</title>" in text
+    assert "v4.4" in text
     assert "Mneme 2.1" not in text
     assert "两个动词" not in text
     assert "其余都是细节" not in text
@@ -112,6 +112,15 @@ def test_introduction_surfaces_v42_serve_console() -> None:
         rel = f"assets/{name}.png"
         assert rel in text, f"introduction page must embed {rel}"
         assert (INTRO.parent / rel).is_file(), f"missing screenshot {rel}"
+
+
+def test_public_pages_explain_two_graph_layers() -> None:
+    for path in USER_FACING_TARGETS:
+        text = _read(path)
+        assert "基础" in text and "富化" in text and "合并" in text
+    intro = _read(INTRO)
+    assert "证据与来源页面" in intro
+    assert "不会替你编造关系" in intro
 
 
 def test_introduction_uses_absolute_bundle_relative_citations() -> None:

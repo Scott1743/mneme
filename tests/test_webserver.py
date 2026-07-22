@@ -1,9 +1,9 @@
-"""P1 web console (``mneme serve``) endpoint tests.
+"""Web console (``mneme serve``) endpoint tests.
 
 Spins up the stdlib ``ThreadingHTTPServer`` on an ephemeral port
 (``port=0``) against a tmp copy of ``sample-bundle`` and exercises the
 spec's security model (token, Host header, path sandbox, body cap) plus
-the P1 read endpoints and the single write endpoint (reindex).
+the read endpoints and the single disposable-cache write endpoint (reindex).
 """
 from __future__ import annotations
 
@@ -83,6 +83,11 @@ def test_index_serves_ui_with_injected_token(server):
     assert "Mneme" in html
     assert "__MNEME_TOKEN__" not in html, "token placeholder must be replaced"
     assert server.token in html, "session token must be injected into GET /"
+    assert "召回" in html
+    assert "distance" in html
+    assert "合并、基础、富化分别是什么？" in html
+    assert "graphKindFilter" in html
+    assert "pageGraphContext" in html
 
 
 def test_unknown_path_is_404(server):
@@ -165,6 +170,7 @@ def test_pages_listing_and_filters(server):
     assert status == 200
     pages = payload["pages"]
     assert pages, "sample-bundle should yield pages"
+    assert "/sources/karpathy-llm-wiki.md" in {page["path"] for page in pages}
     for p in pages:
         assert p["path"].startswith("/")
         assert "type" in p and "tags" in p and "orphan" in p
@@ -185,6 +191,12 @@ def test_page_returns_frontmatter_and_links(server):
     assert "raw" in page and "body" in page
     assert isinstance(page["outlinks"], list)
     assert isinstance(page["inlinks"], list)
+    assert page["graph"] == {
+        "available": False,
+        "fresh": False,
+        "entities": [],
+        "relations": [],
+    }
 
 
 def test_page_missing_is_404(server):
@@ -249,6 +261,42 @@ def test_search_k_bounds(server):
     assert status == 400
 
 
+def test_search_l2_preserves_page_distance(server, monkeypatch):
+    from mneme import indexlib
+
+    l2_db = indexlib.l2_index_path(server.bundle)
+    l2_db.parent.mkdir(exist_ok=True)
+    l2_db.touch()
+    monkeypatch.setattr(indexlib, "default_embed_fn", lambda: object())
+    monkeypatch.setattr(
+        indexlib,
+        "search_bundle",
+        lambda bundle, query, k, embed_fn: [
+            {
+                "path": "concepts/example.md",
+                "title": "Example",
+                "text": "best page chunk",
+                "distance": 0.75,
+            }
+        ],
+    )
+
+    status, payload, _ = _req(
+        server, "GET", "/api/search?q=example&k=20&mode=l2"
+    )
+
+    assert status == 200
+    assert payload["mode"] == "l2"
+    assert payload["candidates"] == [
+        {
+            "path": "/concepts/example.md",
+            "title": "Example",
+            "snippet": "best page chunk",
+            "distance": 0.75,
+        }
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Dream + graph (read-only)
 # ---------------------------------------------------------------------------
@@ -269,23 +317,83 @@ def test_dream_audit_is_readonly(server):
 def test_graph_returns_nodes_and_edges(server):
     status, payload, _ = _req(server, "GET", "/api/graph")
     assert status == 200
+    assert payload["available"] is False
     assert isinstance(payload["nodes"], list)
     assert isinstance(payload["edges"], list)
     assert payload["stats"]["nodes"] == len(payload["nodes"])
+    assert payload["stats"]["markdown_pages"] > 0
+
+
+def test_graph_returns_base_and_enriched_layers_with_source_pages(server):
+    from mneme import graphlib
+
+    graphlib.rebuild_graph(server.bundle)
+    graphlib.ingest_extraction(
+        graphlib.graph_index_path(server.bundle),
+        {
+            "version": 1,
+            "pages": [
+                {
+                    "page": "concepts/llm-wiki.md",
+                    "entities": [
+                        {
+                            "name": "GraphDB",
+                            "type": "technology",
+                            "description": "Local graph cache",
+                            "confidence": 0.9,
+                        }
+                    ],
+                    "relations": [],
+                }
+            ],
+        },
+        persist=False,
+    )
+
+    status, payload, _ = _req(server, "GET", "/api/graph")
+    assert status == 200
+    assert payload["available"] is True
+    assert payload["fresh"] is True
+    assert payload["stats"]["base_nodes"] > 0
+    assert payload["stats"]["enriched_nodes"] == 1
+    assert payload["stats"]["enriched_edges"] == 1
+
+    entity = next(node for node in payload["nodes"] if node["name"] == "GraphDB")
+    assert entity["id"].startswith("entity:")
+    assert entity["layer"] == "enriched"
+    assert entity["related_pages"] == ["/concepts/llm-wiki.md"]
+    mention = next(edge for edge in payload["edges"] if edge["predicate"] == "mentions")
+    assert mention["id"].startswith("relation:")
+    assert mention["layers"] == ["enriched"]
+    assert mention["sources"][0]["page"] == "/concepts/llm-wiki.md"
+
+    status, page, _ = _req(
+        server, "GET", "/api/page?path=/concepts/llm-wiki.md"
+    )
+    assert status == 200
+    assert page["graph"]["available"] is True
+    assert any(item["name"] == "GraphDB" for item in page["graph"]["entities"])
+    assert any(
+        item["predicate"] == "mentions" for item in page["graph"]["relations"]
+    )
 
 
 # ---------------------------------------------------------------------------
-# POST /api/reindex (only P1 write endpoint)
+# POST /api/reindex (only disposable-cache write endpoint)
 # ---------------------------------------------------------------------------
 
 
 def test_reindex_builds_fts_cache(server):
     fts_db = server.bundle / ".mneme" / "fts.db"
+    graph_db = server.bundle / ".mneme" / "graph.db"
     assert not fts_db.exists()
+    assert not graph_db.exists()
     status, payload, _ = _req(server, "POST", "/api/reindex")
     assert status == 200
     assert payload["fts_pages"] > 0
+    assert payload["graph"]["pages"] > 0
     assert fts_db.is_file()
+    assert graph_db.is_file()
     # Idempotent: a second run succeeds too.
     status, _, _ = _req(server, "POST", "/api/reindex")
     assert status == 200

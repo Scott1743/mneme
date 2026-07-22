@@ -215,6 +215,7 @@ def test_clean_venv_init_works(clean_venv, tmp_path):
     assert (bundle / "index.md").exists()
     assert (bundle / "log.md").exists()
     assert (bundle / "sources" / ".gitkeep").exists()
+    assert (bundle / "raw-sources" / ".gitkeep").exists()
 
 
 def test_clean_venv_lint_works_without_index(clean_venv, tmp_path):

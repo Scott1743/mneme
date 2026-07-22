@@ -88,6 +88,28 @@ def test_rebuild_graph_extracts_pages_tags_and_links(tmp_path):
         conn.close()
 
 
+def test_rebuild_graph_includes_okf_source_pages(tmp_path):
+    bundle = _bundle(tmp_path)
+    (bundle / "sources").mkdir()
+    (bundle / "sources" / "paper.md").write_text(
+        "---\ntype: Source\ntitle: Paper\ndescription: Provenance page\n"
+        "tags: [source]\ntimestamp: 2026-07-22\n"
+        "resource: /raw-sources/paper.md.raw\n---\nSource body.\n",
+        encoding="utf-8",
+    )
+
+    result = graphlib.rebuild_graph(bundle)
+
+    assert result.indexed_pages == 3
+    conn = graphlib.open_graph(result.db_path)
+    try:
+        assert conn.execute(
+            "SELECT COUNT(*) FROM entities WHERE page_path='sources/paper.md'"
+        ).fetchone()[0] == 1
+    finally:
+        conn.close()
+
+
 def test_graph_search_walks_from_tag_to_related_pages(tmp_path):
     bundle = _bundle(tmp_path)
     graphlib.rebuild_graph(bundle)
@@ -464,6 +486,41 @@ def test_ingest_extraction_adds_entities_relations_and_mentions(tmp_path):
         assert mention[1] == graphlib.REL_SOURCE_LLM
     finally:
         conn.close()
+
+
+def test_graph_snapshot_exposes_both_layers_and_authoritative_pages(tmp_path):
+    bundle = _bundle(tmp_path)
+    result = graphlib.rebuild_graph(bundle)
+    graphlib.ingest_extraction(result.db_path, _extraction_payload(), persist=False)
+
+    snapshot = graphlib.graph_snapshot(result.db_path)
+    graph_db = next(node for node in snapshot["nodes"] if node["name"] == "GraphDB")
+    assert graph_db["kind"] == "entity"
+    assert graph_db["layer"] == "enriched"
+    assert graph_db["confidence"] == pytest.approx(0.9)
+    assert graph_db["related_pages"] == ["concepts/alpha.md"]
+
+    alpha = next(
+        node for node in snapshot["nodes"] if node["page_path"] == "concepts/alpha.md"
+    )
+    assert alpha["kind"] == "page"
+    assert alpha["layer"] == "base"
+
+    uses = next(edge for edge in snapshot["edges"] if edge["predicate"] == "uses")
+    assert uses["layers"] == ["enriched"]
+    assert uses["confidence"] == pytest.approx(0.85)
+    assert uses["evidence"] == "Alpha body mentions graph systems."
+    assert uses["sources"] == [
+        {
+            "page": "concepts/alpha.md",
+            "source": "llm_extracted",
+            "confidence": pytest.approx(0.85),
+            "evidence": "Alpha body mentions graph systems.",
+        }
+    ]
+
+    base_edge = next(edge for edge in snapshot["edges"] if "base" in edge["layers"])
+    assert base_edge["sources"]
 
 
 def test_relation_query_prioritizes_its_evidence_page(tmp_path):

@@ -39,6 +39,7 @@ def test_list_concepts_excludes_reserved():
     ids = list_concepts(SAMPLE)
     assert "concepts/llm-wiki" in ids
     assert "concepts/okf" in ids
+    assert "sources/karpathy-llm-wiki" in ids
     assert "index" not in ids
     assert "log" not in ids
 
@@ -62,6 +63,16 @@ def test_missing_frontmatter_fails():
     report = validate_bundle(FIX / "missing_frontmatter")
     assert not report.ok
     assert any(v.rule == "no-frontmatter" for v in report.errors)
+
+
+def test_raw_markdown_under_sources_is_not_exempt(tmp_path):
+    bundle = tmp_path / "wiki"
+    (bundle / "sources").mkdir(parents=True)
+    (bundle / "sources" / "raw.md").write_text("# Raw\n", encoding="utf-8")
+
+    report = validate_bundle(bundle)
+
+    assert ("sources/raw.md", "no-frontmatter") in _errors(report)
 
 
 def test_empty_type_fails():
@@ -510,15 +521,13 @@ def test_find_orphans_peer_to_peer_link(tmp_path):
     )
 
 
-def test_find_orphans_ignores_sources_links(tmp_path):
-    """References inside `sources/*.md` are NOT inbound edges for
-    concept pages (sources are immutable inputs that the validator
-    already carves out). Keeps the orphan analysis coherent with
-    the rest of the validator's sources/ semantics."""
+def test_find_orphans_counts_source_page_links(tmp_path):
+    """OKF Source pages participate in navigation like every concept."""
     bundle = tmp_path / "b"
     bundle.mkdir()
     (bundle / "index.md").write_text(
-        '---\nokf_version: "0.1"\n---\n# Concepts\n',
+        '---\nokf_version: "0.1"\n---\n# Sources\n'
+        '* [Source](/sources/source.md)\n',
         encoding="utf-8",
     )
     (bundle / "concepts").mkdir()
@@ -527,11 +536,11 @@ def test_find_orphans_ignores_sources_links(tmp_path):
         encoding="utf-8",
     )
     (bundle / "sources").mkdir()
-    (bundle / "sources" / "raw.md").write_text(
+    (bundle / "sources" / "source.md").write_text(
+        '---\ntype: Source\ntitle: Source\ntags: [source]\n'
+        'timestamp: 2026-07-22\n---\n'
         'See [Lonely](/concepts/lonely.md)\n',
         encoding="utf-8",
     )
     orphans = find_orphans(bundle)
-    assert orphans == ["concepts/lonely"], (
-        "sources/ links must not count as inbound edges for concepts"
-    )
+    assert orphans == []

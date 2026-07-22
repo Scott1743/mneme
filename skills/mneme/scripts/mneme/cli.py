@@ -63,6 +63,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     bundle.mkdir(parents=True)
     (bundle / "sources").mkdir(exist_ok=True)
     (bundle / "sources" / ".gitkeep").touch(exist_ok=True)
+    (bundle / "raw-sources").mkdir(exist_ok=True)
+    (bundle / "raw-sources" / ".gitkeep").touch(exist_ok=True)
     if not (bundle / "index.md").exists():
         (bundle / "index.md").write_text(
             '---\nokf_version: "0.1"\n---\n\n# Concepts\n', encoding="utf-8"
@@ -172,8 +174,6 @@ def _indexable_paths(bundle: Path) -> list[Path]:
         parts = path.relative_to(bundle).parts
         if any(part == ".mneme" for part in parts):
             continue
-        if "sources" in parts or "external-sources" in parts:
-            continue
         paths.append(path)
     return paths
 
@@ -207,10 +207,6 @@ def _cmd_search_grep(bundle: Path, query: str, k: int) -> Dict:
             continue
         parts = md_path.relative_to(bundle).parts
         if any(part == ".mneme" for part in parts):
-            continue
-        # Raw sources under sources/ are immutable inputs — they have
-        # no frontmatter and shouldn't be surfaced as OKF concepts.
-        if "sources" in parts:
             continue
         if md_path.name in ("index.md", "log.md"):
             continue
@@ -369,6 +365,11 @@ def cmd_search(args: argparse.Namespace) -> int:
                     "path": h.get("path", ""),
                     "title": h.get("title", ""),
                     "snippet": h.get("text", ""),
+                    **(
+                        {"distance": float(h["distance"])}
+                        if h.get("distance") is not None
+                        else {}
+                    ),
                 }
                 for h in hits
             ],

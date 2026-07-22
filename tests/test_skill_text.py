@@ -32,7 +32,8 @@ def test_dream_requires_approval_before_bundle_writes():
     approval = text.index("Require explicit user approval")
     workflow_load = text.index("load `references/workflow-dream.md`")
     assert approval < workflow_load
-    assert "including copying the raw source into `sources/`" in text
+    assert "preserving the raw artifact" in text
+    assert "creating its `Source` page" in text
     assert "only after approval and before writing" in text.lower()
 
 
@@ -52,7 +53,9 @@ def test_skill_offers_guarded_nightly_agent_task():
 def test_approved_dream_preserves_source_and_prepends_log():
     text = _text(WORKFLOW_DREAM)
     assert "Copy the original source unchanged" in text
-    assert "sources/<basename>" in text
+    assert "raw-sources/<artifact-name>" in text
+    assert "sources/<slug>.md" in text
+    assert "paper.md.raw" in text
     log_lines = [line for line in text.splitlines() if "log.md" in line]
     assert any("Prepend" in line for line in log_lines)
     assert all("append" not in line.lower() for line in log_lines)

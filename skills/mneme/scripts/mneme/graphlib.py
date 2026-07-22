@@ -69,7 +69,7 @@ def _graph_source_fingerprint(bundle: Path) -> str:
         if not path.is_file():
             continue
         parts = path.relative_to(bundle).parts
-        if any(part in {".mneme", "sources", "external-sources"} for part in parts):
+        if any(part == ".mneme" for part in parts):
             continue
         if path.name in {"index.md", "log.md"}:
             continue
@@ -376,8 +376,6 @@ def _iter_page_records(bundle: Path) -> Iterable[Dict[str, Any]]:
             continue
         parts = path.relative_to(bundle).parts
         if any(part == ".mneme" for part in parts):
-            continue
-        if any(part in {"sources", "external-sources"} for part in parts):
             continue
         if path.name in okflib.RESERVED:
             continue
@@ -959,6 +957,144 @@ def search_graph(db_path: Path | str, query: str, k: int = 10, depth: int = 2) -
             for item in candidates
         ],
     }
+
+
+def graph_snapshot(db_path: Path | str) -> Dict[str, Any]:
+    """Return the complete graph with provenance and page evidence.
+
+    This is a presentation-oriented, read-only view over ``graph.db``. It
+    keeps stable database ids, exposes both deterministic and agent-extracted
+    layers, and resolves the source pages that let a user return from a graph
+    entity or relation to authoritative Markdown.
+    """
+    conn = open_graph(db_path)
+    try:
+        entity_rows = conn.execute(
+            """
+            SELECT id, name, entity_type, page_path, description, properties,
+                   source, confidence
+            FROM entities
+            ORDER BY id
+            """
+        ).fetchall()
+        relation_rows = conn.execute(
+            """
+            SELECT id, subject_id, predicate, object_id, weight, source_page,
+                   properties, source, confidence, evidence
+            FROM relations
+            ORDER BY id
+            """
+        ).fetchall()
+        source_rows = conn.execute(
+            """
+            SELECT relation_id, source_page, source, confidence, evidence
+            FROM relation_sources
+            ORDER BY relation_id, source_page, source
+            """
+        ).fetchall()
+
+        related_pages: Dict[int, set[str]] = {int(row["id"]): set() for row in entity_rows}
+        nodes: List[Dict[str, Any]] = []
+        node_by_id: Dict[int, Dict[str, Any]] = {}
+        for row in entity_rows:
+            entity_id = int(row["id"])
+            properties = _properties(row["properties"])
+            page_path = str(row["page_path"] or "")
+            extracted_from = str(properties.get("extracted_from", "") or "")
+            if page_path:
+                related_pages[entity_id].add(page_path)
+            if extracted_from:
+                related_pages[entity_id].add(extracted_from.lstrip("/"))
+            source = str(row["source"] or "")
+            kind = (
+                "page"
+                if row["entity_type"] == PAGE_ENTITY_TYPE
+                else "tag"
+                if row["entity_type"] == TAG_ENTITY_TYPE
+                else "entity"
+            )
+            node = {
+                "id": entity_id,
+                "name": str(row["name"] or ""),
+                "label": str(properties.get("title", "") or row["name"] or ""),
+                "entity_type": str(row["entity_type"] or "concept"),
+                "kind": kind,
+                "page_path": page_path or None,
+                "description": str(row["description"] or ""),
+                "properties": properties,
+                "source": source,
+                "layer": "enriched" if source == ENTITY_SOURCE_LLM else "base",
+                "confidence": row["confidence"],
+            }
+            nodes.append(node)
+            node_by_id[entity_id] = node
+
+        sources_by_relation: Dict[int, List[Dict[str, Any]]] = {}
+        for row in source_rows:
+            sources_by_relation.setdefault(int(row["relation_id"]), []).append(
+                {
+                    "page": str(row["source_page"] or ""),
+                    "source": str(row["source"] or ""),
+                    "confidence": row["confidence"],
+                    "evidence": str(row["evidence"] or ""),
+                }
+            )
+
+        edges: List[Dict[str, Any]] = []
+        for row in relation_rows:
+            relation_id = int(row["id"])
+            subject_id = int(row["subject_id"])
+            object_id = int(row["object_id"])
+            source_entries = sources_by_relation.get(relation_id, [])
+            if not source_entries and row["source_page"]:
+                source_entries = [
+                    {
+                        "page": str(row["source_page"]),
+                        "source": str(row["source"] or ""),
+                        "confidence": row["confidence"],
+                        "evidence": str(row["evidence"] or ""),
+                    }
+                ]
+            for entry in source_entries:
+                if entry["page"]:
+                    related_pages[subject_id].add(entry["page"].lstrip("/"))
+                    related_pages[object_id].add(entry["page"].lstrip("/"))
+            subject_page = node_by_id.get(subject_id, {}).get("page_path")
+            object_page = node_by_id.get(object_id, {}).get("page_path")
+            if subject_page:
+                related_pages[object_id].add(str(subject_page))
+            if object_page:
+                related_pages[subject_id].add(str(object_page))
+
+            provenance = {
+                str(entry["source"] or "") for entry in source_entries if entry["source"]
+            }
+            if row["source"]:
+                provenance.add(str(row["source"]))
+            layers = sorted(
+                {"enriched" if source == REL_SOURCE_LLM else "base" for source in provenance}
+            ) or ["base"]
+            edges.append(
+                {
+                    "id": relation_id,
+                    "subject_id": subject_id,
+                    "object_id": object_id,
+                    "predicate": str(row["predicate"] or "relates_to"),
+                    "weight": float(row["weight"]),
+                    "properties": _properties(row["properties"]),
+                    "source": str(row["source"] or ""),
+                    "layers": layers,
+                    "confidence": row["confidence"],
+                    "evidence": str(row["evidence"] or ""),
+                    "sources": source_entries,
+                }
+            )
+
+        for node in nodes:
+            node["related_pages"] = sorted(related_pages[int(node["id"])])
+        return {"nodes": nodes, "edges": edges}
+    finally:
+        conn.close()
 
 
 def graph_health(db_path: Path | str) -> Dict[str, Any]:

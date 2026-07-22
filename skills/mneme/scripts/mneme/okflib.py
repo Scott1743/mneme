@@ -41,17 +41,6 @@ _LINK_RE = re.compile(r"\]\((/[^\)]+\.md)\)")
 # only the absolute-bundle-relative form.
 _ORPHAN_LINK_RE = re.compile(r"\]\(([^\)]+\.md)\)")
 
-# Directories that contain non-OKF content (raw inputs, immutable
-# citations). Carved out of concept detection, the orphan/inbound
-# analysis, and the OKF frontmatter validator.
-#   sources/            – OKF `Source` pointer pages (with frontmatter)
-#                         or raw snippets (no frontmatter, v1.x).
-#   external-sources/   – immutable raw content referenced by an OKF
-#                         Source pointer's `resource:` field. Always
-#                         no frontmatter. Lives alongside (not outside)
-#                         the bundle directory for portability.
-_CARVE_OUT_DIRS = ("sources", "external-sources")
-
 # OKF §4.1 — `type` is `<Type name>` (scalar). Producer vocab is not
 # centralized (per OKF §9 tolerance); we recognize the four most common
 # values and warn on anything else.
@@ -201,12 +190,11 @@ def _verify_frontmatter_yaml(text: str) -> Optional[List[str]]:
 
 def list_concepts(bundle_path) -> List[str]:
     """Concept IDs (file path without .md) for all non-reserved,
-    non-`.mneme/`, non-`sources/` `.md` FILES in the bundle.
+    non-`.mneme/` `.md` files in the bundle.
 
-    The `sources/` carve-out matches the validator's behavior —
-    raw sources are immutable inputs without OKF frontmatter and
-    are not concepts. The `is_file()` filter prevents a stray
-    `something.md/` directory from sneaking past `rglob('*.md')`
+    OKF §3.1 defines every other Markdown file as a concept document,
+    regardless of its directory. The `is_file()` filter prevents a
+    stray `something.md/` directory from sneaking past `rglob('*.md')`
     on POSIX (where the glob matches directories too).
     """
     root = Path(bundle_path)
@@ -216,8 +204,6 @@ def list_concepts(bundle_path) -> List[str]:
             continue
         parts = p.relative_to(root).parts
         if any(part == ".mneme" for part in parts):
-            continue
-        if any(part in _CARVE_OUT_DIRS for part in parts):
             continue
         rel = p.relative_to(root).as_posix()
         if os.path.basename(rel) in RESERVED:
@@ -237,8 +223,7 @@ def read_concept(bundle_path, concept_id: str) -> Optional[Tuple[Dict, str]]:
 def _referenced_targets(bundle_path) -> set:
     """Bundle-relative concept slugs that get at least one
     `(/concepts/foo.md)` or `(concepts/foo.md)` cross-reference from
-    any non-reserved, non-`.mneme/`, non-`sources/` Markdown file in
-    the bundle.
+    any non-reserved, non-`.mneme/` Markdown file in the bundle.
 
     OKF §5.1 recommends absolute bundle-relative links, but this
     analysis is forgiving — relative paths are treated as
@@ -253,8 +238,6 @@ def _referenced_targets(bundle_path) -> set:
         parts = p.relative_to(root).parts
         if any(part == ".mneme" for part in parts):
             continue
-        if any(part in _CARVE_OUT_DIRS for part in parts):
-            continue
         text = p.read_text(encoding="utf-8")
         for m in _ORPHAN_LINK_RE.finditer(text):
             target = m.group(1).lstrip("/")
@@ -265,7 +248,7 @@ def _referenced_targets(bundle_path) -> set:
 
 def find_orphans(bundle_path) -> List[str]:
     """Sorted list of concept slugs that no `.md` file inside the
-    bundle (other than `.mneme/` and `sources/`) cross-references.
+    bundle (other than `.mneme/`) cross-references.
 
     A concept is "orphaned" if it is not the target of any
     `(/concepts/foo.md)` or `(concepts/foo.md)` link from anywhere
@@ -281,10 +264,9 @@ def find_orphans(bundle_path) -> List[str]:
         digest pipeline missed
 
     Strictly: the result is computed by `list_concepts` minus
-    `_referenced_targets`, both of which skip `.mneme/` and
-    `sources/`. SPEC §9 requires that this primitive not silently
-    fail; callers should be able to treat the result as
-    authoritative.
+    `_referenced_targets`, both of which skip only `.mneme/`. SPEC §9
+    requires that this primitive not silently fail; callers should be
+    able to treat the result as authoritative.
     """
     concepts = list_concepts(bundle_path)
     referenced = _referenced_targets(bundle_path)
@@ -571,15 +553,6 @@ def validate_bundle(bundle_path) -> Report:
         if name in RESERVED:
             _validate_reserved(rel, name, text, report)
             continue
-        # Raw sources under sources/ are immutable inputs. They MUST NOT
-        # have OKF frontmatter (they predate distillation) and the
-        # validator must not flag them as concept violations.
-        # external-sources/ holds the same kind of raw input, just with
-        # an OKF `Source` pointer page elsewhere in sources/ pointing at
-        # it. Both directories are carved out of OKF frontmatter checks
-        # (see _CARVE_OUT_DIRS).
-        if any(part in _CARVE_OUT_DIRS for part in parts):
-            continue
         _validate_concept(rel, text, report)
 
     _check_links(root, report)
@@ -638,10 +611,9 @@ def lint_bundle(
        downstream consumers (CLI, JSON, agents) share one shape.
     3. When ``require_tags=True``, walks the bundle once more and
        appends a ``MNEME-TAG-MISSING`` diagnostic for every
-       non-reserved, non-``.mneme/``, non-``sources/`` page whose
-       frontmatter lacks a non-empty ``tags`` value. The reserved
-       ``index.md``/``log.md`` and the immutable ``sources/`` carve-
-       out are skipped — same carve-outs as the base validator.
+       non-reserved, non-``.mneme/`` page whose frontmatter lacks a
+       non-empty ``tags`` value. Only reserved ``index.md``/``log.md``
+       files are skipped.
 
     Severity is chosen per the bundle's provenance:
 
@@ -701,8 +673,6 @@ def lint_bundle(
                     continue
                 parts = p.relative_to(root).parts
                 if any(part == ".mneme" for part in parts):
-                    continue
-                if "sources" in parts:
                     continue
                 rel = p.relative_to(root).as_posix()
                 if os.path.basename(rel) in RESERVED:

@@ -3,7 +3,8 @@
 The host agent is supposed to follow the SKILL.md §"Scenario: ingest"
 steps when given a source:
 
-  0. copy the raw source into `<bundle>/sources/<basename>`
+  0. preserve the raw source as `<bundle>/raw-sources/<basename>.raw`
+     and create an OKF Source page under `<bundle>/sources/`
   1. read the source
   2. decompose into concept pages (one per atomic idea)
   3. write each page to `<bundle>/concepts/<slug>.md`
@@ -109,16 +110,33 @@ def scripted_ingest(bundle: Path, source: Path) -> None:
     bundle = Path(bundle)
     source = Path(source)
 
-    # Step 0: copy raw source into <bundle>/sources/<basename>.
+    # Step 0: preserve raw bytes outside the OKF Markdown namespace and
+    # create a Source page that points to the artifact.
+    raw_sources_dir = bundle / "raw-sources"
+    raw_sources_dir.mkdir(exist_ok=True)
+    raw_dest = raw_sources_dir / f"{source.name}.raw"
+    if raw_dest.exists() and raw_dest.read_bytes() != source.read_bytes():
+        raise RuntimeError(
+            f"raw-sources/{source.name}.raw exists with different content; "
+            "abort and ask the user."
+        )
+    shutil.copy(source, raw_dest)
+
     sources_dir = bundle / "sources"
     sources_dir.mkdir(exist_ok=True)
-    dest = sources_dir / source.name
-    if dest.exists() and dest.read_bytes() != source.read_bytes():
-        raise RuntimeError(
-            f"sources/{source.name} exists with different content; "
-            "abort and ask the user (per SKILL.md §0 abort clause)."
-        )
-    shutil.copy(source, dest)
+    source_page = sources_dir / source.name
+    source_page.write_text(
+        "---\n"
+        "type: Source\n"
+        "title: OKF fixture source\n"
+        "description: Provenance page for the end-to-end ingest fixture.\n"
+        "tags: [source, fixture]\n"
+        "timestamp: 2026-07-12T10:00:00Z\n"
+        f"resource: /raw-sources/{source.name}.raw\n"
+        "---\n\n"
+        "Immutable fixture artifact referenced by this OKF Source page.\n",
+        encoding="utf-8",
+    )
 
     # Step 1-3: read + decompose + write concept pages.
     text = source.read_text(encoding="utf-8")
@@ -134,7 +152,7 @@ def scripted_ingest(bundle: Path, source: Path) -> None:
             f"description: auto-generated distillation of {source.name}\n"
             f"tags: [{', '.join(page['tags'])}]\n"
             f"timestamp: 2026-07-12T10:00:00Z\n"
-            f"resource: {source.name}\n"
+            f"resource: /sources/{source.name}\n"
             "---\n\n"
             f"{page['body']}\n",
             encoding="utf-8",
@@ -159,6 +177,13 @@ def scripted_ingest(bundle: Path, source: Path) -> None:
                 i + 1,
                 f"* [{p['title']}](concepts/{p['slug']}.md) — {p['title']}.",
             )
+    if "## Sources" not in lines:
+        lines.extend(
+            [
+                "## Sources",
+                f"* [Fixture source](sources/{source.name}) — immutable provenance.",
+            ]
+        )
     index_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     # Step 5: prepend to log.md
@@ -220,8 +245,7 @@ class DeterministicEmbedder(Embedder):
 # Tests
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_step_zero_copies_raw_source(tmp_path):
-    """§3.6 + §3 ingest step 0: raw source goes into <bundle>/sources/."""
+def test_step_zero_preserves_raw_source_and_creates_okf_source_page(tmp_path):
     bundle = tmp_path / "wiki"
     cfg = tmp_path / "cfg.toml"
     rc = subprocess.run(
@@ -231,8 +255,12 @@ def test_step_zero_copies_raw_source(tmp_path):
     )
     assert (bundle / "sources").is_dir()
     scripted_ingest(bundle, FIXTURE_SOURCE)
-    assert (bundle / "sources" / "source.md").is_file()
-    assert (bundle / "sources" / "source.md").read_bytes() == FIXTURE_SOURCE.read_bytes()
+    raw = bundle / "raw-sources" / "source.md.raw"
+    assert raw.is_file()
+    assert raw.read_bytes() == FIXTURE_SOURCE.read_bytes()
+    source_page = bundle / "sources" / "source.md"
+    assert "type: Source" in source_page.read_text(encoding="utf-8")
+    assert "resource: /raw-sources/source.md.raw" in source_page.read_text(encoding="utf-8")
 
 
 def test_step_three_concept_pages_carry_type(tmp_path):

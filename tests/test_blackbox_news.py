@@ -11,8 +11,8 @@ What this module pins, in order:
 
   1. **init** — ``mneme init`` scaffolds a valid empty bundle.
   2. **ingest (write)** — ``scripts.bootstrap_dogfood`` distills the
-     10 raw sources into 10 ``type: Source`` concept pages, copies
-     each source into ``sources/``, extends ``index.md``, and
+     10 raw sources into 10 ``type: Source`` pages under ``sources/``,
+     preserves each original as ``raw-sources/*.md.raw``, extends ``index.md``, and
      prepends 10 entries to ``log.md``. This is the deterministic
      equivalent of the SKILL.md ingest scenario — the host agent
      would do the LLM-driven distillation, but the file-system
@@ -192,31 +192,28 @@ def test_step_one_init_scaffolds_bundle(tmp_path):
     assert (bundle / "log.md").is_file()
     assert (bundle / "sources").is_dir()
     assert (bundle / "sources" / ".gitkeep").is_file()
+    assert (bundle / "raw-sources").is_dir()
+    assert (bundle / "raw-sources" / ".gitkeep").is_file()
     # Root index carries the OKF version declaration.
     index_text = (bundle / "index.md").read_text(encoding="utf-8")
     assert "okf_version" in index_text
 
 
-def test_step_two_ingest_writes_all_concepts(blackbox_bundle):
-    """Ingest writes one concept page per source and copies every raw
-    source verbatim into ``sources/``.
+def test_step_two_ingest_writes_all_source_pages(blackbox_bundle):
+    """Ingest writes one Source page per input and preserves raw bytes.
     """
     bundle, _ = blackbox_bundle
-    concepts = sorted((bundle / "concepts").glob("*.md"))
     sources = sorted((bundle / "sources").glob("*.md"))
-    assert len(concepts) == 10, (
-        f"expected 10 concept pages, got {len(concepts)}: "
-        f"{[c.name for c in concepts]}"
-    )
+    raw_sources = sorted((bundle / "raw-sources").glob("*.md.raw"))
     assert len(sources) == 10, (
-        f"expected 10 raw sources, got {len(sources)}"
+        f"expected 10 Source pages, got {len(sources)}"
     )
-    # Each raw source is byte-identical to the fixture.
-    for src in sources:
-        fixture = CORPUS / src.name
-        assert fixture.exists(), f"source {src.name} has no fixture counterpart"
-        assert src.read_bytes() == fixture.read_bytes(), (
-            f"sources/{src.name} diverged from fixture"
+    assert len(raw_sources) == 10
+    for raw in raw_sources:
+        fixture = CORPUS / raw.name.removesuffix(".raw")
+        assert fixture.exists(), f"raw artifact {raw.name} has no fixture counterpart"
+        assert raw.read_bytes() == fixture.read_bytes(), (
+            f"raw-sources/{raw.name} diverged from fixture"
         )
 
 
@@ -228,7 +225,7 @@ def test_step_two_ingest_index_lists_every_concept(blackbox_bundle):
     text = (bundle / "index.md").read_text(encoding="utf-8")
     assert "## Sources" in text
     for _, slug, _ in EXPECTED_CONCEPTS:
-        assert f"concepts/{slug}.md" in text, (
+        assert f"sources/{slug}.md" in text, (
             f"index.md missing entry for {slug}"
         )
 
@@ -292,7 +289,7 @@ def test_step_three_reindex_and_search_finds_each_concept(
         )
         assert hits, f"search for {query!r} returned no hits"
         top3 = {h["concept_id"] for h in hits[:3]}
-        expected_id = f"concepts/{expected_slug}"
+        expected_id = f"sources/{expected_slug}"
         assert expected_id in top3, (
             f"expected concept {expected_id!r} missing from top-3 for "
             f"{query!r}; got {sorted(top3)}"
