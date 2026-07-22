@@ -55,6 +55,10 @@ def test_introduction_has_dream_and_search() -> None:
     assert "search" in text, "introduction page must mention `search` as a user verb"
 
 
+def test_introduction_thesis_keeps_knowledge_with_the_user() -> None:
+    assert '<h2 id="初衷-h">让知识留在你手里。</h2>' in _read(INTRO)
+
+
 def test_introduction_tagline_has_four_verbs() -> None:
     """v4.2 narrative frame: mneme 记 / dream 整理 / search 读 / serve 看."""
     text = _read(INTRO)
