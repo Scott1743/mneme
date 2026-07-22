@@ -26,6 +26,7 @@ def _read_bundle_path_from(path: Path) -> Path | None:
 def resolve_bundle(
     *,
     config_dir: Path | None = None,
+    config_path: Path | None = None,
     env: Mapping[str, str] | None = None,
     cwd: Path | None = None,
 ) -> Path | None:
@@ -43,12 +44,16 @@ def resolve_bundle(
 
     from .config import resolve_config_dir
 
-    directory = (
-        Path(config_dir)
-        if config_dir is not None
-        else resolve_config_dir(env=environment)
-    )
-    configured = _read_bundle_path_from(directory / "config.toml")
+    if config_path is not None:
+        path = Path(config_path)
+    else:
+        directory = (
+            Path(config_dir)
+            if config_dir is not None
+            else resolve_config_dir(env=environment)
+        )
+        path = directory / "config.toml"
+    configured = _read_bundle_path_from(path)
     if configured is not None:
         return configured
 

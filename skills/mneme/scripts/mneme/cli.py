@@ -50,8 +50,9 @@ def _resolve_bundle(args: argparse.Namespace) -> Path | None:
 
     from .tools_helpers import resolve_bundle
 
-    config_dir = _config_path(args).parent
-    return resolve_bundle(config_dir=config_dir, env=None, cwd=Path.cwd())
+    return resolve_bundle(
+        config_path=_config_path(args), env=None, cwd=Path.cwd()
+    )
 
 
 def cmd_init(args: argparse.Namespace) -> int:

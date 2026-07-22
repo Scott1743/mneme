@@ -40,6 +40,12 @@ for in-flight specs and plans.
   spring force, preventing high-degree pages and labels from collapsing at
   opposite canvas corners.
 
+### Fixed
+
+- Explicit `--config` paths now resolve the exact file instead of assuming a
+  sibling named `config.toml`. CI now imports Mneme from the delivered Skill
+  package path, matching the no-wheel release model across Python 3.11-3.13.
+
 ### Preserved
 
 - Markdown remains authoritative. Base Graph data is disposable and fully

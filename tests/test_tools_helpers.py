@@ -11,6 +11,14 @@ def test_resolve_bundle_from_config(tmp_path):
     assert resolve_bundle(config_dir=config_dir, env={}, cwd=tmp_path) == Path("/tmp/mywiki")
 
 
+def test_resolve_bundle_from_explicit_config_filename(tmp_path):
+    config_path = tmp_path / "custom-mneme.toml"
+    config_path.write_text('bundle_path = "/tmp/custom-wiki"\n')
+    assert resolve_bundle(
+        config_path=config_path, env={}, cwd=tmp_path
+    ) == Path("/tmp/custom-wiki")
+
+
 def test_resolve_bundle_env_fallback(tmp_path, monkeypatch):
     config_dir = tmp_path / "none"
     config_dir.mkdir()

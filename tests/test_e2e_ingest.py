@@ -341,6 +341,11 @@ def test_step_six_reindex_then_step_seven_search_finds_each_concept(
     pages = scripted_distillation(FIXTURE_SOURCE.read_text())
     pages_concepts = pages  # each distilled entry becomes one concept
     n = len(pages_concepts)
+    queries = {
+        "okf-quick-summary": "representing linked concept pages",
+        "okf-frontmatter": "delimited YAML frontmatter block",
+        "okf-cross-refs": "file move does not break",
+    }
 
     # Deterministic embedder so search ordering is reproducible.
     monkeypatch.setattr(indexlib, "default_embed_fn",
@@ -356,19 +361,22 @@ def test_step_six_reindex_then_step_seven_search_finds_each_concept(
 
     # Search for each concept and confirm the top hit is its page.
     for page in pages_concepts:
+        query = queries[page["slug"]]
         rc = subprocess.run(
-            [sys.executable, "-m", "mneme", "search", page["slug"],
+            [sys.executable, "-m", "mneme", "search", query,
              "-k", "5", "--json", "--config", str(cfg)],
             capture_output=True, text=True, check=False,
         )
         assert rc.returncode == 0, rc.stderr
-        hits = __import__("json").loads(rc.stdout)
-        assert hits, f"no search hits for query {page['slug']!r}"
+        payload = __import__("json").loads(rc.stdout)
+        assert payload["query"] == query
+        hits = payload["candidates"]
+        assert hits, f"no search hits for query {query!r}"
         assert any(
-            hit.get("concept_id") == f"concepts/{page['slug']}" for hit in hits
+            hit.get("path") == f"concepts/{page['slug']}.md" for hit in hits
         ), (
             f"top hits for {page['slug']!r} don't include the expected "
-            f"concept_id: {hits}"
+            f"path: {hits}"
         )
 
 

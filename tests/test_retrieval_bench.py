@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 import pytest
-pytestmark = [pytest.mark.e2e, pytest.mark.network]
+pytestmark = [pytest.mark.e2e, pytest.mark.network, pytest.mark.compat]
 
 from mneme import indexlib
 
@@ -93,14 +93,16 @@ def dogfood_bundle(tmp_path_factory):
     yield bundle, cfg
 
 
-def _search(query: str, cfg: Path, k: int = 5) -> list:
+def _search(query: str, cfg: Path, k: int = 5) -> list[dict]:
     r = subprocess.run(
         [sys.executable, "-m", "mneme", "search", query,
          "-k", str(k), "--json", "--config", str(cfg)],
         capture_output=True, text=True, check=False,
     )
     assert r.returncode == 0, r.stderr
-    return json.loads(r.stdout)
+    payload = json.loads(r.stdout)
+    assert payload["query"] == query
+    return payload["candidates"]
 
 
 @pytest.mark.parametrize("query,expected_slug", BENCHMARK_QUERIES)
@@ -113,8 +115,8 @@ def test_benchmark_query_finds_expected_concept_in_top_3(
     bundle, cfg = dogfood_bundle
     hits = _search(query, cfg, k=5)
     assert hits, f"search for {query!r} returned no hits"
-    top3 = {h["concept_id"] for h in hits[:3]}
-    expected = f"sources/{expected_slug}"
+    top3 = {h["path"] for h in hits[:3]}
+    expected = f"sources/{expected_slug}.md"
     assert expected in top3, (
         f"expected concept {expected!r} missing from top-3 for "
         f"{query!r}; got {sorted(top3)}"
