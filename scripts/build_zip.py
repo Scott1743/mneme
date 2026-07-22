@@ -10,8 +10,9 @@ Design constraints:
   artefact per the v1.1+ "skill-first" delivery model).
 - Prefixes every entry's ``arcname`` with ``mneme/`` so the layout
   matches Claude Code's skill convention.
-- Excludes build artefacts: ``__pycache__/``, ``*.egg-info/``,
-  ``*.mneme/``, ``*.pyc``, ``*.pyo``, ``.DS_Store``.
+- Excludes build artefacts and local-only references: ``__pycache__/``,
+  ``*.egg-info/``, ``*.mneme/``, ``*.pyc``, ``*.pyo``, ``.DS_Store``, and
+  ``skill_cn.md``.
 - Emits exactly one zip at ``dist/mneme-<version>.zip``, where
   ``<version>`` is read from
   ``skills/mneme/scripts/mneme/__init__.py:__version__``.
@@ -42,7 +43,7 @@ ARC_PREFIX = "mneme"
 _DOS_EPOCH = (1980, 1, 1, 0, 0, 0)
 
 # Build / OS debris — never ship these inside a skill zip.
-EXCLUDE_NAMES: tuple[str, ...] = (".DS_Store",)
+EXCLUDE_NAMES: tuple[str, ...] = (".DS_Store", "skill_cn.md")
 EXCLUDE_SUFFIXES: tuple[str, ...] = (".pyc", ".pyo")
 EXCLUDE_DIR_SUFFIXES: tuple[str, ...] = (".egg-info", ".mneme")
 EXCLUDE_DIR_PARTS: tuple[str, ...] = ("__pycache__",)

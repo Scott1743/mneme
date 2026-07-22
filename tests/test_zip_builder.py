@@ -77,6 +77,8 @@ def test_zip_contents_match_skills_tree():
             continue
         if p.name == ".DS_Store":
             continue
+        if p.name == "skill_cn.md":
+            continue
         src_files.add(str(p.relative_to(PKG)))
 
     missing = src_files - names
@@ -111,6 +113,9 @@ def test_excludes_pycache_and_egg_info():
         assert ".pyc" not in n, f"zip contains .pyc: {n}"
         assert ".pyo" not in n, f"zip contains .pyo: {n}"
         assert ".DS_Store" not in n, f"zip contains .DS_Store: {n}"
+        assert not n.endswith("/skill_cn.md"), (
+            f"zip contains local-only Chinese reference: {n}"
+        )
 
 
 def test_clears_stale_zips():

@@ -42,6 +42,7 @@ def server(tmp_path):
                 "port": port,
                 "token": state.token,
                 "bundle": bundle,
+                "config_path": config_path,
                 "httpd": httpd,
             },
         )()
@@ -383,13 +384,15 @@ def test_graph_returns_base_and_enriched_layers_with_source_pages(server):
 # ---------------------------------------------------------------------------
 
 
-def test_reindex_builds_fts_cache(server):
+def test_reindex_fts_mode_builds_fts_and_graph(server):
     fts_db = server.bundle / ".mneme" / "fts.db"
     graph_db = server.bundle / ".mneme" / "graph.db"
     assert not fts_db.exists()
     assert not graph_db.exists()
     status, payload, _ = _req(server, "POST", "/api/reindex")
     assert status == 200
+    assert payload["active_mode"] == "fts5"
+    assert payload["l2"] is None
     assert payload["fts_pages"] > 0
     assert payload["graph"]["pages"] > 0
     assert fts_db.is_file()
@@ -397,6 +400,66 @@ def test_reindex_builds_fts_cache(server):
     # Idempotent: a second run succeeds too.
     status, _, _ = _req(server, "POST", "/api/reindex")
     assert status == 200
+
+
+def test_reindex_l2_mode_builds_l2_fts_and_graph(server, monkeypatch):
+    from mneme import indexlib
+    from mneme.config import write_config
+
+    write_config(
+        server.config_path,
+        {"bundle_path": str(server.bundle), "active_retrieval_mode": "l2"},
+    )
+    embedder = indexlib.Embedder(lambda texts: [[0.0] for _ in texts], "test-model")
+    monkeypatch.setattr(indexlib, "default_embed_fn", lambda: embedder)
+
+    def fake_reindex(bundle, active_embedder):
+        assert active_embedder is embedder
+        path = indexlib.l2_index_path(bundle)
+        path.parent.mkdir(exist_ok=True)
+        path.touch()
+        return indexlib.ReindexResult(3, 7, 0, path)
+
+    monkeypatch.setattr(indexlib, "reindex_bundle", fake_reindex)
+
+    status, payload, _ = _req(server, "POST", "/api/reindex")
+
+    assert status == 200
+    assert payload["active_mode"] == "l2"
+    assert payload["l2"] == {
+        "concepts": 3,
+        "chunks": 7,
+        "skipped": 0,
+        "model": "test-model",
+    }
+    assert payload["fts_pages"] > 0
+    assert payload["graph"]["pages"] > 0
+    assert indexlib.l2_index_path(server.bundle).is_file()
+    assert indexlib.fts_index_path(server.bundle).is_file()
+    assert indexlib.graph_index_path(server.bundle).is_file()
+
+
+def test_reindex_l2_failure_is_explicit_and_stops_rebuild(server, monkeypatch):
+    from mneme import indexlib
+    from mneme.config import write_config
+
+    write_config(
+        server.config_path,
+        {"bundle_path": str(server.bundle), "active_retrieval_mode": "l2"},
+    )
+
+    def fail_embedder():
+        raise indexlib.FastEmbedUnavailableError("fastembed is unavailable")
+
+    monkeypatch.setattr(indexlib, "default_embed_fn", fail_embedder)
+
+    status, payload, _ = _req(server, "POST", "/api/reindex")
+
+    assert status == 500
+    assert payload["code"] == "l2_reindex_failed"
+    assert payload["error"] == "reindex (L2) failed: fastembed is unavailable"
+    assert not indexlib.fts_index_path(server.bundle).exists()
+    assert not indexlib.graph_index_path(server.bundle).exists()
 
 
 def test_reindex_does_not_touch_markdown(server):

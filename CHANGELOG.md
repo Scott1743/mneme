@@ -9,6 +9,28 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.5.0] - 2026-07-23 - mode-aware one-click index rebuild
+
+### Fixed
+
+- The web console's **Rebuild indexes** action now honors the persisted
+  retrieval mode. FTS5 mode rebuilds FTS5 + Graph; active L2 mode rebuilds
+  L2 first, then FTS5 + Graph, so one action refreshes every derived cache
+  needed after an upgrade.
+- L2 dependency, model, or indexing failures now stop the rebuild immediately
+  with an explicit `l2_reindex_failed` response. The console never reports a
+  partial L2 rebuild as success and never silently falls back to FTS5.
+- The success notice lists each cache actually rebuilt, including L2 concept
+  and chunk counts when semantic mode is active.
+- The release builder now honors the existing local-only exclusion for
+  `skill_cn.md`, preventing an obsolete translation from entering the Skill zip.
+
+### Preserved
+
+- Rebuilds remain disposable-cache writes only: Markdown is never changed,
+  Graph enrichment is replayed only from an existing approved extraction
+  manifest, and Mneme still never installs optional L2 dependencies.
+
 ## [4.4.0] - 2026-07-22 - two-layer graph workbench and strict OKF sources
 
 ### Added

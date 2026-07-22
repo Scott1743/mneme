@@ -56,8 +56,10 @@ page-only graph from Markdown. Its Graph tab can slice the deterministic base
 layer and approved enrichment layer, inspect relation confidence/evidence, and
 return every entity or relation to its Markdown source pages. The Browse tab
 shows the same graph context for the current page. The console's reindex action
-can create the base Graph on first use; enrichment still enters only through an
-approved `graph ingest` payload.
+always refreshes FTS5 and Graph; when L2 is active, it rebuilds L2 first and
+stops with an explicit error if semantic indexing fails. It can create the base
+Graph on first use, while enrichment still enters only through an approved
+`graph ingest` payload.
 
 ## Explicit opt-in: L2
 

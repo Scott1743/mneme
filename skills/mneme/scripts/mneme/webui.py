@@ -332,7 +332,7 @@ python3 ~/.claude/skills/mneme/scripts/mneme.py serve --bundle ~/wiki --open</pr
       </div>
       <div class="card">
         <h3>索引维护</h3>
-        <p class="hint" style="margin-bottom:12px;">FTS5 与 Graph 均为 disposable accelerator，可随时删除重建。本按钮只重建缓存，不改 Markdown。</p>
+        <p class="hint" style="margin-bottom:12px;">按当前模式重建 L2（如已启用）、FTS5 与 Graph。本按钮只重建缓存，不改 Markdown；L2 失败会明确报错并停止。</p>
         <button class="btn" id="btnReindex2" onclick="doReindex(this)">重建索引</button>
       </div>
     </div>
@@ -555,8 +555,11 @@ async function doReindex(btn){
   btn.disabled=true; btn.textContent='重建中…';
   try{
     const r = await api('/api/reindex', {method:'POST'});
-    const g = ' · Graph '+r.graph.entities+' 实体 / '+r.graph.relations+' 关系';
-    toast('✓ 索引重建完成：FTS5 '+r.fts_pages+' 页'+g);
+    const parts = [];
+    if(r.l2) parts.push('L2 '+r.l2.concepts+' 页 / '+r.l2.chunks+' 分块');
+    parts.push('FTS5 '+r.fts_pages+' 页');
+    parts.push('Graph '+r.graph.entities+' 实体 / '+r.graph.relations+' 关系');
+    toast('✓ 索引重建完成：'+parts.join(' · '));
     await refreshStatus();
     if(GRAPH || document.getElementById('tab-graph').classList.contains('active')){
       GRAPH=null;

@@ -91,7 +91,7 @@ mneme serve [--bundle PATH] [--config PATH]
 | `/api/page?path=` | GET | 单页：frontmatter dict + raw markdown + 出链/入链 + Graph 上下文 | 文件 + graphlib |
 | `/api/dream` | GET | dream 只读审计报告（hard rules / writer rules / graph 健康） | `dream.dream_audit` |
 | `/api/graph` | GET | 两层节点/关系、来源页、证据、置信度与健康统计 | graphlib |
-| `/api/reindex` | POST | 首次创建或重建 FTS5/Graph 缓存（disposable，幂等） | `cmd_reindex` 同款逻辑 |
+| `/api/reindex` | POST | FTS5 模式重建 FTS5 + Graph；L2 模式先严格重建 L2，再重建 FTS5 + Graph；L2 失败明确中止（disposable，幂等） | `indexlib` + `graphlib` |
 
 **写侧（仅 P2，且需确认 token）**：
 

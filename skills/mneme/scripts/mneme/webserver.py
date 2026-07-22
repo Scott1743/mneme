@@ -9,7 +9,7 @@ The console scope is **read-only + disposable-cache rebuild**:
 - ``GET /api/*`` endpoints serialize ``okflib`` / ``indexlib`` /
   ``graphlib`` / ``dream`` results as JSON.
 - ``POST /api/reindex`` is the ONLY write endpoint; it rebuilds the
-  disposable ``.mneme/`` caches (FTS5 and Graph) and
+  disposable ``.mneme/`` caches (active L2 when enabled, FTS5, and Graph) and
   never touches Markdown. Factual-body writes (dream apply) are intentionally
   NOT implemented here.
 
@@ -587,16 +587,41 @@ def _page_graph_context(state: ServeState, page_path: str) -> Dict[str, Any]:
 
 
 def _reindex_payload(state: ServeState) -> Dict[str, Any]:
-    """Rebuild the disposable FTS5 and Graph caches.
+    """Rebuild every disposable cache required by the active mode.
 
-    This creates ``graph.db`` on the first run, keeps L2/FTS5 mode
-    persistence untouched, never installs anything, and never writes Markdown.
+    L2 runs first when active because it is the optional, failure-prone step.
+    A missing dependency or model error therefore stops the operation before
+    FTS5 or Graph are refreshed. The persisted mode remains unchanged.
     """
     bundle = state.bundle
     if not state.initialized:
         raise ApiError(409, "bundle is not initialized", "not_found")
     from . import graphlib, indexlib
     from .cli import _indexable_paths
+    from .config import retrieval_mode
+
+    try:
+        mode = retrieval_mode(state.config_path)
+    except (OSError, ValueError) as exc:
+        raise ApiError(500, f"reindex mode resolution failed: {exc}", "config_error")
+
+    l2_result: Dict[str, Any] | None = None
+    if mode == "l2":
+        try:
+            embedder = indexlib.default_embed_fn()
+            result = indexlib.reindex_bundle(bundle, embedder)
+        except Exception as exc:
+            raise ApiError(
+                500,
+                f"reindex (L2) failed: {exc}",
+                "l2_reindex_failed",
+            )
+        l2_result = {
+            "concepts": result.indexed_concepts,
+            "chunks": result.indexed_chunks,
+            "skipped": result.skipped_concepts,
+            "model": embedder.model_name,
+        }
 
     paths = _indexable_paths(bundle)
     try:
@@ -613,6 +638,8 @@ def _reindex_payload(state: ServeState) -> Dict[str, Any]:
         "relations": result.indexed_relations,
     }
     return {
+        "active_mode": mode,
+        "l2": l2_result,
         "fts_pages": fts_pages,
         "graph": graph_result,
         "indexes": _index_status(bundle),

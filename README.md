@@ -7,7 +7,7 @@
 *把知识编译一次，让每一次提问都从已经整理好的地方继续向前。*
 
 [![MIT License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-4.4.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.5.0-blue.svg)](CHANGELOG.md)
 [![Skills.sh](https://img.shields.io/badge/skills.sh-available-2ea44f.svg)](https://www.skills.sh/?q=mneme)
 
 </div>
@@ -76,7 +76,7 @@ npx skills add Scott1743/mneme
 ### 方式二：下载 Skill zip
 
 - 零依赖基础版：[mneme-2.2.0.zip](https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip)
-- 最新版：[mneme-4.4.0.zip](https://github.com/Scott1743/mneme/releases/download/v4.4.0/mneme-4.4.0.zip)
+- 最新版：[mneme-4.5.0.zip](https://github.com/Scott1743/mneme/releases/download/v4.5.0/mneme-4.5.0.zip)
 
 解压到 Agent 的 skills 目录即可。Mneme 不提供 wheel 或全包 `pip install`，唯一交付物就是一个普通 Skill zip。
 
@@ -174,7 +174,7 @@ mneme search "OKF" --mode graph
 
 ### L2：语义召回（可选）
 
-v3.3.0 起可在用户自行安装 `sqlite-vec` 与 `FastEmbed` 后，通过一次 `reindex --l2` 显式启用。模式会持久化到配置中，之后普通 `search` / `reindex` 自动沿用；切回 FTS5 使用 `reindex --fts5`。Mneme 不会自动安装依赖，也不会静默回退模式。
+v3.3.0 起可在用户自行安装 `sqlite-vec` 与 `FastEmbed` 后，通过一次 `reindex --l2` 显式启用。模式会持久化到配置中，之后普通 `search` / `reindex` 自动沿用；切回 FTS5 使用 `reindex --fts5`。Mneme 不会自动安装依赖，也不会静默回退模式。v4.5 起，Web 面板的「重建索引」会按当前模式一次完成全部缓存：FTS5 模式重建 FTS5 + Graph，L2 模式严格重建 L2 + FTS5 + Graph；L2 失败会明确报错并停止，不会假装重建成功。
 
 ### 外部资料转换（可选）
 

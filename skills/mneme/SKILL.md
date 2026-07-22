@@ -1,6 +1,6 @@
 ---
 name: mneme
-version: 4.4.0
+version: 4.5.0
 description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including a disposable SQLite knowledge graph, agent-extracted graph enrichment via graph ingest, hybrid graph + FTS5 retrieval, and optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, rebuild graph navigation, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v4 keeps Markdown authoritative, derives graph.db from pages/tags/links, keeps FTS5 zero-dependency, and preserves explicitly activated L2 semantic mode."
 allowed-tools:
   - Read
@@ -185,11 +185,12 @@ Tell them they can run
 overview, search, browse, lint, dream-audit, and Graph tabs. The Graph
 workbench exposes separate page/tag/link and approved agent-enrichment slices,
 including relation evidence and links back to authoritative Markdown pages.
-Its reindex action creates or refreshes FTS5 and Graph caches but never invents
-agent enrichment. It binds 127.0.0.1 by default, prints a per-process session
-token at startup, stops with Ctrl-C, and never writes factual Markdown. Do not
-start or keep the server running on the user's behalf unless the user explicitly
-asks; just offer the command.
+Its reindex action always refreshes FTS5 and Graph; when L2 is the persisted
+mode it rebuilds L2 first and reports any failure without silently falling
+back. It never invents agent enrichment. It binds 127.0.0.1 by default, prints
+a per-process session token at startup, stops with Ctrl-C, and never writes
+factual Markdown. Do not start or keep the server running on the user's behalf
+unless the user explicitly asks; just offer the command.
 
 ## Internal maintenance commands
 
@@ -215,8 +216,8 @@ asks; just offer the command.
   already-installed compatible converter; it never installs software and
   refuses overwrite unless the user explicitly requests `--force`.
 - `serve [--bundle <path>] [--host 127.0.0.1] [--port 8620] [--open]` starts
-  the foreground localhost web console (read-only + disposable FTS5/Graph
-  reindex; Ctrl-C stops). It prints a session token; a bundle without
+  the foreground localhost web console (read-only + mode-aware disposable
+  L2/FTS5/Graph reindex; Ctrl-C stops). It prints a session token; a bundle without
   `index.md` opens on the empty-bundle guide page.
 
 Load `references/workflow-lint.md` only for an explicit wiki health check or
