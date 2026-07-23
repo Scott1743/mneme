@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+import json
 
 import pytest
 pytestmark = pytest.mark.unit
@@ -138,3 +139,68 @@ def test_dream_cli_resolves_bundle_via_config_without_bundle_flag(tmp_path: Path
 
     rc = cli.main(["dream", "--config", str(cfg)])
     assert rc == 0, "dream without --bundle must resolve via config and succeed"
+
+
+def test_dream_reports_advisory_tag_health(tmp_path: Path) -> None:
+    bundle = _seed(tmp_path)
+    (bundle / "concepts" / "b.md").write_text(
+        "---\ntype: Concept\ntitle: B\n"
+        "tags: [shared, shared, one, two, three]\n---\nbody\n",
+        encoding="utf-8",
+    )
+
+    from mneme.dream import dream_audit
+
+    health = dream_audit(bundle)["tag_health"]
+    assert health["advisory_only"] is True
+    assert health["unique_tag_count"] == 5
+    assert health["singleton_tag_count"] == 5
+    assert health["duplicate_tags"]["items"] == [
+        {"path": "concepts/b.md", "tags": ["shared"]}
+    ]
+    assert health["pages_over_budget"]["items"][0]["path"] == "concepts/b.md"
+
+
+def test_dream_reports_advisory_enrichment_vocabulary_health(tmp_path: Path) -> None:
+    bundle = _seed(tmp_path)
+    manifest = bundle / ".mneme" / "graph-extractions.json"
+    manifest.parent.mkdir()
+    manifest.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "pages": [
+                    {
+                        "page": "concepts/a.md",
+                        "entities": [{"name": f"E{i}"} for i in range(7)],
+                        "relations": [
+                            {"subject": "E0", "predicate": "depends_on", "object": "E1"},
+                            {"subject": "E1", "predicate": "depends_on", "object": "E2"},
+                            {"subject": "E2", "predicate": "mitigates", "object": "E3"},
+                            {"subject": "E3", "predicate": "uses", "object": "E4"},
+                            {"subject": "E4", "predicate": "evaluates", "object": "E5"},
+                            {"subject": "E5", "predicate": "implements", "object": "E6"},
+                            {"subject": "page", "predicate": "mentions", "object": "E0"},
+                        ],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    from mneme.dream import dream_audit
+
+    health = dream_audit(bundle)["enrichment_health"]
+    assert health["advisory_only"] is True
+    assert health["entity_count"] == 7
+    assert health["semantic_relation_count"] == 6
+    assert health["unique_predicate_count"] == 5
+    assert health["singleton_predicate_count"] == 4
+    assert health["pages_over_entity_budget"]["items"] == [
+        {"path": "concepts/a.md", "count": 7}
+    ]
+    assert health["pages_over_relation_budget"]["items"] == [
+        {"path": "concepts/a.md", "count": 6}
+    ]
+    assert health["reserved_mentions_relations"]["total"] == 1

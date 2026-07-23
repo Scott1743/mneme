@@ -21,6 +21,7 @@ SKILL_MD = SKILL_DIR / "SKILL.md"
 SCRIPTS_PKG = SKILL_DIR / "scripts" / "mneme"
 SCRIPTS_SHIM = SKILL_DIR / "scripts" / "mneme.py"
 REFERENCES_DIR = SKILL_DIR / "references"
+VENDOR_DIR = SCRIPTS_PKG / "vendor"
 
 
 def _version() -> str:
@@ -76,6 +77,9 @@ def test_skills_mneme_scripts_layout():
         SCRIPTS_PKG / "convert.py",
         SCRIPTS_PKG / "webserver.py",
         SCRIPTS_PKG / "webui.py",
+        VENDOR_DIR / "g6-5.1.1.min.js",
+        VENDOR_DIR / "antv-g6-LICENSE.txt",
+        VENDOR_DIR / "THIRD_PARTY_NOTICES.md",
         SKILL_MD,
         REFERENCES_DIR / "workflow-dream.md",
         REFERENCES_DIR / "workflow-search.md",
@@ -83,6 +87,7 @@ def test_skills_mneme_scripts_layout():
         REFERENCES_DIR / "type-vocab.md",
         REFERENCES_DIR / "wiki-structure.md",
         REFERENCES_DIR / "index-design.md",
+        REFERENCES_DIR / "tag-graph-curation.md",
     ]
     missing = [path for path in expected_files if not path.exists()]
     assert not missing, "skill layout is missing files:\n" + "\n".join(

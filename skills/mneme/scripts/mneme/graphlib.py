@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import hashlib
 import os
+import posixpath
 import re
 import sqlite3
 from collections import deque
@@ -402,8 +403,8 @@ def _iter_page_records(bundle: Path) -> Iterable[Dict[str, Any]]:
             if raw.startswith("/"):
                 target = raw.lstrip("/")
             else:
-                target = (path.parent / raw).as_posix()
-                target = os.path.normpath(target)
+                source_dir = path.relative_to(bundle).parent.as_posix()
+                target = posixpath.normpath(posixpath.join(source_dir, raw))
             if target.endswith(".md"):
                 links.append(target)
         yield {

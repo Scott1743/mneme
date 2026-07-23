@@ -26,6 +26,8 @@ approved writes use the host agent's native `Write` and `Edit` tools.
 4. Write or edit one page per atomic concept. Mneme-written pages include at
    least `type`, `title`, `description`, one or more `tags`, and `timestamp`;
    include `resource` when a canonical source is available.
+   Apply `tag-graph-curation.md`: normally reuse 1-3 bundle-local tags and do
+   not turn page identity, source identity, or every noun into a tag.
 5. Preserve unknown frontmatter keys on existing pages. Express relationships
    with absolute bundle-relative Markdown links.
 6. Update `<bundle>/index.md` under the section matching each page's `type`.
@@ -36,6 +38,9 @@ approved writes use the host agent's native `Write` and `Edit` tools.
 9. Rebuild the selected index after validation. Use default `mneme reindex`
    unless the user explicitly selected L2 for this bundle; then use
    `mneme reindex --l2`. Do not install missing L2 dependencies.
+   When approved Graph enrichment is in scope, prefer 3-6 reusable entities
+   and 2-5 evidence-backed semantic relations per page, reuse canonical
+   predicates, and never emit the provenance predicate `mentions` manually.
 10. Re-run `mneme dream --bundle <bundle> --json` and report remaining audit
    candidates.
 

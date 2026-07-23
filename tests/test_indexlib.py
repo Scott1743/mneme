@@ -8,6 +8,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.l2]
 from mneme.indexlib import (
     CorruptIndexError,
     DEFAULT_MODEL,
+    DEFAULT_MODEL_MAX_L2_DISTANCE,
     Embedder,
     IndexNotFoundError,
     chunk_markdown,
@@ -153,6 +154,10 @@ def test_search_bundle_applies_default_model_distance_gate(tmp_path):
     reindex_bundle(bundle, embedder)
 
     assert search_bundle(bundle, "unrelated", k=10, embed_fn=embedder) == []
+
+
+def test_default_model_distance_gate_is_balanced_for_normalized_bge():
+    assert DEFAULT_MODEL_MAX_L2_DISTANCE == 0.90
 
 
 @pytest.mark.parametrize("query,k", [("", 1), ("x", 0), ("x", 101)])

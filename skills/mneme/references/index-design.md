@@ -85,7 +85,8 @@ hybrid graph navigation, or `mneme reindex --l2` to build and activate L2 once.
 
 L2 ranks chunks internally, then collapses them to one best chunk per concept
 page before applying top-k. For the default normalized BGE model, an L2 distance
-above 1.10 is treated as outside the conservative recall boundary; custom
-embedders remain unfiltered because their distance scale is unknown. Returned
-raw distances are navigation evidence, not truth. Always read complete Markdown
-pages before answering, citing, merging, or proposing curation.
+above 0.90 is treated as outside the balanced relevance boundary (approximately
+cosine similarity 0.595); custom embedders remain unfiltered because their
+distance scale is unknown. Returned raw distances are navigation evidence, not
+truth. Always read complete Markdown pages before answering, citing, merging,
+or proposing curation.

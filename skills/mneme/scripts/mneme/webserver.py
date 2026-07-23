@@ -4,8 +4,9 @@ Design contract: ``docs/design/webserver-prototype.md``.
 
 The console scope is **read-only + disposable-cache rebuild**:
 
-- ``GET /`` serves the single-file UI (``webui.INDEX_HTML``) with a
-  per-process session token injected.
+- ``GET /`` serves the UI (``webui.INDEX_HTML``) with a per-process session
+  token injected. ``GET /assets/g6-5.1.1.min.js`` serves the pinned, vendored
+  MIT-licensed browser renderer; no CDN or package installation is involved.
 - ``GET /api/*`` endpoints serialize ``okflib`` / ``indexlib`` /
   ``graphlib`` / ``dream`` results as JSON.
 - ``POST /api/reindex`` is the ONLY write endpoint; it rebuilds the
@@ -24,8 +25,8 @@ Security model (spec §7):
    rebinding mitigation).
 4. Page paths resolve inside the bundle; ``..`` escapes and absolute
    paths are rejected.
-5. Request bodies are capped at 1 MB; no cookies, no static file
-   serving outside ``GET /``.
+5. Request bodies are capped at 1 MB; no cookies. Static serving is restricted
+   to the single versioned G6 asset path.
 
 Process model: foreground ``ThreadingHTTPServer``; Ctrl-C exits
 gracefully. No daemonizing, no pidfile.
@@ -46,6 +47,8 @@ from . import __version__
 from .webui import INDEX_HTML
 
 MAX_BODY_BYTES = 1 * 1024 * 1024  # 1 MB request-body cap (spec §7.4)
+_G6_ASSET_PATH = Path(__file__).with_name("vendor") / "g6-5.1.1.min.js"
+_G6_ASSET_URL = "/assets/g6-5.1.1.min.js"
 
 _HOST_ALLOWLIST = frozenset({"localhost", "127.0.0.1", "::1", "[::1]"})
 _WILDCARD_HOSTS = frozenset({"0.0.0.0", "::", ""})
@@ -702,6 +705,9 @@ def _make_handler(state: ServeState):
                 if parsed.path == "/":
                     self._serve_index()
                     return
+                if parsed.path == _G6_ASSET_URL:
+                    self._serve_g6_asset()
+                    return
                 if parsed.path.startswith("/api/"):
                     self._check_token()
                     self._route_api_get(parsed.path, parse_qs(parsed.query))
@@ -721,6 +727,19 @@ def _make_handler(state: ServeState):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _serve_g6_asset(self) -> None:
+            try:
+                body = _G6_ASSET_PATH.read_bytes()
+            except OSError as exc:
+                raise ApiError(500, f"G6 browser asset is unavailable: {exc}", "internal")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+            self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
             self.wfile.write(body)
 

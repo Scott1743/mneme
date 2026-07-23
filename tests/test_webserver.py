@@ -92,7 +92,11 @@ def test_index_serves_ui_with_injected_token(server):
     assert "合并、基础、富化分别是什么？" in html
     assert "graphKindFilter" in html
     assert "graphViewFilter" in html
-    assert "GRAPH_OVERVIEW_LIMIT" in html
+    assert "/assets/g6-5.1.1.min.js" in html
+    assert "new G6.Graph" in html
+    assert "type:'minimap'" in html
+    assert "graphWorldScale" in html
+    assert "graphZoomLabel" in html
     assert "查看邻域" in html
     assert "graphBackBtn" in html
     assert "graphFullscreenBtn" in html
@@ -102,6 +106,22 @@ def test_index_serves_ui_with_injected_token(server):
     assert "先选最多 5 个有代表性的现有页面做回填试点" in html
     assert "`mneme graph ingest`" in html
     assert "pageGraphContext" in html
+
+
+def test_pinned_g6_asset_is_served_without_api_token(server):
+    status, payload, raw = _req(
+        server, "GET", "/assets/g6-5.1.1.min.js", token=None
+    )
+    assert status == 200
+    assert payload is None
+    assert raw.startswith((b"!function(", b"(function("))
+    assert b"G6" in raw
+
+
+def test_unknown_asset_is_not_exposed(server):
+    status, payload, _ = _req(server, "GET", "/assets/nope.js", token=None)
+    assert status == 404
+    assert payload["code"] == "not_found"
 
 
 def test_unknown_path_is_404(server):

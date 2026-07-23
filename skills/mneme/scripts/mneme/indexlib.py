@@ -19,7 +19,7 @@ from typing import Callable, Dict, Iterable, List, Optional
 EmbedFn = Callable[[List[str]], List[List[float]]]
 INDEX_SCHEMA_VERSION = "1"
 DEFAULT_MODEL = "BAAI/bge-small-zh-v1.5"
-DEFAULT_MODEL_MAX_L2_DISTANCE = 1.10
+DEFAULT_MODEL_MAX_L2_DISTANCE = 0.90
 SEMANTIC_OVERSAMPLE_FACTOR = 20
 SEMANTIC_MIN_CANDIDATE_POOL = 100
 
@@ -387,8 +387,8 @@ def _semantic_max_distance(meta: Dict[str, str]) -> Optional[float]:
     """Return a calibrated relevance gate for known normalized embeddings.
 
     FastEmbed normalizes BGE-small-zh-v1.5 vectors and sqlite-vec's schema uses
-    Euclidean distance. A 1.10 cutoff corresponds to cosine similarity around
-    0.395. Custom embedders keep raw top-k behavior because their scale is not
+    Euclidean distance. A 0.90 cutoff corresponds to cosine similarity around
+    0.595. Custom embedders keep raw top-k behavior because their scale is not
     known and must not inherit a model-specific threshold.
     """
     if meta.get("embedding_model") == DEFAULT_MODEL:

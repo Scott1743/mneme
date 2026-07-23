@@ -9,6 +9,41 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.7.0] - 2026-07-23 - full-world graph map and curation guidance
+
+### Added
+
+- The Graph workbench now ships a pinned, vendored AntV G6 5.1.1 browser
+  renderer with a StarCraft-style minimap, viewport mask, camera zoom controls,
+  responsive sizing, and an independently collapsible detail rail. The asset
+  is MIT-licensed, offline, and included in the Skill zip; no CDN or runtime
+  package installation is used.
+- Dream previews now load bundle-local tag and Graph enrichment curation
+  guidance: prefer 1-3 reusable tags, sparse reusable entities, evidence-backed
+  semantic relations, canonical predicate direction, and system-generated
+  `mentions` provenance.
+- The read-only dream audit now reports tag vocabulary health and persisted
+  enrichment health, including duplicate and singleton tags, budget outliers,
+  singleton predicates, predicate frequency, and manually emitted `mentions`.
+
+### Changed
+
+- The Web UI no longer truncates the graph to a 48-node overview. ForceAtlas2
+  lays out every node in an expanded world while the default camera shows a
+  readable local region; users can pan, wheel-zoom, fit the whole graph,
+  fullscreen the workbench, or focus a dimmed one-hop neighborhood without
+  rebuilding the layout. Dense graphs prioritize high-degree labels and keep
+  background relations faint until selected.
+
+### Fixed
+
+- Graph rebuilds now resolve relative Markdown links from the source page's
+  bundle-relative directory instead of leaking the local filesystem path into
+  missing page nodes and Web UI navigation.
+- Default BGE L2 search now rejects candidates above distance `0.90` instead
+  of the previous recall-heavy `1.10` boundary, reducing unrelated semantic
+  results while leaving custom embedder distance scales untouched.
+
 ## [4.6.2] - 2026-07-23 - canonical Web UI orphan detection
 
 ### Fixed

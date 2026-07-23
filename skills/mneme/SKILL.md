@@ -1,6 +1,6 @@
 ---
 name: mneme
-version: 4.6.2
+version: 4.7.0
 description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including a disposable SQLite knowledge graph, agent-extracted graph enrichment via graph ingest, hybrid graph + FTS5 retrieval, and optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, rebuild graph navigation, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v4 keeps Markdown authoritative, derives graph.db from pages/tags/links, keeps FTS5 zero-dependency, and preserves explicitly activated L2 semantic mode."
 allowed-tools:
   - Read
@@ -69,6 +69,8 @@ Before approval:
    compatible converter already installed by the user.
 3. Run `python3 ~/.claude/skills/mneme/scripts/mneme.py dream --bundle <bundle> --json`
    to audit the current bundle without writing.
+   Read `tag_health` and `enrichment_health` as advisory curation signals, not
+   OKF errors.
 4. Read relevant existing pages and prepare a concrete change preview: the
    immutable artifact destination under `raw-sources/`, the OKF `Source` page
    under `sources/`, other pages to add or edit, frontmatter/tags, links, and
@@ -85,6 +87,11 @@ Only after approval and before writing, load `references/workflow-dream.md`.
 It is mandatory for a first dream, more than five proposed pages, edits to
 existing concept pages, conflicts, merges, or archive proposals. Apply only the
 approved scope. If the scope must materially expand, preview it and ask again.
+
+While preparing any preview that adds or changes tags, entities, or semantic
+relations, load `references/tag-graph-curation.md` before proposing those
+fields. Reuse the bundle's vocabulary and keep metadata sparse; explain any
+intentional exception to its advisory budgets in the preview.
 
 Never automatically stage, commit, push, merge, archive, or delete knowledge.
 Never make those decisions from a text or vector score.
@@ -201,8 +208,9 @@ unless the user explicitly asks; just offer the command.
   pages/tags/links and refreshes FTS5 without changing Markdown. `--l2`
   explicitly builds and persists semantic mode; `--fts5` explicitly switches
   back. Bare `reindex` uses the persisted FTS5/L2 mode.
-- `dream [--bundle <path>] --json` audits without writing and includes Graph
-  health counters when `graph.db` exists. Its optional schedule flags print
+- `dream [--bundle <path>] --json` audits without writing, reports advisory
+  tag/enrichment vocabulary health, and includes Graph health counters when
+  `graph.db` exists. Its optional schedule flags print
   agentless, report-only scheduler snippets and never install them; the default
   fallback time is 02:00 local time.
 - `search <query> [--bundle <path>] [--mode graph|fts|hybrid] --json` returns
@@ -230,6 +238,8 @@ only when a page type is unknown or disputed.
 
 - `references/workflow-dream.md` - approved write-side procedure; load only
   after approval and before writing.
+- `references/tag-graph-curation.md` - bundle-local tag vocabulary and sparse
+  graph enrichment guidance; load while preparing previews that change either.
 - `references/workflow-nightly-dream.md` - recurring 02:00 agent task modes,
   standing-approval boundary, guarded repairs, and report format.
 - `references/workflow-search.md` - full-page synthesis and citation procedure;

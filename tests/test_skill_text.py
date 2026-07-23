@@ -14,6 +14,7 @@ SKILL_MD = SKILL_DIR / "SKILL.md"
 WORKFLOW_DREAM = SKILL_DIR / "references" / "workflow-dream.md"
 WORKFLOW_NIGHTLY = SKILL_DIR / "references" / "workflow-nightly-dream.md"
 WORKFLOW_SEARCH = SKILL_DIR / "references" / "workflow-search.md"
+TAG_GRAPH_CURATION = SKILL_DIR / "references" / "tag-graph-curation.md"
 
 
 def _text(path: Path) -> str:
@@ -60,6 +61,17 @@ def test_approved_dream_preserves_source_and_prepends_log():
     assert any("Prepend" in line for line in log_lines)
     assert all("append" not in line.lower() for line in log_lines)
     assert "YYYY-MM-DD dream |" in text
+
+
+def test_dream_loads_tag_graph_curation_for_metadata_previews():
+    skill = _text(SKILL_MD)
+    curation = _text(TAG_GRAPH_CURATION)
+    assert "load `references/tag-graph-curation.md`" in skill
+    assert "1-3 tags" in curation and "at most 4" in curation
+    assert "3-6 reusable entities" in curation
+    assert "2-5 evidence-backed semantic relations" in curation
+    assert "Never emit `mentions`" in curation
+    assert "not OKF v0.1 validity rules" in curation
 
 
 def test_search_reads_full_pages_and_never_writes():

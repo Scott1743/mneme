@@ -98,6 +98,9 @@ def test_zip_contains_web_console_modules():
         names = set(zf.namelist())
     assert "mneme/scripts/mneme/webserver.py" in names
     assert "mneme/scripts/mneme/webui.py" in names
+    assert "mneme/scripts/mneme/vendor/g6-5.1.1.min.js" in names
+    assert "mneme/scripts/mneme/vendor/antv-g6-LICENSE.txt" in names
+    assert "mneme/scripts/mneme/vendor/THIRD_PARTY_NOTICES.md" in names
 
 
 def test_excludes_pycache_and_egg_info():

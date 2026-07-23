@@ -1,10 +1,11 @@
-"""Single-file Web UI for ``mneme serve``.
+"""Offline Web UI for ``mneme serve``.
 
-The entire frontend is this one ``INDEX_HTML`` string — HTML + CSS +
-vanilla ES2017 JS, zero CDN, zero npm. ``webserver`` injects the
-per-process session token by replacing ``__MNEME_TOKEN__`` before
-serving ``GET /``. All data comes from ``/api/*`` fetches carrying the
-``X-Mneme-Token`` header; no cookies, no localStorage.
+The application shell is this ``INDEX_HTML`` string — HTML + CSS + vanilla
+ES2017 JS, with no CDN or runtime package installation. The pinned G6 browser
+renderer is vendored beside this module and served from a strict local asset
+path. ``webserver`` injects the per-process session token by replacing
+``__MNEME_TOKEN__`` before serving ``GET /``. All data comes from ``/api/*``
+fetches carrying the ``X-Mneme-Token`` header; no cookies, no localStorage.
 
 Design: ``docs/design/webserver-prototype.md`` §6; layout and styling
 follow the approved interactive prototype ``webserver-mock.html``.
@@ -128,6 +129,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .btn.small{padding:2px 9px;font-size:12px;}
   .p2-badge{position:absolute;top:-8px;right:-8px;background:#7c3aed;color:#fff;font-size:10px;font-weight:700;border-radius:8px;padding:0 6px;line-height:16px;pointer-events:none;}
   .btn-wrap{position:relative;display:inline-block;}
+  main.graph-mode{max-width:none;width:100%;padding:0 18px;}
   .graph-card{padding:0;overflow:hidden;}
   .graph-head{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border);}
   .graph-head h3{margin:0;}
@@ -149,15 +151,24 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .segment button.active{background:var(--text);color:#fff;}
   .graph-stat-strip{display:flex;gap:18px;align-items:center;padding:8px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);min-height:36px;flex-wrap:wrap;}
   .graph-stat-strip strong{color:var(--text);font-weight:650;}
-  .graph-workbench{display:grid;grid-template-columns:minmax(0,1fr) 320px;min-height:520px;}
-  .graph-stage{position:relative;min-width:0;background:#fff;}
-  #graphCanvas{width:100%;height:520px;background:#fff;cursor:crosshair;display:block;touch-action:none;}
+  .graph-workbench{display:grid;grid-template-columns:minmax(0,1fr) 320px;min-height:clamp(520px,calc(100vh - 305px),760px);transition:grid-template-columns .18s ease;}
+  .graph-workbench.detail-collapsed{grid-template-columns:minmax(0,1fr) 0;}
+  .graph-stage{position:relative;min-width:0;background:#fff;overflow:hidden;}
+  #graphCanvas{width:100%;height:100%;min-height:clamp(520px,calc(100vh - 305px),760px);background:#fff;cursor:grab;display:block;touch-action:none;}
+  #graphCanvas:active{cursor:grabbing;}
   #graphCanvas:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;}
+  .graph-camera-controls{position:absolute;z-index:8;left:14px;top:14px;display:grid;grid-template-columns:repeat(3,32px);gap:5px;padding:5px;background:rgba(255,255,255,.94);border:1px solid var(--border);border-radius:7px;box-shadow:0 5px 18px rgba(15,23,42,.10);}
+  .graph-camera-controls button{width:32px;height:32px;border:0;background:transparent;color:var(--text);font-size:18px;line-height:1;cursor:pointer;border-radius:4px;}
+  .graph-camera-controls button:hover{background:var(--accent-soft);color:var(--accent);}
+  .graph-camera-controls button:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+  .graph-camera-controls output{grid-column:1/-1;text-align:center;color:var(--muted);font:10px/16px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;border-top:1px solid var(--border);padding-top:3px;}
+  .graph-map-hint{position:absolute;left:16px;bottom:14px;z-index:7;background:rgba(255,255,255,.9);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--muted);font-size:11px;pointer-events:none;}
   .graph-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px;background:#fff;}
   .graph-empty[hidden]{display:none;}
   .graph-empty strong{display:block;font-size:16px;margin-bottom:6px;}
   .graph-empty .btn{margin-top:14px;}
-  .graph-detail{border-left:1px solid var(--border);padding:16px 18px;overflow:auto;max-height:520px;background:#fbfcfd;}
+  .graph-detail{border-left:1px solid var(--border);padding:16px 18px;overflow:auto;max-height:clamp(520px,calc(100vh - 305px),760px);background:#fbfcfd;min-width:0;}
+  .detail-collapsed .graph-detail{visibility:hidden;padding-left:0;padding-right:0;border-left:0;}
   .graph-detail h4{font-size:15px;margin-bottom:4px;overflow-wrap:anywhere;}
   .graph-detail h5{font-size:12px;color:var(--muted);font-weight:650;margin:16px 0 6px;text-transform:uppercase;}
   .graph-detail p{font-size:13px;overflow-wrap:anywhere;}
@@ -178,12 +189,15 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .legend .diamond{border-radius:1px;transform:rotate(45deg);}
   #graphCard:fullscreen{width:100vw;height:100vh;border:0;border-radius:0;background:#fff;display:flex;flex-direction:column;}
   #graphCard:fullscreen .graph-workbench{flex:1;min-height:0;}
-  #graphCard:fullscreen .graph-stage,#graphCard:fullscreen #graphCanvas{height:100%;}
+  #graphCard:fullscreen .graph-stage,#graphCard:fullscreen #graphCanvas{height:100%;min-height:0;}
   #graphCard:fullscreen .graph-detail{max-height:none;}
+  #graphCard:fullscreen .graph-workbench{min-height:0;}
   @media (max-width:900px){
     .graph-workbench{grid-template-columns:1fr;}
+    .graph-workbench.detail-collapsed{grid-template-columns:1fr;}
     .graph-detail{border-left:0;border-top:1px solid var(--border);max-height:none;}
-    #graphCanvas{height:440px;}
+    .detail-collapsed .graph-detail{display:none;}
+    #graphCanvas{height:520px;min-height:520px;}
   }
   @media (max-width:600px){
     header{padding:10px 12px;gap:8px;}
@@ -195,9 +209,14 @@ INDEX_HTML = r"""<!DOCTYPE html>
     .graph-toolbar>*{flex:1 1 100%;max-width:none!important;}
     .segment button{flex:1;}
     .graph-explainer dl{grid-template-columns:1fr;gap:10px;}
-    .graph-head{align-items:flex-start;}
+    .graph-head{align-items:center;flex-wrap:wrap;}
+    .graph-head h3{flex:1;white-space:nowrap;}
+    .graph-head-actions{width:100%;margin-left:0;}
     .graph-stat-strip{gap:10px;}
-    #graphCanvas{height:380px;}
+    main.graph-mode{padding:0 10px;}
+    #graphCanvas{height:420px;min-height:420px;}
+    .graph-camera-controls{left:9px;top:9px;}
+    .graph-map-hint{display:none;}
   }
 </style>
 </head>
@@ -384,8 +403,9 @@ python3 ~/.claude/skills/mneme/scripts/mneme.py serve --bundle ~/wiki --open</pr
         <span class="hint" id="graphFreshness"></span>
         <div class="graph-head-actions">
           <button class="btn small" id="graphBackBtn" onclick="graphBack()" disabled title="返回上一个图谱视图">← 返回</button>
+          <button class="btn small" id="graphDetailToggle" onclick="toggleGraphDetail()" aria-pressed="true" title="显示或收起图谱详情">收起详情</button>
           <button class="btn small" id="graphFullscreenBtn" onclick="toggleGraphFullscreen()" aria-pressed="false">⛶ 全屏</button>
-          <button class="btn small" onclick="resetGraphLayout()">重置布局</button>
+          <button class="btn small" onclick="resetGraphLayout()">重新布局</button>
         </div>
       </div>
       <div class="graph-status" id="graphStatus" hidden></div>
@@ -402,9 +422,8 @@ python3 ~/.claude/skills/mneme/scripts/mneme.py serve --bundle ~/wiki --open</pr
           <option value="entity">节点：agent 提取实体</option>
         </select>
         <select id="graphViewFilter" onchange="setGraphView(this.value)" aria-label="图谱视图">
-          <option value="overview" selected>视图：概览（推荐）</option>
+          <option value="overview" selected>视图：全图</option>
           <option value="neighborhood">视图：当前邻域</option>
-          <option value="all">视图：全部</option>
         </select>
         <select id="graphPredicateFilter" onchange="applyGraphSlice()" aria-label="关系切片">
           <option value="">关系：全部</option>
@@ -423,7 +442,14 @@ python3 ~/.claude/skills/mneme/scripts/mneme.py serve --bundle ~/wiki --open</pr
       <div class="graph-stat-strip" id="graphStats"></div>
       <div class="graph-workbench">
         <div class="graph-stage">
-          <canvas id="graphCanvas" tabindex="0" aria-label="知识图谱画布"></canvas>
+          <div id="graphCanvas" tabindex="0" role="application" aria-label="知识图谱地图，可拖动平移并滚轮缩放"></div>
+          <div class="graph-camera-controls" role="group" aria-label="图谱镜头控制">
+            <button onclick="zoomGraph(1.25)" title="放大" aria-label="放大图谱">+</button>
+            <button onclick="zoomGraph(0.8)" title="缩小" aria-label="缩小图谱">−</button>
+            <button onclick="fitGraphView()" title="适配全图" aria-label="适配全图">⌂</button>
+            <output id="graphZoomLabel" aria-label="当前缩放比例">100%</output>
+          </div>
+          <div class="graph-map-hint">拖动画布移动镜头 · 滚轮缩放 · 小地图定位全局</div>
           <div class="graph-empty" id="graphEmpty" hidden></div>
         </div>
         <aside class="graph-detail" id="graphDetail" aria-live="polite"></aside>
@@ -451,6 +477,7 @@ python3 ~/.claude/skills/mneme/scripts/mneme.py serve --bundle ~/wiki --open</pr
   </div>
 </div>
 
+<script src="/assets/g6-5.1.1.min.js"></script>
 <script>
 /* ==================== API 基础 ==================== */
 const TOKEN = "__MNEME_TOKEN__";
@@ -493,6 +520,7 @@ function applyRoute(){
   const arg = parts[1] ? decodeURIComponent(parts[1]) : null;
   document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
+  document.querySelector('main').classList.toggle('graph-mode',tab==='graph');
   document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('active', a.dataset.tab===tab));
   if(tab==='browse'){ if(arg) openPage(arg); }
   if(tab==='lint'){ loadLint(); }
@@ -923,8 +951,10 @@ function renderDream(){
     '<div class="log-item">模式：只读审计（'+(meta.writes ? esc(meta.writes) : 'no writes')+'）</div>';
 }
 
-/* ==================== 图谱工作台（Canvas + provenance slices） ==================== */
+/* ==================== 图谱工作台（G6 camera + minimap） ==================== */
 const GRAPH_COLOR={page:'#2f6ba8',tag:'#4f8467',entity:'#b6535c',baseEdge:'#aeb7c2',enrichedEdge:'#b6535c'};
+const GRAPH_LAYOUT={type:'force-atlas2',preventOverlap:true,nodeSize:24,kr:18,kg:1,mode:'normal'};
+let graphRenderer=null;
 let graphState=null;
 let graphLayer='all';
 let graphView='overview';
@@ -932,18 +962,121 @@ let graphSelection=null;
 let graphFocusId=null;
 let graphHistory=[];
 let graphSliceTimer=null;
-let graphRun=0;
-let graphPointer=null;
-const GRAPH_OVERVIEW_LIMIT=48;
-const GRAPH_NEIGHBOR_LIMIT=60;
+let graphResizeTimer=null;
+
+function shortGraphLabel(node){
+  const label=String(node.label||node.name||'');
+  if(node.kind!=='page') return label;
+  const title=String(node.properties&&node.properties.title||'').trim();
+  if(title&&!title.includes('/')&&!title.includes('\\')) return title;
+  const path=String(node.page_path||node.name||label).replaceAll('\\','/');
+  const filename=(path.split('/').pop()||path).replace(/\.md$/i,'');
+  return filename.replace(/^\d+(?:\.\d+)?[_-]*/,'').replaceAll('_',' ')||label;
+}
+
+function graphDegrees(){
+  const degree={};
+  (GRAPH&&GRAPH.edges||[]).forEach(edge=>{
+    degree[edge.source_id]=(degree[edge.source_id]||0)+1;
+    degree[edge.target_id]=(degree[edge.target_id]||0)+1;
+  });
+  return degree;
+}
+
+function graphLabelNodes(degree){
+  const budget=Math.min(64,Math.max(18,Math.round(Math.sqrt((GRAPH&&GRAPH.nodes.length)||0)*1.8)));
+  return new Set(Object.entries(degree).sort((left,right)=>right[1]-left[1]).slice(0,budget).map(([id])=>id));
+}
+
+function graphNodeDatum(raw,degree,labelNodes){
+  const size=16+Math.min(12,Math.sqrt(degree[raw.id]||0)*2.2);
+  return {
+    id:raw.id,
+    type:raw.kind==='page'?'rect':raw.kind==='tag'?'diamond':'circle',
+    data:{raw},
+    style:{
+      size:raw.kind==='page'?[size,size]:size,
+      fill:GRAPH_COLOR[raw.kind]||GRAPH_COLOR.entity,
+      stroke:'#ffffff',lineWidth:2,
+      labelText:labelNodes.has(raw.id)?shortGraphLabel(raw):'',labelPlacement:'bottom',labelOffsetY:4,
+      labelFill:'#1f2937',labelFontSize:12,labelMaxWidth:170,labelWordWrap:false,
+      cursor:'pointer'
+    }
+  };
+}
+
+function graphEdgeDatum(raw){
+  const enriched=raw.layers.includes('enriched');
+  const dense=(GRAPH&&GRAPH.edges.length)>1200;
+  return {
+    id:raw.id,source:raw.source_id,target:raw.target_id,type:'line',data:{raw},
+    style:{
+      stroke:enriched?GRAPH_COLOR.enrichedEdge:GRAPH_COLOR.baseEdge,
+      strokeOpacity:dense?(enriched?.13:.065):(enriched?.62:.36),
+      lineWidth:dense?(enriched?1:.7):(enriched?1.6:1),
+      cursor:'pointer'
+    }
+  };
+}
+
+function graphMinimapSize(){
+  if(window.innerWidth<=600) return [150,96];
+  if(window.innerWidth<=900) return [180,116];
+  return [220,142];
+}
+
+function graphOptions(){
+  const degree=graphDegrees();
+  const labelNodes=graphLabelNodes(degree);
+  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return {
+    container:'graphCanvas',
+    data:{
+      nodes:GRAPH.nodes.map(node=>graphNodeDatum(node,degree,labelNodes)),
+      edges:GRAPH.edges.map(graphEdgeDatum)
+    },
+    layout:GRAPH_LAYOUT,
+    animation:!reduced&&GRAPH.nodes.length<=300,
+    zoomRange:[.08,5],
+    node:{
+      state:{
+        selected:{halo:true,haloLineWidth:16,haloStroke:'#172033',haloStrokeOpacity:.16,stroke:'#172033',lineWidth:3,labelText:d=>shortGraphLabel(d.data.raw),labelFontWeight:650,labelOpacity:1},
+        highlight:{fillOpacity:1,strokeOpacity:1,labelText:d=>shortGraphLabel(d.data.raw),labelOpacity:1,labelFontWeight:600},
+        inactive:{fillOpacity:.12,strokeOpacity:.12,labelOpacity:.08}
+      }
+    },
+    edge:{
+      state:{
+        selected:{lineWidth:3,stroke:'#7f1d2d',strokeOpacity:1,labelText:d=>predicateLabel(d.data.raw.predicate),labelFill:'#6f3037',labelFontSize:11,labelBackground:true,labelBackgroundFill:'#fff'},
+        highlight:{strokeOpacity:.9,lineWidth:2},
+        inactive:{strokeOpacity:.05,labelOpacity:0}
+      }
+    },
+    behaviors:[
+      'drag-canvas','zoom-canvas','drag-element',
+      {type:'auto-adapt-label',key:'adaptive-labels',throttle:100,padding:6,sortNode:{type:'degree'}},
+      {type:'optimize-viewport-transform',key:'optimize-camera'}
+    ],
+    plugins:[{
+      type:'minimap',key:'minimap',size:graphMinimapSize(),padding:10,position:'right-bottom',delay:80,
+      containerStyle:{border:'1px solid #d8dde5',background:'rgba(255,255,255,.96)',borderRadius:'6px',boxShadow:'0 6px 20px rgba(15,23,42,.12)'},
+      maskStyle:{border:'1px solid #2563eb',background:'rgba(37,99,235,.10)'}
+    }]
+  };
+}
 
 async function loadGraph(){
+  if(GRAPH&&graphRenderer){
+    resizeGraphRenderer();
+    return;
+  }
   try{
     GRAPH=await api('/api/graph');
   }catch(e){
     toast('加载图谱失败：'+e.message,true);
     return;
   }
+  if(graphRenderer){ graphRenderer.destroy(); graphRenderer=null; }
   graphState=null;
   graphSelection=null;
   graphFocusId=null;
@@ -955,12 +1088,90 @@ async function loadGraph(){
   predicate.innerHTML='<option value="">关系：全部</option>'+predicates.map(p=>'<option value="'+escAttr(p)+'">关系：'+esc(predicateLabel(p))+'</option>').join('');
   if(predicates.includes(selected)) predicate.value=selected;
   renderGraphStatus();
-  applyGraphSlice();
+  if(!GRAPH.available){
+    await applyGraphSlice();
+    return;
+  }
+  if(!window.G6||!G6.Graph){
+    document.getElementById('graphEmpty').hidden=false;
+    document.getElementById('graphEmpty').innerHTML='<div><strong>图谱渲染器未加载</strong><p class="hint">检查本地 G6 静态资源是否完整。</p></div>';
+    return;
+  }
+  try{
+    graphRenderer=new G6.Graph(graphOptions());
+    bindGraphEvents();
+    await graphRenderer.render();
+    await spreadGraphWorld();
+    await setInitialGraphCamera();
+    await applyGraphSlice({fit:false,animate:false});
+  }catch(error){
+    if(graphRenderer){ graphRenderer.destroy(); graphRenderer=null; }
+    document.getElementById('graphEmpty').hidden=false;
+    document.getElementById('graphEmpty').innerHTML='<div><strong>图谱渲染失败</strong><p class="hint">'+esc(error.message||error)+'</p></div>';
+    toast('图谱渲染失败：'+(error.message||error),true);
+    return;
+  }
   if(graphPendingSelection){
     const pending=graphPendingSelection;
     graphPendingSelection=null;
     if(pending.kind==='node') selectGraphNode(pending.id); else selectGraphEdge(pending.id);
   }
+}
+
+function bindGraphEvents(){
+  graphRenderer.on('node:click',event=>selectGraphNode(event.target.id));
+  graphRenderer.on('node:dblclick',event=>focusGraphNode(event.target.id));
+  graphRenderer.on('edge:click',event=>selectGraphEdge(event.target.id));
+  graphRenderer.on('canvas:click',()=>clearGraphSelection());
+  graphRenderer.on('aftertransform',updateGraphZoomLabel);
+}
+
+function graphWorldScale(){
+  const count=(GRAPH&&GRAPH.nodes.length)||0;
+  return count<=140?1:Math.min(4.2,Math.max(1.45,Math.sqrt(count/90)));
+}
+
+async function spreadGraphWorld(){
+  if(!graphRenderer) return;
+  const scale=graphWorldScale();
+  if(scale===1) return;
+  const nodes=graphRenderer.getNodeData();
+  const positioned=nodes.filter(node=>Number.isFinite(Number(node.style&&node.style.x))&&Number.isFinite(Number(node.style&&node.style.y)));
+  if(!positioned.length) return;
+  const bounds=positioned.reduce((acc,node)=>{
+    const x=Number(node.style.x),y=Number(node.style.y);
+    acc.minX=Math.min(acc.minX,x);acc.maxX=Math.max(acc.maxX,x);
+    acc.minY=Math.min(acc.minY,y);acc.maxY=Math.max(acc.maxY,y);
+    return acc;
+  },{minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity});
+  const centerX=(bounds.minX+bounds.maxX)/2,centerY=(bounds.minY+bounds.maxY)/2;
+  graphRenderer.updateNodeData(positioned.map(node=>({
+    id:node.id,
+    style:{x:centerX+(Number(node.style.x)-centerX)*scale,y:centerY+(Number(node.style.y)-centerY)*scale}
+  })));
+  await graphRenderer.draw();
+}
+
+function updateGraphZoomLabel(){
+  const output=document.getElementById('graphZoomLabel');
+  if(!output||!graphRenderer) return;
+  try{
+    const zoom=graphRenderer.getZoom();
+    if(Number.isFinite(zoom)) output.textContent=Math.round(zoom*100)+'%';
+  }catch(error){
+    // G6 may emit an initial transform before its viewport is ready.
+  }
+}
+
+async function setInitialGraphCamera(){
+  if(!graphRenderer) return;
+  if(((GRAPH&&GRAPH.nodes.length)||0)<=140){
+    await graphRenderer.fitView({when:'always',direction:'both'},false);
+  }else{
+    await graphRenderer.zoomTo(1,false);
+    await graphRenderer.fitCenter(false);
+  }
+  updateGraphZoomLabel();
 }
 
 function renderGraphStatus(){
@@ -986,19 +1197,25 @@ function setGraphLayer(layer){
     button.classList.toggle('active',active);
     button.setAttribute('aria-pressed',active?'true':'false');
   });
-  applyGraphSlice();
+  applyGraphSlice({fit:true});
 }
 
 function setGraphView(view){
+  if(view==='neighborhood'&&!(graphSelection&&graphSelection.kind==='node')){
+    document.getElementById('graphViewFilter').value='overview';
+    toast('先选择一个节点，再查看当前邻域');
+    return;
+  }
   graphView=view||'overview';
-  if(graphView==='neighborhood'&&graphSelection&&graphSelection.kind==='node') graphFocusId=graphSelection.id;
-  if(graphView!=='neighborhood') graphFocusId=null;
-  applyGraphSlice();
+  graphFocusId=graphView==='neighborhood'?graphSelection.id:null;
+  applyGraphStates();
+  if(graphView==='neighborhood') graphRenderer.focusElement(graphFocusId,{duration:320,easing:'ease-out'});
+  else fitGraphView();
 }
 
 function scheduleGraphSlice(){
   clearTimeout(graphSliceTimer);
-  graphSliceTimer=setTimeout(applyGraphSlice,120);
+  graphSliceTimer=setTimeout(()=>applyGraphSlice({fit:true}),120);
 }
 
 function graphVisibleSlice(){
@@ -1007,16 +1224,10 @@ function graphVisibleSlice(){
   const predicate=document.getElementById('graphPredicateFilter').value;
   const query=document.getElementById('graphSearch').value.trim().toLocaleLowerCase();
   const nodeMap=Object.fromEntries(GRAPH.nodes.map(node=>[node.id,node]));
-  const degree={};
-  GRAPH.edges.forEach(edge=>{
-    degree[edge.source_id]=(degree[edge.source_id]||0)+1;
-    degree[edge.target_id]=(degree[edge.target_id]||0)+1;
-  });
   let edges=GRAPH.edges.filter(edge=>(graphLayer==='all'||edge.layers.includes(graphLayer))&&(!predicate||edge.predicate===predicate));
-  let nodes=GRAPH.nodes.filter(node=>graphLayer==='all'||node.layer===graphLayer);
   const incident=new Set();
   edges.forEach(edge=>{ incident.add(edge.source_id); incident.add(edge.target_id); });
-  nodes=GRAPH.nodes.filter(node=>incident.has(node.id)||(graphLayer==='all'&&!predicate)||(graphLayer!=='all'&&node.layer===graphLayer));
+  let nodes=GRAPH.nodes.filter(node=>incident.has(node.id)||(graphLayer==='all'&&!predicate)||(graphLayer!=='all'&&node.layer===graphLayer));
 
   if(kind||query){
     const focus=new Set(nodes.filter(node=>{
@@ -1031,172 +1242,26 @@ function graphVisibleSlice(){
     nodes=GRAPH.nodes.filter(node=>visible.has(node.id));
   }else if(predicate){
     nodes=GRAPH.nodes.filter(node=>incident.has(node.id));
-  }else if(graphView==='neighborhood'&&graphFocusId){
-    const focusId=graphFocusId;
-    const adjacent=edges.filter(edge=>edge.source_id===focusId||edge.target_id===focusId)
-      .sort((a,b)=>(degree[b.source_id]||0)+(degree[b.target_id]||0)-(degree[a.source_id]||0)-(degree[a.target_id]||0))
-      .slice(0,GRAPH_NEIGHBOR_LIMIT);
-    const visible=new Set([focusId]);
-    adjacent.forEach(edge=>{ visible.add(edge.source_id); visible.add(edge.target_id); });
-    nodes=GRAPH.nodes.filter(node=>visible.has(node.id));
-    edges=adjacent.filter(edge=>visible.has(edge.source_id)&&visible.has(edge.target_id));
-  }else if(graphView==='neighborhood'){
-    return {nodes:[],edges:[]};
-  }else if(graphView==='overview'){
-    const candidateNodeIds=new Set(nodes.map(node=>node.id));
-    const ranked=nodes.filter(node=>!(node.properties&&node.properties.missing))
-      .sort((a,b)=>(degree[b.id]||0)-(degree[a.id]||0)||a.label.localeCompare(b.label));
-    const visible=new Set(ranked.slice(0,GRAPH_OVERVIEW_LIMIT).map(node=>node.id));
-    if(graphSelection&&graphSelection.kind==='node'&&candidateNodeIds.has(graphSelection.id)) visible.add(graphSelection.id);
-    nodes=GRAPH.nodes.filter(node=>visible.has(node.id));
-    edges=edges.filter(edge=>visible.has(edge.source_id)&&visible.has(edge.target_id));
   }
   const visibleNodes=new Set(nodes.map(node=>node.id));
   edges=edges.filter(edge=>nodeMap[edge.source_id]&&nodeMap[edge.target_id]&&visibleNodes.has(edge.source_id)&&visibleNodes.has(edge.target_id));
   return {nodes,edges};
 }
 
-function graphHash(value){
-  let out=0;
-  for(const ch of String(value)) out=((out<<5)-out+ch.charCodeAt(0))|0;
-  return Math.abs(out);
-}
-
-function shortGraphLabel(node){
-  const label=String(node.label||node.name||'');
-  if(node.kind!=='page') return label;
-  const title=String(node.properties&&node.properties.title||'').trim();
-  if(title&&!title.includes('/')&&!title.includes('\\')) return title;
-  const path=String(node.page_path||node.name||label).replaceAll('\\','/');
-  const filename=(path.split('/').pop()||path).replace(/\.md$/i,'');
-  return filename.replace(/^\d+(?:\.\d+)?[_-]*/,'').replaceAll('_',' ')||label;
-}
-
-function initGraph(slice,w,h){
-  const nodes=slice.nodes.map((raw,index)=>{
-    const angle=(index/Math.max(1,slice.nodes.length))*Math.PI*2;
-    const jitter=(graphHash(raw.id)%31)-15;
-    return {raw,id:raw.id,label:shortGraphLabel(raw),kind:raw.kind,x:w/2+Math.cos(angle)*Math.min(w,h)*0.31+jitter,y:h/2+Math.sin(angle)*Math.min(w,h)*0.31-jitter,vx:0,vy:0,degree:0,anchorX:null,anchorY:null};
-  });
-  const idx={};
-  nodes.forEach((node,index)=>{ idx[node.id]=index; });
-  const edges=slice.edges.filter(edge=>idx[edge.source_id]!==undefined&&idx[edge.target_id]!==undefined).map(edge=>({raw:edge,a:idx[edge.source_id],b:idx[edge.target_id]}));
-  edges.forEach(edge=>{ nodes[edge.a].degree+=1; nodes[edge.b].degree+=1; });
-  const pages=nodes.filter(node=>node.kind==='page');
-  if(pages.length){
-    const cols=Math.ceil(Math.sqrt(pages.length*Math.max(1,w/h)));
-    const rows=Math.ceil(pages.length/cols);
-    pages.forEach((node,index)=>{
-      const col=index%cols,row=Math.floor(index/cols);
-      node.anchorX=((col+1)/(cols+1))*w;
-      node.anchorY=((row+1)/(rows+1))*h;
-      node.x=node.anchorX;node.y=node.anchorY;
-    });
-    nodes.filter(node=>node.kind!=='page').forEach(node=>{
-      const connectedPages=[];
-      edges.forEach(edge=>{
-        if(edge.a===idx[node.id]&&nodes[edge.b].kind==='page') connectedPages.push(nodes[edge.b]);
-        if(edge.b===idx[node.id]&&nodes[edge.a].kind==='page') connectedPages.push(nodes[edge.a]);
-      });
-      if(!connectedPages.length) return;
-      const centerX=connectedPages.reduce((sum,page)=>sum+page.anchorX,0)/connectedPages.length;
-      const centerY=connectedPages.reduce((sum,page)=>sum+page.anchorY,0)/connectedPages.length;
-      const angle=(graphHash(node.id)%360)*Math.PI/180;
-      const radius=58+(graphHash(node.id+'-radius')%72);
-      node.x=Math.max(36,Math.min(w-36,centerX+Math.cos(angle)*radius));
-      node.y=Math.max(32,Math.min(h-32,centerY+Math.sin(angle)*radius));
-    });
-  }
-  return {nodes,edges};
-}
-
-function tickGraph(st,w,h){
-  const {nodes,edges}=st;
-  const REP=2500,SPRING=0.011,REST=118,CENTER=0.006,DAMP=0.82;
-  const stride=nodes.length>220?Math.ceil(nodes.length/180):1;
-  for(let i=0;i<nodes.length;i++){
-    for(let j=i+1;j<nodes.length;j++){
-      if(stride>1&&((i*31+j)%stride)!==0) continue;
-      let dx=nodes[i].x-nodes[j].x,dy=nodes[i].y-nodes[j].y;
-      const d2=dx*dx+dy*dy||1;
-      const d=Math.sqrt(d2);
-      const force=(REP*stride)/d2;
-      dx/=d;dy/=d;
-      nodes[i].vx+=dx*force;nodes[i].vy+=dy*force;
-      nodes[j].vx-=dx*force;nodes[j].vy-=dy*force;
-    }
-  }
-  edges.forEach(edge=>{
-    const left=nodes[edge.a],right=nodes[edge.b];
-    let dx=right.x-left.x,dy=right.y-left.y;
-    const d=Math.sqrt(dx*dx+dy*dy)||1;
-    const force=(d-REST)*SPRING;
-    dx/=d;dy/=d;
-    left.vx+=dx*force;left.vy+=dy*force;
-    right.vx-=dx*force;right.vy-=dy*force;
-  });
-  nodes.forEach(node=>{
-    if(graphPointer&&graphPointer.node===node) return;
-    const anchored=node.anchorX!==null&&node.anchorY!==null;
-    const targetX=anchored?node.anchorX:w/2,targetY=anchored?node.anchorY:h/2;
-    const pull=anchored?0.024:CENTER;
-    node.vx+=(targetX-node.x)*pull;node.vy+=(targetY-node.y)*pull;
-    node.vx*=DAMP;node.vy*=DAMP;
-    node.x=Math.max(36,Math.min(w-36,node.x+node.vx));
-    node.y=Math.max(32,Math.min(h-32,node.y+node.vy));
-  });
-}
-
-function nodeRadius(node){ return 8+Math.min(4,Math.sqrt(node.degree||0)); }
-
-function drawNodeShape(ctx,node,radius){
-  ctx.beginPath();
-  if(node.kind==='page'){
-    ctx.rect(node.x-radius,node.y-radius,radius*2,radius*2);
-  }else if(node.kind==='tag'){
-    ctx.moveTo(node.x,node.y-radius-1);ctx.lineTo(node.x+radius+1,node.y);ctx.lineTo(node.x,node.y+radius+1);ctx.lineTo(node.x-radius-1,node.y);ctx.closePath();
-  }else{
-    ctx.arc(node.x,node.y,radius,0,Math.PI*2);
-  }
-}
-
-function drawGraphFrame(ctx,st,w,h){
-  ctx.clearRect(0,0,w,h);
-  st.edges.forEach(edge=>{
-    const selected=graphSelection&&graphSelection.kind==='edge'&&graphSelection.id===edge.raw.id;
-    const enriched=edge.raw.layers.includes('enriched');
-    ctx.beginPath();ctx.moveTo(st.nodes[edge.a].x,st.nodes[edge.a].y);ctx.lineTo(st.nodes[edge.b].x,st.nodes[edge.b].y);
-    ctx.strokeStyle=selected?'#7f1d2d':(enriched?GRAPH_COLOR.enrichedEdge:GRAPH_COLOR.baseEdge);
-    ctx.globalAlpha=selected?1:(enriched?0.78:0.52);
-    ctx.lineWidth=selected?3:(enriched?1.7:1.1);ctx.stroke();ctx.globalAlpha=1;
-    if(selected){
-      const x=(st.nodes[edge.a].x+st.nodes[edge.b].x)/2,y=(st.nodes[edge.a].y+st.nodes[edge.b].y)/2;
-      ctx.font='11px ui-monospace, monospace';ctx.fillStyle='#6f3037';ctx.textAlign='center';ctx.fillText(predicateLabel(edge.raw.predicate),x,y-7);
+function graphNeighborhood(focusId){
+  const nodeIds=new Set([focusId]),edgeIds=new Set();
+  const visibleEdges=new Set((graphState&&graphState.edges||[]).map(edge=>edge.id));
+  GRAPH.edges.forEach(edge=>{
+    if(!visibleEdges.has(edge.id)) return;
+    if(edge.source_id===focusId||edge.target_id===focusId){
+      edgeIds.add(edge.id);nodeIds.add(edge.source_id);nodeIds.add(edge.target_id);
     }
   });
-  const labelBudget=st.nodes.length<=28?st.nodes.length:Math.min(32,Math.max(10,Math.round(st.nodes.length*0.22)));
-  const labelNodes=new Set(st.nodes.slice().sort((a,b)=>b.degree-a.degree).slice(0,labelBudget).map(node=>node.id));
-  st.nodes.forEach(node=>{
-    const radius=nodeRadius(node);
-    const selected=graphSelection&&graphSelection.kind==='node'&&graphSelection.id===node.id;
-    drawNodeShape(ctx,node,radius);
-    ctx.fillStyle=GRAPH_COLOR[node.kind]||GRAPH_COLOR.entity;ctx.fill();
-    ctx.lineWidth=selected?3:2;ctx.strokeStyle=selected?'#172033':'#fff';ctx.stroke();
-    if(labelNodes.has(node.id)||selected){
-      const label=node.label.length>22?node.label.slice(0,21)+'…':node.label;
-      ctx.font=(selected?'600 ':'')+'12px -apple-system, "PingFang SC", sans-serif';
-      let labelX=node.x,labelY=node.y+radius+15;
-      ctx.textAlign='center';
-      if(node.x<76){ctx.textAlign='left';labelX=Math.max(6,node.x-radius);}
-      if(node.x>w-76){ctx.textAlign='right';labelX=Math.min(w-6,node.x+radius);}
-      if(labelY>h-7) labelY=node.y-radius-7;
-      ctx.fillStyle='#1f2329';ctx.fillText(label,labelX,labelY);
-    }
-  });
+  return {nodeIds,edgeIds};
 }
 
-function applyGraphSlice(){
-  graphRun+=1;
+async function applyGraphSlice(options){
+  const opts=options||{};
   const empty=document.getElementById('graphEmpty');
   if(!GRAPH||!GRAPH.available){
     graphState=null;
@@ -1206,71 +1271,80 @@ function applyGraphSlice(){
     empty.innerHTML='<div><strong>'+(error?'Graph 无法读取':'Graph 尚未构建')+'</strong><p class="hint">'+(error?esc(error):(count+' 个 Markdown 概念页可建立基础层。'))+'</p><button class="btn primary" onclick="doReindex(this)">构建 Graph</button></div>';
     document.getElementById('graphStats').innerHTML='<span><strong>0</strong> 节点</span><span><strong>0</strong> 关系</span>';
     renderGraphDetail();
-    clearGraphCanvas();
     return;
   }
   const slice=graphVisibleSlice();
-  if(graphSelection&&graphSelection.kind==='node'&&!slice.nodes.some(node=>node.id===graphSelection.id)) graphSelection=null;
-  if(graphSelection&&graphSelection.kind==='edge'&&!slice.edges.some(edge=>edge.id===graphSelection.id)) graphSelection=null;
-  const cv=document.getElementById('graphCanvas');
-  graphState=initGraph(slice,cv.clientWidth||720,cv.clientHeight||520);
+  graphState=slice;
+  const nodeIds=new Set(slice.nodes.map(node=>node.id));
+  const edgeIds=new Set(slice.edges.map(edge=>edge.id));
+  if(graphSelection&&graphSelection.kind==='node'&&!nodeIds.has(graphSelection.id)) graphSelection=null;
+  if(graphSelection&&graphSelection.kind==='edge'&&!edgeIds.has(graphSelection.id)) graphSelection=null;
+  if(graphFocusId&&!nodeIds.has(graphFocusId)){graphFocusId=null;graphView='overview';document.getElementById('graphViewFilter').value='overview';}
+  const visibility={};
+  GRAPH.nodes.forEach(node=>{visibility[node.id]=nodeIds.has(node.id)?'visible':'hidden';});
+  GRAPH.edges.forEach(edge=>{visibility[edge.id]=edgeIds.has(edge.id)?'visible':'hidden';});
+  if(graphRenderer) await graphRenderer.setElementVisibility(visibility,false);
   const stats=GRAPH.stats;
   document.getElementById('graphStats').innerHTML=
-    '<span><strong>'+graphState.nodes.length+'</strong> / '+stats.nodes+' 节点</span>'+
-    '<span><strong>'+graphState.edges.length+'</strong> / '+stats.edges+' 关系</span>'+
+    '<span><strong>'+slice.nodes.length+'</strong> / '+stats.nodes+' 节点</span>'+
+    '<span><strong>'+slice.edges.length+'</strong> / '+stats.edges+' 关系</span>'+
     '<span>基础 '+stats.base_nodes+' 节点 · '+stats.base_edges+' 关系</span>'+
     '<span>富化 '+stats.enriched_nodes+' 节点 · '+stats.enriched_edges+' 关系</span>';
-  if(!graphState.nodes.length){
+  if(!slice.nodes.length){
     empty.hidden=false;
     const enrichedEmpty=graphLayer==='enriched'&&stats.enriched_nodes===0&&stats.enriched_edges===0;
-    const neighborhoodEmpty=graphView==='neighborhood'&&!graphFocusId;
-    empty.innerHTML='<div><strong>'+(enrichedEmpty?'尚无 agent 提取实体':(neighborhoodEmpty?'还没有选中的节点':'当前切片没有节点'))+'</strong><p class="hint">'+(enrichedEmpty?'当前只有由 Markdown 派生的基础层。agent 提取实体与关系需经过 dream 预览批准后 ingest。':(neighborhoodEmpty?'先切回「概览」并选择一个节点，再查看它的邻域。':'调整节点、关系或关键词切片。'))+'</p></div>';
-    clearGraphCanvas();
+    empty.innerHTML='<div><strong>'+(enrichedEmpty?'尚无 agent 提取实体':'当前筛选没有节点')+'</strong><p class="hint">'+(enrichedEmpty?'当前只有由 Markdown 派生的基础层。agent 提取实体与关系需经过 dream 预览批准后 ingest。':'调整节点、关系或关键词筛选。')+'</p></div>';
   }else{
     empty.hidden=true;
-    requestAnimationFrame(drawGraph);
+    await applyGraphStates();
+    if(opts.fit&&graphRenderer){
+      const fullSlice=slice.nodes.length===GRAPH.nodes.length&&slice.edges.length===GRAPH.edges.length;
+      if(fullSlice) await setInitialGraphCamera();
+      else await graphRenderer.fitView({when:'always',direction:'both'},opts.animate===false?false:{duration:260,easing:'ease-out'});
+      updateGraphZoomLabel();
+    }
   }
   renderGraphDetail();
 }
 
-function clearGraphCanvas(){
-  const cv=document.getElementById('graphCanvas');
-  const ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
-}
-
-function drawGraph(){
-  if(!graphState||!graphState.nodes.length) return;
-  const cv=document.getElementById('graphCanvas');
-  const w=cv.clientWidth||720,h=cv.clientHeight||520,dpr=window.devicePixelRatio||1;
-  cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);
-  const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
-  const initialTicks=graphState.nodes.length>220?45:120;
-  for(let i=0;i<initialTicks;i++) tickGraph(graphState,w,h);
-  const run=++graphRun;
-  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let frame=0;
-  function animate(){
-    if(run!==graphRun||!document.getElementById('tab-graph').classList.contains('active')) return;
-    if(!reduced) tickGraph(graphState,w,h);
-    drawGraphFrame(ctx,graphState,w,h);
-    if(!reduced&&++frame<45) requestAnimationFrame(animate);
+async function applyGraphStates(){
+  if(!graphRenderer||!GRAPH) return;
+  const states={};
+  GRAPH.nodes.forEach(node=>{states[node.id]=[];});
+  GRAPH.edges.forEach(edge=>{states[edge.id]=[];});
+  if(graphView==='neighborhood'&&graphFocusId){
+    const neighborhood=graphNeighborhood(graphFocusId);
+    (graphState&&graphState.nodes||[]).forEach(node=>{states[node.id]=neighborhood.nodeIds.has(node.id)?['highlight']:['inactive'];});
+    (graphState&&graphState.edges||[]).forEach(edge=>{states[edge.id]=neighborhood.edgeIds.has(edge.id)?['highlight']:['inactive'];});
   }
-  drawGraphFrame(ctx,graphState,w,h);
-  if(!reduced) requestAnimationFrame(animate);
+  if(graphSelection){
+    const current=states[graphSelection.id]||[];
+    states[graphSelection.id]=[...new Set([...current,'selected'])];
+    if(graphSelection.kind==='edge'){
+      const edge=GRAPH.edges.find(item=>item.id===graphSelection.id);
+      if(edge){
+        states[edge.source_id]=[...new Set([...(states[edge.source_id]||[]),'highlight'])];
+        states[edge.target_id]=[...new Set([...(states[edge.target_id]||[]),'highlight'])];
+      }
+    }
+  }
+  await graphRenderer.setElementState(states,false);
 }
 
-function resetGraphLayout(){
-  if(!GRAPH) return;
-  graphSelection=null;
-  applyGraphSlice();
+async function resetGraphLayout(){
+  if(!graphRenderer) return;
+  graphSelection=null;graphFocusId=null;graphView='overview';
+  document.getElementById('graphViewFilter').value='overview';
+  await applyGraphStates();
+  try{
+    await graphRenderer.layout(GRAPH_LAYOUT);
+    await spreadGraphWorld();
+    await setInitialGraphCamera();
+  }catch(error){ toast('重新布局失败：'+(error.message||error),true); }
 }
 
 function graphViewSnapshot(){
-  return {
-    view:graphView,
-    focusId:graphFocusId,
-    selection:graphSelection?{kind:graphSelection.kind,id:graphSelection.id}:null
-  };
+  return {view:graphView,focusId:graphFocusId,selection:graphSelection?{kind:graphSelection.kind,id:graphSelection.id}:null};
 }
 
 function updateGraphHistoryControls(){
@@ -1278,46 +1352,73 @@ function updateGraphHistoryControls(){
   if(button) button.disabled=!graphHistory.length;
 }
 
-function focusGraphNode(id){
+async function focusGraphNode(id){
+  if(!graphRenderer) return;
   if(graphView!=='neighborhood'||graphFocusId!==id) graphHistory.push(graphViewSnapshot());
-  graphSelection={kind:'node',id};
-  graphFocusId=id;
-  graphView='neighborhood';
-  const view=document.getElementById('graphViewFilter');
-  if(view) view.value='neighborhood';
-  applyGraphSlice();
-  updateGraphHistoryControls();
+  graphSelection={kind:'node',id};graphFocusId=id;graphView='neighborhood';
+  document.getElementById('graphViewFilter').value='neighborhood';
+  await applyGraphStates();
+  await graphRenderer.focusElement(id,{duration:320,easing:'ease-out'});
+  renderGraphDetail();updateGraphHistoryControls();
 }
 
-function graphBack(){
+async function graphBack(){
   if(!graphHistory.length) return;
   const previous=graphHistory.pop();
-  graphView=previous.view;
-  graphFocusId=previous.focusId;
-  graphSelection=previous.selection;
-  const view=document.getElementById('graphViewFilter');
-  if(view) view.value=graphView;
-  applyGraphSlice();
-  updateGraphHistoryControls();
+  graphView=previous.view;graphFocusId=previous.focusId;graphSelection=previous.selection;
+  document.getElementById('graphViewFilter').value=graphView;
+  await applyGraphStates();
+  if(graphFocusId) await graphRenderer.focusElement(graphFocusId,{duration:280,easing:'ease-out'}); else await fitGraphView();
+  renderGraphDetail();updateGraphHistoryControls();
 }
 
-function selectGraphNode(id){
+async function selectGraphNode(id){
   graphSelection={kind:'node',id};
+  await applyGraphStates();
   renderGraphDetail();
-  redrawGraphOnly();
 }
 
-function selectGraphEdge(id){
+async function selectGraphEdge(id){
   graphSelection={kind:'edge',id};
+  await applyGraphStates();
   renderGraphDetail();
-  redrawGraphOnly();
 }
 
-function redrawGraphOnly(){
-  if(!graphState) return;
-  const cv=document.getElementById('graphCanvas');
-  const dpr=window.devicePixelRatio||1,ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
-  drawGraphFrame(ctx,graphState,cv.clientWidth,cv.clientHeight);
+async function clearGraphSelection(){
+  graphSelection=null;
+  if(graphView==='neighborhood'){
+    graphView='overview';graphFocusId=null;document.getElementById('graphViewFilter').value='overview';
+  }
+  await applyGraphStates();
+  renderGraphDetail();
+}
+
+async function zoomGraph(ratio){
+  if(!graphRenderer) return;
+  await graphRenderer.zoomBy(ratio,{duration:180,easing:'ease-out'});
+  updateGraphZoomLabel();
+}
+
+async function fitGraphView(){
+  if(!graphRenderer||!graphState||!graphState.nodes.length) return Promise.resolve();
+  await graphRenderer.fitView({when:'always',direction:'both'},{duration:260,easing:'ease-out'});
+  updateGraphZoomLabel();
+}
+
+function toggleGraphDetail(){
+  const workbench=document.querySelector('.graph-workbench');
+  const button=document.getElementById('graphDetailToggle');
+  const collapsed=workbench.classList.toggle('detail-collapsed');
+  button.textContent=collapsed?'显示详情':'收起详情';
+  button.setAttribute('aria-pressed',collapsed?'false':'true');
+  clearTimeout(graphResizeTimer);graphResizeTimer=setTimeout(resizeGraphRenderer,210);
+}
+
+function resizeGraphRenderer(){
+  if(graphRenderer&&document.getElementById('tab-graph').classList.contains('active')){
+    graphRenderer.resize();
+    updateGraphZoomLabel();
+  }
 }
 
 function predicateLabel(value){ return String(value||'relates_to').replaceAll('_',' '); }
@@ -1337,8 +1438,8 @@ function renderGraphDetail(){
   }
   const nodeMap=Object.fromEntries(GRAPH.nodes.map(node=>[node.id,node]));
   if(!graphSelection){
-    const nodes=(graphState?graphState.nodes.map(node=>node.raw):[]).slice().sort((a,b)=>a.label.localeCompare(b.label)).slice(0,16);
-    detail.innerHTML='<h4>当前切片</h4><p class="hint">'+(graphState?graphState.nodes.length:0)+' 个节点 · '+(graphState?graphState.edges.length:0)+' 条关系</p><h5>节点目录</h5><div class="graph-node-index">'+(nodes.length?nodes.map(node=>'<button class="graph-node-link" data-node="'+escAttr(node.id)+'" onclick="selectGraphNode(this.dataset.node)">'+esc(shortGraphLabel(node))+'<span class="graph-chip '+node.layer+'" style="float:right">'+(node.layer==='enriched'?'富化':sourceLabel(node.source))+'</span></button>').join(''):'<p class="hint">当前无节点</p>')+'</div>';
+    const nodes=(graphState?graphState.nodes:[]).slice().sort((a,b)=>a.label.localeCompare(b.label)).slice(0,20);
+    detail.innerHTML='<h4>当前地图</h4><p class="hint">'+(graphState?graphState.nodes.length:0)+' 个节点 · '+(graphState?graphState.edges.length:0)+' 条关系</p><h5>节点目录</h5><div class="graph-node-index">'+(nodes.length?nodes.map(node=>'<button class="graph-node-link" data-node="'+escAttr(node.id)+'" onclick="selectGraphNode(this.dataset.node)">'+esc(shortGraphLabel(node))+'<span class="graph-chip '+node.layer+'" style="float:right">'+(node.layer==='enriched'?'富化':sourceLabel(node.source))+'</span></button>').join(''):'<p class="hint">当前无节点</p>')+'</div>';
     return;
   }
   if(graphSelection.kind==='node'){
@@ -1364,57 +1465,8 @@ function renderGraphDetail(){
   detail.innerHTML='<div class="graph-source-rail '+(edge.layers.includes('enriched')?'enriched':'')+'"><h4>'+esc(subject?shortGraphLabel(subject):'未知节点')+' → '+esc(predicateLabel(edge.predicate))+' → '+esc(object?shortGraphLabel(object):'未知节点')+'</h4></div><div class="graph-meta">'+edge.layers.map(layer=>'<span class="graph-chip '+layer+'">'+(layer==='enriched'?'富化层':'基础层')+'</span>').join('')+sourceNames.map(source=>'<span class="graph-chip">'+esc(sourceLabel(source))+'</span>').join('')+(edge.confidence!==null&&edge.confidence!==undefined?'<span class="graph-chip">置信度 '+confidenceLabel(edge.confidence)+'</span>':'')+'</div>'+(evidence.length?'<h5>证据</h5>'+[...new Set(evidence)].map(text=>'<div class="graph-evidence">'+esc(text)+'</div>').join(''):'')+'<h5>来源页面</h5>'+graphPageButtons(pages)+'<h5>端点</h5><div class="graph-node-index"><button class="graph-node-link" data-node="'+escAttr(edge.source_id)+'" onclick="selectGraphNode(this.dataset.node)">'+esc(subject?shortGraphLabel(subject):'未知节点')+'</button><button class="graph-node-link" data-node="'+escAttr(edge.target_id)+'" onclick="selectGraphNode(this.dataset.node)">'+esc(object?shortGraphLabel(object):'未知节点')+'</button></div>';
 }
 
-function canvasPoint(event){
-  const rect=event.currentTarget.getBoundingClientRect();
-  return {x:event.clientX-rect.left,y:event.clientY-rect.top};
-}
-function graphNodeAt(point){
-  if(!graphState) return null;
-  for(let i=graphState.nodes.length-1;i>=0;i--){
-    const node=graphState.nodes[i],dx=node.x-point.x,dy=node.y-point.y,r=nodeRadius(node)+6;
-    if(dx*dx+dy*dy<=r*r) return node;
-  }
-  return null;
-}
-function pointSegmentDistance(point,left,right){
-  const dx=right.x-left.x,dy=right.y-left.y,length=dx*dx+dy*dy||1;
-  const t=Math.max(0,Math.min(1,((point.x-left.x)*dx+(point.y-left.y)*dy)/length));
-  const x=left.x+t*dx,y=left.y+t*dy;
-  return Math.hypot(point.x-x,point.y-y);
-}
-
-const graphCanvas=document.getElementById('graphCanvas');
-graphCanvas.addEventListener('pointerdown',event=>{
-  const point=canvasPoint(event),node=graphNodeAt(point);
-  graphPointer={id:event.pointerId,node,start:point,moved:false};
-  if(node){ graphCanvas.setPointerCapture(event.pointerId);node.vx=0;node.vy=0; }
-});
-graphCanvas.addEventListener('pointermove',event=>{
-  if(!graphPointer||graphPointer.id!==event.pointerId||!graphPointer.node) return;
-  const point=canvasPoint(event);
-  graphPointer.moved=graphPointer.moved||Math.hypot(point.x-graphPointer.start.x,point.y-graphPointer.start.y)>3;
-  graphPointer.node.x=point.x;graphPointer.node.y=point.y;
-  redrawGraphOnly();
-});
-graphCanvas.addEventListener('pointerup',event=>{
-  if(!graphPointer||graphPointer.id!==event.pointerId) return;
-  const point=canvasPoint(event),pointer=graphPointer;
-  graphPointer=null;
-  if(pointer.node){
-    if(!pointer.moved) selectGraphNode(pointer.node.id);
-    return;
-  }
-  if(!graphState) return;
-  let best=null,bestDistance=7;
-  graphState.edges.forEach(edge=>{
-    const distance=pointSegmentDistance(point,graphState.nodes[edge.a],graphState.nodes[edge.b]);
-    if(distance<bestDistance){best=edge;bestDistance=distance;}
-  });
-  if(best) selectGraphEdge(best.raw.id);
-  else{ graphSelection=null;renderGraphDetail();redrawGraphOnly(); }
-});
-graphCanvas.addEventListener('keydown',event=>{
-  if(event.key==='Escape'){graphSelection=null;renderGraphDetail();redrawGraphOnly();}
+document.getElementById('graphCanvas').addEventListener('keydown',event=>{
+  if(event.key==='Escape') clearGraphSelection();
 });
 
 function updateGraphFullscreenControl(){
@@ -1444,14 +1496,14 @@ async function toggleGraphFullscreen(){
 document.addEventListener('fullscreenchange',()=>{
   updateGraphFullscreenControl();
   clearTimeout(graphResizeTimer);
-  graphResizeTimer=setTimeout(applyGraphSlice,120);
+  graphResizeTimer=setTimeout(resizeGraphRenderer,140);
 });
 
-let graphResizeTimer=null;
 window.addEventListener('resize',()=>{
   if(!document.getElementById('tab-graph').classList.contains('active')) return;
-  clearTimeout(graphResizeTimer);graphResizeTimer=setTimeout(applyGraphSlice,160);
+  clearTimeout(graphResizeTimer);graphResizeTimer=setTimeout(resizeGraphRenderer,160);
 });
+window.addEventListener('beforeunload',()=>{if(graphRenderer) graphRenderer.destroy();});
 
 /* ==================== 工具 ==================== */
 function esc(s){

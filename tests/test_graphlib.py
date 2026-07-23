@@ -642,6 +642,19 @@ def test_graph_resolves_relative_markdown_links_from_source_directory(tmp_path):
         ).fetchone()
         assert target is not None
         assert json.loads(target[0])["missing"] is False
+        assert conn.execute(
+            "SELECT COUNT(*) FROM entities WHERE page_path LIKE '/%'"
+        ).fetchone()[0] == 0
+        relation_targets = conn.execute(
+            """
+            SELECT o.page_path
+            FROM relations r
+            JOIN entities s ON s.id=r.subject_id
+            JOIN entities o ON o.id=r.object_id
+            WHERE s.page_path='concepts/alpha.md' AND r.predicate='relates_to'
+            """
+        ).fetchall()
+        assert [row[0] for row in relation_targets] == ["concepts/beta.md"]
     finally:
         conn.close()
 
