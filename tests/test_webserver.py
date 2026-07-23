@@ -195,6 +195,36 @@ def test_pages_listing_and_filters(server):
         assert all(p["type"] == some_type for p in payload2["pages"])
 
 
+def test_page_referenced_only_by_root_index_is_not_orphan(tmp_path):
+    from mneme.webserver import _page_summaries
+
+    bundle = tmp_path / "wiki"
+    concept = bundle / "concepts" / "indexed.md"
+    concept.parent.mkdir(parents=True)
+    concept.write_text(
+        "---\ntype: Concept\ntitle: Indexed\ntags: [test]\n---\n\n# Indexed\n",
+        encoding="utf-8",
+    )
+    (bundle / "index.md").write_text(
+        "# Index\n\n- [Indexed](/concepts/indexed.md)\n",
+        encoding="utf-8",
+    )
+
+    pages = _page_summaries(bundle)
+
+    assert pages == [
+        {
+            "path": "/concepts/indexed.md",
+            "title": "Indexed",
+            "type": "Concept",
+            "tags": ["test"],
+            "description": "",
+            "timestamp": "",
+            "orphan": False,
+        }
+    ]
+
+
 def test_page_returns_frontmatter_and_links(server):
     status, payload, _ = _req(server, "GET", "/api/pages")
     target = payload["pages"][0]["path"]

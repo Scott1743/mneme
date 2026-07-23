@@ -35,7 +35,7 @@ def _read(path: Path) -> str:
 def test_release_downloads_are_present(path: Path) -> None:
     text = _read(path)
     assert "releases/download/v2.2.0/mneme-2.2.0.zip" in text
-    assert "releases/download/v4.6.1/mneme-4.6.1.zip" in text
+    assert "releases/download/v4.6.2/mneme-4.6.2.zip" in text
 
 
 def test_introduction_install_command_present() -> None:
@@ -46,7 +46,7 @@ def test_introduction_install_command_present() -> None:
 
 
 def test_readme_version_badge_matches_release() -> None:
-    assert "version-4.6.1-blue.svg" in _read(README)
+    assert "version-4.6.2-blue.svg" in _read(README)
 
 
 def test_introduction_has_dream_and_search() -> None:
@@ -95,8 +95,8 @@ def test_readme_states_v4_graph_option() -> None:
 
 def test_introduction_states_current_release() -> None:
     text = _read(INTRO)
-    assert "<title>Mneme · 记忆女神 · v4.6.1</title>" in text
-    assert "v4.6.1" in text
+    assert "<title>Mneme · 记忆女神 · v4.6.2</title>" in text
+    assert "v4.6.2" in text
     assert "Mneme 2.1" not in text
     assert "两个动词" not in text
     assert "其余都是细节" not in text

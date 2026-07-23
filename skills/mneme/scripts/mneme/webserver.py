@@ -112,18 +112,16 @@ def _iter_page_files(bundle: Path) -> List[Path]:
 
 
 def _page_summaries(bundle: Path) -> List[Dict[str, Any]]:
-    """Frontmatter summaries + link-derived orphan flags for every page."""
+    """Frontmatter summaries + canonical orphan flags for every page."""
     from . import okflib
 
     pages: List[Dict[str, Any]] = []
-    texts: Dict[str, str] = {}
     for p in _iter_page_files(bundle):
         rel = "/" + p.relative_to(bundle).as_posix()
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        texts[rel] = text
         parsed = okflib.parse_frontmatter(text)
         meta: Dict[str, Any] = parsed[0] if parsed else {}
         tags = meta.get("tags")
@@ -140,13 +138,9 @@ def _page_summaries(bundle: Path) -> List[Dict[str, Any]]:
             }
         )
 
-    inbound: Dict[str, int] = {page["path"]: 0 for page in pages}
-    for rel, text in texts.items():
-        for target in dict.fromkeys(_LINK_RE.findall(text)):
-            if target != rel and target in inbound:
-                inbound[target] += 1
+    orphan_paths = {f"/{slug}.md" for slug in okflib.find_orphans(bundle)}
     for page in pages:
-        page["orphan"] = inbound.get(page["path"], 0) == 0
+        page["orphan"] = page["path"] in orphan_paths
     return pages
 
 

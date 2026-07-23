@@ -9,6 +9,14 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.6.2] - 2026-07-23 - canonical Web UI orphan detection
+
+### Fixed
+
+- The Web UI now uses the same orphan analysis as `mneme lint`, including
+  references from the root `index.md`, instead of incorrectly marking pages
+  that are reachable only through the bundle index as orphans.
+
 ## [4.6.1] - 2026-07-23 - visible runtime Skill version
 
 ### Added
