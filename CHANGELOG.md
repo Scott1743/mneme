@@ -9,6 +9,15 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.6.1] - 2026-07-23 - visible runtime Skill version
+
+### Added
+
+- The Web UI header now displays the running Skill version returned by
+  `/api/status`, and the browser document title mirrors the same value.
+- The version is resolved at runtime rather than hard-coded in the frontend,
+  so the console identifies the exact installed Skill after future upgrades.
+
 ## [4.6.0] - 2026-07-23 - focused graph navigation and explicit enrichment
 
 ### Added

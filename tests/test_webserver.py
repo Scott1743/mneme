@@ -82,6 +82,9 @@ def test_index_serves_ui_with_injected_token(server):
     assert status == 200
     html = raw.decode("utf-8")
     assert "Mneme" in html
+    assert 'id="skillVersion"' in html
+    assert "'v' + s.version" in html
+    assert "Mneme Web UI · v" in html
     assert "__MNEME_TOKEN__" not in html, "token placeholder must be replaced"
     assert server.token in html, "session token must be injected into GET /"
     assert "召回" in html

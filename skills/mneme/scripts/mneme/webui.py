@@ -33,6 +33,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
   header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
   .brand{font-size:18px;font-weight:700;}
   .brand span{color:var(--accent);}
+  .brand .skill-version{color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:500;white-space:nowrap;}
   .bundle-path{color:var(--muted);font-size:13px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 10px;}
   nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto;}
   nav a{padding:6px 14px;border-radius:6px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;}
@@ -203,7 +204,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
 <body>
 
 <header>
-  <div class="brand">Mneme<span> Web UI</span> <span class="hint" style="font-weight:400">（只读 + 缓存重建）</span></div>
+  <div class="brand">Mneme<span> Web UI</span> <span class="skill-version" id="skillVersion" aria-label="Skill 版本">v…</span> <span class="hint" style="font-weight:400">（只读 + 缓存重建）</span></div>
   <div class="bundle-path mono" id="bundlePath" title="bundle 路径">bundle: …</div>
   <nav id="nav">
     <a data-tab="overview">总览</a>
@@ -516,6 +517,8 @@ function toast(msg, isErr){
 /* ==================== 总览 ==================== */
 function renderOverview(){
   const s = STATUS;
+  document.getElementById('skillVersion').textContent = 'v' + s.version;
+  document.title = 'Mneme Web UI · v' + s.version;
   document.getElementById('bundlePath').textContent = 'bundle: ' + (s.bundle || '(未解析)');
   const errs = s.lint.errors, warns = s.lint.warnings;
   document.getElementById('errBadge').textContent = errs + ' ERROR';
