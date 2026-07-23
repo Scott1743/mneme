@@ -88,6 +88,16 @@ def test_index_serves_ui_with_injected_token(server):
     assert "distance" in html
     assert "合并、基础、富化分别是什么？" in html
     assert "graphKindFilter" in html
+    assert "graphViewFilter" in html
+    assert "GRAPH_OVERVIEW_LIMIT" in html
+    assert "查看邻域" in html
+    assert "graphBackBtn" in html
+    assert "graphFullscreenBtn" in html
+    assert "graphFocusId" in html
+    assert "agent 提取实体" in html
+    assert "agent Graph 富化 extraction JSON" in html
+    assert "先选最多 5 个有代表性的现有页面做回填试点" in html
+    assert "`mneme graph ingest`" in html
     assert "pageGraphContext" in html
 
 

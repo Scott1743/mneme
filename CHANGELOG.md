@@ -9,6 +9,36 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.6.0] - 2026-07-23 - focused graph navigation and explicit enrichment
+
+### Added
+
+- The Graph workbench now opens on a bounded 48-node overview, offers focused
+  one-hop neighborhoods and an explicit full-graph view, and keeps a Back
+  history when moving between overview and neighborhood exploration.
+- The Graph panel can enter browser fullscreen while preserving its workbench
+  layout. Page labels prefer concise titles or normalized filenames, and a
+  degree-aware label budget keeps dense graphs readable.
+- The Dream handoff prompt now requests a combined Markdown and agent Graph
+  enrichment preview, including entity and relation confidence, evidence, and
+  the exact `graph ingest` step.
+
+### Changed
+
+- Empty enrichment is explained as "agent-extracted entities" instead of an
+  ambiguous agent node type. The UI makes clear that these nodes appear only
+  after a Dream preview is approved and ingested.
+- When a bundle has no enrichment, the generated Dream prompt asks for a
+  representative pilot of at most five existing pages instead of silently
+  rebuilding only the deterministic Graph or attempting an unreviewed full
+  backfill.
+
+### Preserved
+
+- Dream remains preview-first: neither Markdown nor `.mneme` data is written
+  before explicit approval. Graph enrichment remains derived navigation data,
+  and the final report verifies enriched entity/relation counts and warnings.
+
 ## [4.5.0] - 2026-07-23 - mode-aware one-click index rebuild
 
 ### Fixed

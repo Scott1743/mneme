@@ -7,7 +7,7 @@
 *把知识编译一次，让每一次提问都从已经整理好的地方继续向前。*
 
 [![MIT License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-4.5.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.6.0-blue.svg)](CHANGELOG.md)
 [![Skills.sh](https://img.shields.io/badge/skills.sh-available-2ea44f.svg)](https://www.skills.sh/?q=mneme)
 
 </div>
@@ -47,7 +47,7 @@
 
 ### dream：把资料编译成知识
 
-把文章、笔记或本地资料交给 Agent。它会先审计现有 wiki，再预览要新增或修改的概念页、tags、互链、`index.md` 与 `log.md`。只有得到明确批准后才会写盘。
+把文章、笔记或本地资料交给 Agent。它会先审计现有 wiki，再合并预览要新增或修改的概念页、tags、互链以及 Graph 实体/关系提取。只有得到明确批准后才会写入 Markdown 或 `.mneme`。
 
 ### search：沿知识图谱寻找答案
 
@@ -76,7 +76,7 @@ npx skills add Scott1743/mneme
 ### 方式二：下载 Skill zip
 
 - 零依赖基础版：[mneme-2.2.0.zip](https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip)
-- 最新版：[mneme-4.5.0.zip](https://github.com/Scott1743/mneme/releases/download/v4.5.0/mneme-4.5.0.zip)
+- 最新版：[mneme-4.6.0.zip](https://github.com/Scott1743/mneme/releases/download/v4.6.0/mneme-4.6.0.zip)
 
 解压到 Agent 的 skills 目录即可。Mneme 不提供 wheel 或全包 `pip install`，唯一交付物就是一个普通 Skill zip。
 
@@ -170,7 +170,7 @@ mneme search "OKF" --mode graph
 
 `dream --json` 会在 `graph.db` 存在时附带实体、关系、孤立实体、未解析页面与连通分量统计；审计仍然完全只读。
 
-`mneme serve` 的图谱工作台可以在**合并 / 基础 / 富化**三种视图间切换：基础层由 Markdown 页面、frontmatter tags 与页面链接确定性派生；富化层只展示经过 dream 预览批准后写入的 agent 实体和关系，并保留置信度、证据与来源页面。页面浏览页也会反向展示当前页面的 Graph 上下文。
+`mneme serve` 的图谱工作台可以在**合并 / 基础 / 富化**三个层次间切换：基础层由 Markdown 页面、frontmatter tags 与页面链接确定性派生；富化层只展示经过 dream 预览批准后 ingest 的 agent 提取实体和关系，并保留置信度、证据与来源页面。v4.6 新增有界概览、当前邻域、全量视图、返回历史与全屏浏览；页面浏览页也会反向展示当前页面的 Graph 上下文。
 
 ### L2：语义召回（可选）
 

@@ -130,7 +130,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .graph-card{padding:0;overflow:hidden;}
   .graph-head{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border);}
   .graph-head h3{margin:0;}
-  .graph-head .btn{margin-left:auto;}
+  .graph-head-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .graph-status{display:flex;align-items:center;gap:12px;padding:9px 18px;background:var(--warn-bg);color:#854d0e;border-bottom:1px solid #f4d58d;font-size:13px;}
   .graph-status .btn{margin-left:auto;background:transparent;border-color:#d6a84b;color:#854d0e;}
   .graph-status[hidden]{display:none;}
@@ -139,7 +139,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .graph-explainer{border-bottom:1px solid var(--border);background:#fbfcfd;}
   .graph-explainer summary{cursor:pointer;padding:8px 18px;color:var(--muted);font-size:12px;font-weight:600;list-style-position:inside;}
   .graph-explainer summary:hover{color:var(--text);}
-  .graph-explainer dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:4px 18px 14px;}
+  .graph-explainer dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px;padding:4px 18px 14px;}
   .graph-explainer dt{font-size:12px;font-weight:700;margin-bottom:3px;}
   .graph-explainer dd{font-size:12px;color:var(--muted);line-height:1.55;}
   .segment{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;}
@@ -175,6 +175,10 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:5px;}
   .legend .square{border-radius:2px;}
   .legend .diamond{border-radius:1px;transform:rotate(45deg);}
+  #graphCard:fullscreen{width:100vw;height:100vh;border:0;border-radius:0;background:#fff;display:flex;flex-direction:column;}
+  #graphCard:fullscreen .graph-workbench{flex:1;min-height:0;}
+  #graphCard:fullscreen .graph-stage,#graphCard:fullscreen #graphCanvas{height:100%;}
+  #graphCard:fullscreen .graph-detail{max-height:none;}
   @media (max-width:900px){
     .graph-workbench{grid-template-columns:1fr;}
     .graph-detail{border-left:0;border-top:1px solid var(--border);max-height:none;}
@@ -373,11 +377,15 @@ python3 ~/.claude/skills/mneme/scripts/mneme.py serve --bundle ~/wiki --open</pr
 
   <!-- ========== 图谱 ========== -->
   <section class="tab" id="tab-graph">
-    <div class="card graph-card">
+    <div class="card graph-card" id="graphCard">
       <div class="graph-head">
         <h3>知识图谱</h3>
         <span class="hint" id="graphFreshness"></span>
-        <button class="btn small" onclick="resetGraphLayout()">重置布局</button>
+        <div class="graph-head-actions">
+          <button class="btn small" id="graphBackBtn" onclick="graphBack()" disabled title="返回上一个图谱视图">← 返回</button>
+          <button class="btn small" id="graphFullscreenBtn" onclick="toggleGraphFullscreen()" aria-pressed="false">⛶ 全屏</button>
+          <button class="btn small" onclick="resetGraphLayout()">重置布局</button>
+        </div>
       </div>
       <div class="graph-status" id="graphStatus" hidden></div>
       <div class="graph-toolbar">
@@ -390,7 +398,12 @@ python3 ~/.claude/skills/mneme/scripts/mneme.py serve --bundle ~/wiki --open</pr
           <option value="">节点：全部</option>
           <option value="page">节点：页面</option>
           <option value="tag">节点：标签</option>
-          <option value="entity">节点：agent 实体</option>
+          <option value="entity">节点：agent 提取实体</option>
+        </select>
+        <select id="graphViewFilter" onchange="setGraphView(this.value)" aria-label="图谱视图">
+          <option value="overview" selected>视图：概览（推荐）</option>
+          <option value="neighborhood">视图：当前邻域</option>
+          <option value="all">视图：全部</option>
         </select>
         <select id="graphPredicateFilter" onchange="applyGraphSlice()" aria-label="关系切片">
           <option value="">关系：全部</option>
@@ -403,6 +416,7 @@ python3 ~/.claude/skills/mneme/scripts/mneme.py serve --bundle ~/wiki --open</pr
           <div><dt>合并</dt><dd>同时显示基础层与富化层，用于查看页面结构和语义关系如何连接。</dd></div>
           <div><dt>基础</dt><dd>从 Markdown 页面、frontmatter tags 和页面链接确定性派生；重建 Graph 即可完整恢复。</dd></div>
           <div><dt>富化</dt><dd>来自用户批准的 agent 实体与关系提取，带置信度、证据和来源页；Markdown 仍是事实依据。</dd></div>
+          <div><dt>agent 提取实体</dt><dd>agent 从正文中识别出的概念、技术、组织或人物。只有在 dream 预览中获批并 ingest 后才会出现，不会自动生成。</dd></div>
         </dl>
       </details>
       <div class="graph-stat-strip" id="graphStats"></div>
@@ -416,7 +430,7 @@ python3 ~/.claude/skills/mneme/scripts/mneme.py serve --bundle ~/wiki --open</pr
       <div class="legend" id="graphLegend">
         <span><span class="dot square" style="background:#2f6ba8"></span>页面</span>
         <span><span class="dot diamond" style="background:#4f8467"></span>标签</span>
-        <span><span class="dot" style="background:#b6535c"></span>agent 实体</span>
+        <span><span class="dot" style="background:#b6535c"></span>agent 提取实体</span>
         <span><span style="display:inline-block;width:18px;border-top:2px solid #aeb7c2;margin:0 5px 3px 0"></span>基础关系</span>
         <span><span style="display:inline-block;width:18px;border-top:2px solid #b6535c;margin:0 5px 3px 0"></span>富化关系</span>
       </div>
@@ -838,11 +852,14 @@ function openLintPrompt(i){
 function openDreamModal(){
   const bundle = (STATUS && STATUS.bundle) || '<bundle>';
   const text =
-    '请对 bundle '+bundle+' 执行一次 dream：\n\n'+
-    '1. 运行 `mneme dream --bundle '+bundle+'` 生成只读审计报告；\n'+
-    '2. 向我展示报告（OKF Hard Rules + Mneme Writer Rules）；\n'+
-    '3. 待我明确点头后，再用 Write / Edit 落盘概念页；\n'+
-    '4. 同步更新 index.md 与 log.md，并重建 Graph + FTS5 索引。';
+    '请对 bundle '+bundle+' 执行一次 dream 审计与写入预览：\n\n'+
+    '1. 运行 `mneme dream --bundle '+bundle+' --json` 生成只读审计报告；\n'+
+    '2. 向我展示 OKF Hard Rules、Mneme Writer Rules 和 Graph 健康状态；\n'+
+    '3. 阅读相关页面，同时准备 Markdown 变更预览和 agent Graph 富化 extraction JSON：实体需包含 name / type / description / confidence，关系需包含 subject / predicate / object / evidence / confidence；\n'+
+    '4. 如果当前富化实体与关系均为 0，先选最多 5 个有代表性的现有页面做回填试点，不要直接全量处理；\n'+
+    '5. 在任何 bundle 或 .mneme 写入前，展示完整合并预览并等我明确批准；\n'+
+    '6. 批准后仅落盘已预览的范围；如有 wiki 页面写入，同步更新 index.md 与 log.md；然后重建 Graph + FTS5，再用 `mneme graph ingest` 写入已批准的 extraction JSON；\n'+
+    '7. 最后重跑审计，报告新增或复用的富化实体数、富化关系数及所有警告。';
   openModal('发起 dream', text,
     '在宿主 agent 集成环境中，此按钮将唤起 agent 执行 dream 工作流并回这里等待你确认；'+
     '当前独立 server 模式下，请复制下面的 dream 指令文本粘贴给你的 agent：');
@@ -907,10 +924,15 @@ function renderDream(){
 const GRAPH_COLOR={page:'#2f6ba8',tag:'#4f8467',entity:'#b6535c',baseEdge:'#aeb7c2',enrichedEdge:'#b6535c'};
 let graphState=null;
 let graphLayer='all';
+let graphView='overview';
 let graphSelection=null;
+let graphFocusId=null;
+let graphHistory=[];
 let graphSliceTimer=null;
 let graphRun=0;
 let graphPointer=null;
+const GRAPH_OVERVIEW_LIMIT=48;
+const GRAPH_NEIGHBOR_LIMIT=60;
 
 async function loadGraph(){
   try{
@@ -921,6 +943,9 @@ async function loadGraph(){
   }
   graphState=null;
   graphSelection=null;
+  graphFocusId=null;
+  graphHistory=[];
+  updateGraphHistoryControls();
   const predicate=document.getElementById('graphPredicateFilter');
   const selected=predicate.value;
   const predicates=[...new Set(GRAPH.edges.map(edge=>edge.predicate))].sort();
@@ -961,6 +986,13 @@ function setGraphLayer(layer){
   applyGraphSlice();
 }
 
+function setGraphView(view){
+  graphView=view||'overview';
+  if(graphView==='neighborhood'&&graphSelection&&graphSelection.kind==='node') graphFocusId=graphSelection.id;
+  if(graphView!=='neighborhood') graphFocusId=null;
+  applyGraphSlice();
+}
+
 function scheduleGraphSlice(){
   clearTimeout(graphSliceTimer);
   graphSliceTimer=setTimeout(applyGraphSlice,120);
@@ -972,6 +1004,11 @@ function graphVisibleSlice(){
   const predicate=document.getElementById('graphPredicateFilter').value;
   const query=document.getElementById('graphSearch').value.trim().toLocaleLowerCase();
   const nodeMap=Object.fromEntries(GRAPH.nodes.map(node=>[node.id,node]));
+  const degree={};
+  GRAPH.edges.forEach(edge=>{
+    degree[edge.source_id]=(degree[edge.source_id]||0)+1;
+    degree[edge.target_id]=(degree[edge.target_id]||0)+1;
+  });
   let edges=GRAPH.edges.filter(edge=>(graphLayer==='all'||edge.layers.includes(graphLayer))&&(!predicate||edge.predicate===predicate));
   let nodes=GRAPH.nodes.filter(node=>graphLayer==='all'||node.layer===graphLayer);
   const incident=new Set();
@@ -991,6 +1028,25 @@ function graphVisibleSlice(){
     nodes=GRAPH.nodes.filter(node=>visible.has(node.id));
   }else if(predicate){
     nodes=GRAPH.nodes.filter(node=>incident.has(node.id));
+  }else if(graphView==='neighborhood'&&graphFocusId){
+    const focusId=graphFocusId;
+    const adjacent=edges.filter(edge=>edge.source_id===focusId||edge.target_id===focusId)
+      .sort((a,b)=>(degree[b.source_id]||0)+(degree[b.target_id]||0)-(degree[a.source_id]||0)-(degree[a.target_id]||0))
+      .slice(0,GRAPH_NEIGHBOR_LIMIT);
+    const visible=new Set([focusId]);
+    adjacent.forEach(edge=>{ visible.add(edge.source_id); visible.add(edge.target_id); });
+    nodes=GRAPH.nodes.filter(node=>visible.has(node.id));
+    edges=adjacent.filter(edge=>visible.has(edge.source_id)&&visible.has(edge.target_id));
+  }else if(graphView==='neighborhood'){
+    return {nodes:[],edges:[]};
+  }else if(graphView==='overview'){
+    const candidateNodeIds=new Set(nodes.map(node=>node.id));
+    const ranked=nodes.filter(node=>!(node.properties&&node.properties.missing))
+      .sort((a,b)=>(degree[b.id]||0)-(degree[a.id]||0)||a.label.localeCompare(b.label));
+    const visible=new Set(ranked.slice(0,GRAPH_OVERVIEW_LIMIT).map(node=>node.id));
+    if(graphSelection&&graphSelection.kind==='node'&&candidateNodeIds.has(graphSelection.id)) visible.add(graphSelection.id);
+    nodes=GRAPH.nodes.filter(node=>visible.has(node.id));
+    edges=edges.filter(edge=>visible.has(edge.source_id)&&visible.has(edge.target_id));
   }
   const visibleNodes=new Set(nodes.map(node=>node.id));
   edges=edges.filter(edge=>nodeMap[edge.source_id]&&nodeMap[edge.target_id]&&visibleNodes.has(edge.source_id)&&visibleNodes.has(edge.target_id));
@@ -1003,11 +1059,21 @@ function graphHash(value){
   return Math.abs(out);
 }
 
+function shortGraphLabel(node){
+  const label=String(node.label||node.name||'');
+  if(node.kind!=='page') return label;
+  const title=String(node.properties&&node.properties.title||'').trim();
+  if(title&&!title.includes('/')&&!title.includes('\\')) return title;
+  const path=String(node.page_path||node.name||label).replaceAll('\\','/');
+  const filename=(path.split('/').pop()||path).replace(/\.md$/i,'');
+  return filename.replace(/^\d+(?:\.\d+)?[_-]*/,'').replaceAll('_',' ')||label;
+}
+
 function initGraph(slice,w,h){
   const nodes=slice.nodes.map((raw,index)=>{
     const angle=(index/Math.max(1,slice.nodes.length))*Math.PI*2;
     const jitter=(graphHash(raw.id)%31)-15;
-    return {raw,id:raw.id,label:raw.label,kind:raw.kind,x:w/2+Math.cos(angle)*Math.min(w,h)*0.31+jitter,y:h/2+Math.sin(angle)*Math.min(w,h)*0.31-jitter,vx:0,vy:0,degree:0,anchorX:null,anchorY:null};
+    return {raw,id:raw.id,label:shortGraphLabel(raw),kind:raw.kind,x:w/2+Math.cos(angle)*Math.min(w,h)*0.31+jitter,y:h/2+Math.sin(angle)*Math.min(w,h)*0.31-jitter,vx:0,vy:0,degree:0,anchorX:null,anchorY:null};
   });
   const idx={};
   nodes.forEach((node,index)=>{ idx[node.id]=index; });
@@ -1105,14 +1171,15 @@ function drawGraphFrame(ctx,st,w,h){
       ctx.font='11px ui-monospace, monospace';ctx.fillStyle='#6f3037';ctx.textAlign='center';ctx.fillText(predicateLabel(edge.raw.predicate),x,y-7);
     }
   });
-  const showAllLabels=st.nodes.length<=24;
+  const labelBudget=st.nodes.length<=28?st.nodes.length:Math.min(32,Math.max(10,Math.round(st.nodes.length*0.22)));
+  const labelNodes=new Set(st.nodes.slice().sort((a,b)=>b.degree-a.degree).slice(0,labelBudget).map(node=>node.id));
   st.nodes.forEach(node=>{
     const radius=nodeRadius(node);
     const selected=graphSelection&&graphSelection.kind==='node'&&graphSelection.id===node.id;
     drawNodeShape(ctx,node,radius);
     ctx.fillStyle=GRAPH_COLOR[node.kind]||GRAPH_COLOR.entity;ctx.fill();
     ctx.lineWidth=selected?3:2;ctx.strokeStyle=selected?'#172033':'#fff';ctx.stroke();
-    if(showAllLabels||selected||node.kind==='page'||node.kind==='entity'||node.degree>=3){
+    if(labelNodes.has(node.id)||selected){
       const label=node.label.length>22?node.label.slice(0,21)+'…':node.label;
       ctx.font=(selected?'600 ':'')+'12px -apple-system, "PingFang SC", sans-serif';
       let labelX=node.x,labelY=node.y+radius+15;
@@ -1153,7 +1220,8 @@ function applyGraphSlice(){
   if(!graphState.nodes.length){
     empty.hidden=false;
     const enrichedEmpty=graphLayer==='enriched'&&stats.enriched_nodes===0&&stats.enriched_edges===0;
-    empty.innerHTML='<div><strong>'+(enrichedEmpty?'尚无富化数据':'当前切片没有节点')+'</strong><p class="hint">'+(enrichedEmpty?'富化实体与关系需经过 dream 预览批准后 ingest。':'调整节点、关系或关键词切片。')+'</p></div>';
+    const neighborhoodEmpty=graphView==='neighborhood'&&!graphFocusId;
+    empty.innerHTML='<div><strong>'+(enrichedEmpty?'尚无 agent 提取实体':(neighborhoodEmpty?'还没有选中的节点':'当前切片没有节点'))+'</strong><p class="hint">'+(enrichedEmpty?'当前只有由 Markdown 派生的基础层。agent 提取实体与关系需经过 dream 预览批准后 ingest。':(neighborhoodEmpty?'先切回「概览」并选择一个节点，再查看它的邻域。':'调整节点、关系或关键词切片。'))+'</p></div>';
     clearGraphCanvas();
   }else{
     empty.hidden=true;
@@ -1194,6 +1262,42 @@ function resetGraphLayout(){
   applyGraphSlice();
 }
 
+function graphViewSnapshot(){
+  return {
+    view:graphView,
+    focusId:graphFocusId,
+    selection:graphSelection?{kind:graphSelection.kind,id:graphSelection.id}:null
+  };
+}
+
+function updateGraphHistoryControls(){
+  const button=document.getElementById('graphBackBtn');
+  if(button) button.disabled=!graphHistory.length;
+}
+
+function focusGraphNode(id){
+  if(graphView!=='neighborhood'||graphFocusId!==id) graphHistory.push(graphViewSnapshot());
+  graphSelection={kind:'node',id};
+  graphFocusId=id;
+  graphView='neighborhood';
+  const view=document.getElementById('graphViewFilter');
+  if(view) view.value='neighborhood';
+  applyGraphSlice();
+  updateGraphHistoryControls();
+}
+
+function graphBack(){
+  if(!graphHistory.length) return;
+  const previous=graphHistory.pop();
+  graphView=previous.view;
+  graphFocusId=previous.focusId;
+  graphSelection=previous.selection;
+  const view=document.getElementById('graphViewFilter');
+  if(view) view.value=graphView;
+  applyGraphSlice();
+  updateGraphHistoryControls();
+}
+
 function selectGraphNode(id){
   graphSelection={kind:'node',id};
   renderGraphDetail();
@@ -1225,13 +1329,13 @@ function openGraphPage(page){ go('browse',page); }
 function renderGraphDetail(){
   const detail=document.getElementById('graphDetail');
   if(!GRAPH||!GRAPH.available){
-    detail.innerHTML='<h4>Graph</h4><p class="hint">构建后显示页面、标签以及已批准的 agent 富化数据。</p>';
+    detail.innerHTML='<h4>Graph</h4><p class="hint">构建后显示页面、标签以及已批准的 agent 提取实体与关系。</p>';
     return;
   }
   const nodeMap=Object.fromEntries(GRAPH.nodes.map(node=>[node.id,node]));
   if(!graphSelection){
     const nodes=(graphState?graphState.nodes.map(node=>node.raw):[]).slice().sort((a,b)=>a.label.localeCompare(b.label)).slice(0,16);
-    detail.innerHTML='<h4>当前切片</h4><p class="hint">'+(graphState?graphState.nodes.length:0)+' 个节点 · '+(graphState?graphState.edges.length:0)+' 条关系</p><h5>节点目录</h5><div class="graph-node-index">'+(nodes.length?nodes.map(node=>'<button class="graph-node-link" data-node="'+escAttr(node.id)+'" onclick="selectGraphNode(this.dataset.node)">'+esc(node.label)+'<span class="graph-chip '+node.layer+'" style="float:right">'+(node.layer==='enriched'?'富化':sourceLabel(node.source))+'</span></button>').join(''):'<p class="hint">当前无节点</p>')+'</div>';
+    detail.innerHTML='<h4>当前切片</h4><p class="hint">'+(graphState?graphState.nodes.length:0)+' 个节点 · '+(graphState?graphState.edges.length:0)+' 条关系</p><h5>节点目录</h5><div class="graph-node-index">'+(nodes.length?nodes.map(node=>'<button class="graph-node-link" data-node="'+escAttr(node.id)+'" onclick="selectGraphNode(this.dataset.node)">'+esc(shortGraphLabel(node))+'<span class="graph-chip '+node.layer+'" style="float:right">'+(node.layer==='enriched'?'富化':sourceLabel(node.source))+'</span></button>').join(''):'<p class="hint">当前无节点</p>')+'</div>';
     return;
   }
   if(graphSelection.kind==='node'){
@@ -1243,9 +1347,9 @@ function renderGraphDetail(){
       const outgoing=edge.source_id===node.id;
       const neighbor=nodeMap[outgoing?edge.target_id:edge.source_id];
       const layer=edge.layers.includes('enriched')?'富化':'基础';
-      return '<button class="graph-relation-link" data-edge="'+escAttr(edge.id)+'" onclick="selectGraphEdge(this.dataset.edge)">'+esc(outgoing?'→ '+predicateLabel(edge.predicate):'← '+predicateLabel(edge.predicate))+' · '+esc(neighbor?neighbor.label:'未知节点')+'<span>'+layer+(edge.confidence!==null&&edge.confidence!==undefined?' · '+confidenceLabel(edge.confidence):'')+'</span></button>';
+      return '<button class="graph-relation-link" data-edge="'+escAttr(edge.id)+'" onclick="selectGraphEdge(this.dataset.edge)">'+esc(outgoing?'→ '+predicateLabel(edge.predicate):'← '+predicateLabel(edge.predicate))+' · '+esc(neighbor?shortGraphLabel(neighbor):'未知节点')+'<span>'+layer+(edge.confidence!==null&&edge.confidence!==undefined?' · '+confidenceLabel(edge.confidence):'')+'</span></button>';
     }).join(''):'<p class="hint">无直接关系</p>';
-    detail.innerHTML='<div class="graph-source-rail '+node.layer+'"><h4>'+esc(node.label)+'</h4><p class="hint mono">'+esc(node.page_path||node.name)+'</p></div><div class="graph-meta"><span class="graph-chip '+node.layer+'">'+(node.layer==='enriched'?'富化层':'基础层')+'</span><span class="graph-chip">'+esc(node.kind==='page'?(docType||'page'):node.entity_type)+'</span>'+(node.confidence!==null&&node.confidence!==undefined?'<span class="graph-chip">置信度 '+confidenceLabel(node.confidence)+'</span>':'')+'</div>'+(node.description?'<p>'+esc(node.description)+'</p>':'')+(node.page_path?'<button class="btn small" style="margin-top:10px" data-page="'+escAttr(node.page_path)+'" onclick="openGraphPage(this.dataset.page)">打开页面</button>':'')+'<h5>相关页面</h5>'+graphPageButtons(node.related_pages)+'<h5>直接关系</h5><div class="graph-relation-list">'+relationHtml+'</div>';
+    detail.innerHTML='<div class="graph-source-rail '+node.layer+'"><h4>'+esc(shortGraphLabel(node))+'</h4><p class="hint mono">'+esc(node.page_path||node.name)+'</p></div><div class="graph-meta"><span class="graph-chip '+node.layer+'">'+(node.layer==='enriched'?'富化层':'基础层')+'</span><span class="graph-chip">'+esc(node.kind==='page'?(docType||'page'):node.entity_type)+'</span>'+(node.confidence!==null&&node.confidence!==undefined?'<span class="graph-chip">置信度 '+confidenceLabel(node.confidence)+'</span>':'')+'</div>'+(node.description?'<p>'+esc(node.description)+'</p>':'')+'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn small" data-node="'+escAttr(node.id)+'" onclick="focusGraphNode(this.dataset.node)">查看邻域</button>'+(node.page_path?'<button class="btn small" data-page="'+escAttr(node.page_path)+'" onclick="openGraphPage(this.dataset.page)">打开页面</button>':'')+'</div><h5>相关页面</h5>'+graphPageButtons(node.related_pages)+'<h5>直接关系</h5><div class="graph-relation-list">'+relationHtml+'</div>';
     return;
   }
   const edge=GRAPH.edges.find(item=>item.id===graphSelection.id);
@@ -1254,7 +1358,7 @@ function renderGraphDetail(){
   const pages=edge.sources.map(source=>source.page);
   const evidence=[edge.evidence,...edge.sources.map(source=>source.evidence)].filter(Boolean);
   const sourceNames=[...new Set([edge.source,...edge.sources.map(source=>source.source)].filter(Boolean))];
-  detail.innerHTML='<div class="graph-source-rail '+(edge.layers.includes('enriched')?'enriched':'')+'"><h4>'+esc(subject?subject.label:'未知节点')+' → '+esc(predicateLabel(edge.predicate))+' → '+esc(object?object.label:'未知节点')+'</h4></div><div class="graph-meta">'+edge.layers.map(layer=>'<span class="graph-chip '+layer+'">'+(layer==='enriched'?'富化层':'基础层')+'</span>').join('')+sourceNames.map(source=>'<span class="graph-chip">'+esc(sourceLabel(source))+'</span>').join('')+(edge.confidence!==null&&edge.confidence!==undefined?'<span class="graph-chip">置信度 '+confidenceLabel(edge.confidence)+'</span>':'')+'</div>'+(evidence.length?'<h5>证据</h5>'+[...new Set(evidence)].map(text=>'<div class="graph-evidence">'+esc(text)+'</div>').join(''):'')+'<h5>来源页面</h5>'+graphPageButtons(pages)+'<h5>端点</h5><div class="graph-node-index"><button class="graph-node-link" data-node="'+escAttr(edge.source_id)+'" onclick="selectGraphNode(this.dataset.node)">'+esc(subject?subject.label:'未知节点')+'</button><button class="graph-node-link" data-node="'+escAttr(edge.target_id)+'" onclick="selectGraphNode(this.dataset.node)">'+esc(object?object.label:'未知节点')+'</button></div>';
+  detail.innerHTML='<div class="graph-source-rail '+(edge.layers.includes('enriched')?'enriched':'')+'"><h4>'+esc(subject?shortGraphLabel(subject):'未知节点')+' → '+esc(predicateLabel(edge.predicate))+' → '+esc(object?shortGraphLabel(object):'未知节点')+'</h4></div><div class="graph-meta">'+edge.layers.map(layer=>'<span class="graph-chip '+layer+'">'+(layer==='enriched'?'富化层':'基础层')+'</span>').join('')+sourceNames.map(source=>'<span class="graph-chip">'+esc(sourceLabel(source))+'</span>').join('')+(edge.confidence!==null&&edge.confidence!==undefined?'<span class="graph-chip">置信度 '+confidenceLabel(edge.confidence)+'</span>':'')+'</div>'+(evidence.length?'<h5>证据</h5>'+[...new Set(evidence)].map(text=>'<div class="graph-evidence">'+esc(text)+'</div>').join(''):'')+'<h5>来源页面</h5>'+graphPageButtons(pages)+'<h5>端点</h5><div class="graph-node-index"><button class="graph-node-link" data-node="'+escAttr(edge.source_id)+'" onclick="selectGraphNode(this.dataset.node)">'+esc(subject?shortGraphLabel(subject):'未知节点')+'</button><button class="graph-node-link" data-node="'+escAttr(edge.target_id)+'" onclick="selectGraphNode(this.dataset.node)">'+esc(object?shortGraphLabel(object):'未知节点')+'</button></div>';
 }
 
 function canvasPoint(event){
@@ -1310,10 +1414,40 @@ graphCanvas.addEventListener('keydown',event=>{
   if(event.key==='Escape'){graphSelection=null;renderGraphDetail();redrawGraphOnly();}
 });
 
+function updateGraphFullscreenControl(){
+  const card=document.getElementById('graphCard');
+  const button=document.getElementById('graphFullscreenBtn');
+  if(!card||!button) return;
+  const active=document.fullscreenElement===card;
+  button.textContent=active?'退出全屏':'⛶ 全屏';
+  button.setAttribute('aria-pressed',active?'true':'false');
+  if(!card.requestFullscreen){
+    button.disabled=true;
+    button.title='当前浏览器不支持全屏显示';
+  }
+}
+
+async function toggleGraphFullscreen(){
+  const card=document.getElementById('graphCard');
+  if(!card||!card.requestFullscreen) return;
+  try{
+    if(document.fullscreenElement===card) await document.exitFullscreen();
+    else await card.requestFullscreen();
+  }catch(error){
+    toast('无法切换全屏：'+error.message,true);
+  }
+}
+
+document.addEventListener('fullscreenchange',()=>{
+  updateGraphFullscreenControl();
+  clearTimeout(graphResizeTimer);
+  graphResizeTimer=setTimeout(applyGraphSlice,120);
+});
+
 let graphResizeTimer=null;
 window.addEventListener('resize',()=>{
   if(!document.getElementById('tab-graph').classList.contains('active')) return;
-  clearTimeout(graphResizeTimer);graphResizeTimer=setTimeout(resetGraphLayout,160);
+  clearTimeout(graphResizeTimer);graphResizeTimer=setTimeout(applyGraphSlice,160);
 });
 
 /* ==================== 工具 ==================== */
@@ -1326,6 +1460,7 @@ function escAttr(s){
 
 /* ==================== 启动 ==================== */
 async function boot(){
+  updateGraphFullscreenControl();
   try{
     STATUS = await api('/api/status');
   }catch(e){
