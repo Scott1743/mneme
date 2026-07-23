@@ -292,7 +292,7 @@ def _search_payload(
 
     persisted = _persisted_mode(state.config_path)
     if not mode or mode == "auto":
-        if indexlib.graph_index_path(bundle).is_file() and persisted != "l2":
+        if persisted == "l2" or indexlib.graph_index_path(bundle).is_file():
             mode = "hybrid"
         else:
             mode = persisted
@@ -300,23 +300,20 @@ def _search_payload(
         mode = "fts5"
 
     out: Optional[Dict[str, Any]] = None
-    if mode in {"graph", "hybrid"}:
+    include_l2 = mode == "hybrid" and persisted == "l2"
+    if mode == "graph":
         from . import graphlib
 
         graph_db = graphlib.graph_index_path(bundle)
         if graph_db.is_file():
             try:
-                if mode == "graph" and not graphlib.graph_is_fresh(bundle, graph_db):
+                if not graphlib.graph_is_fresh(bundle, graph_db):
                     raise ApiError(
                         409,
                         "graph index is stale; run `mneme reindex --graph` to refresh it.",
                         "stale_index",
                     )
-                out = (
-                    graphlib.search_graph(graph_db, query, k=k)
-                    if mode == "graph"
-                    else indexlib.search_hybrid(bundle, query, k=k)
-                )
+                out = graphlib.search_graph(graph_db, query, k=k)
             except ApiError:
                 raise
             except Exception as exc:  # pragma: no cover - defensive
@@ -327,8 +324,23 @@ def _search_payload(
                 f"no graph index at {graph_db}; run `mneme reindex --graph` to build it.",
                 "no_index",
             )
+
+    if mode == "hybrid":
+        graph_db = indexlib.graph_index_path(bundle)
+        if include_l2 and not indexlib.l2_index_path(bundle).is_file():
+            raise ApiError(
+                404,
+                f"no L2 index at {indexlib.l2_index_path(bundle)}; "
+                "run `mneme reindex --l2` to build and activate it.",
+                "no_index",
+            )
+        if not graph_db.is_file() and not include_l2:
+            mode = "fts5"
         else:
-            mode = "fts5"  # hybrid without a graph falls back to FTS5
+            try:
+                out = indexlib.search_hybrid(bundle, query, k=k, include_l2=include_l2)
+            except Exception as exc:  # pragma: no cover - defensive
+                raise ApiError(500, f"search (hybrid) failed: {exc}", "internal")
 
     if mode == "l2":
         db = indexlib.l2_index_path(bundle)
@@ -386,7 +398,10 @@ def _search_payload(
         if cand.get("distance") is not None:
             item["distance"] = float(cand["distance"])
         candidates.append(item)
-    return {"query": query, "mode": mode, "candidates": candidates}
+    result = {"query": query, "mode": mode, "candidates": candidates}
+    if isinstance(out.get("graph_context"), dict):
+        result["retrieval"] = out["graph_context"]
+    return result
 
 
 def _resolve_page_path(bundle: Path, raw: str) -> Path:

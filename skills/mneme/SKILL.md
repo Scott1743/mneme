@@ -1,7 +1,7 @@
 ---
 name: mneme
-version: 4.7.0
-description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including a disposable SQLite knowledge graph, agent-extracted graph enrichment via graph ingest, hybrid graph + FTS5 retrieval, and optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, rebuild graph navigation, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v4 keeps Markdown authoritative, derives graph.db from pages/tags/links, keeps FTS5 zero-dependency, and preserves explicitly activated L2 semantic mode."
+version: 4.8.0
+description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including a disposable SQLite knowledge graph, agent-extracted graph enrichment via graph ingest, hybrid Graph + FTS5 + explicitly activated L2 retrieval, and optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, rebuild graph navigation, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v4 keeps Markdown authoritative, derives graph.db from pages/tags/links, keeps FTS5 zero-dependency, and adds semantic candidates to hybrid only after explicit L2 activation."
 allowed-tools:
   - Read
   - Write
@@ -153,19 +153,21 @@ candidates only; the agent produces the answer.
    local text matches.
 2. When ranked candidates are useful, run:
    `python3 ~/.claude/skills/mneme/scripts/mneme.py search "<question>" --json -k 10`.
-   A bundle with a fresh `<bundle>/.mneme/graph.db` uses hybrid graph + FTS5
-   retrieval automatically unless L2 is the persisted mode. Hybrid unions
-   Graph candidates with global FTS5 candidates; Graph never hides lexical
-   matches. A stale Graph is ignored until `reindex --graph` refreshes it.
-3. Use `search --mode graph|fts|hybrid` only when diagnosing or explicitly
-   comparing retrieval paths. If Graph has no entity match, hybrid mode falls
-   back to FTS5 candidates rather than returning an empty answer.
+   A bundle with a fresh `<bundle>/.mneme/graph.db` uses hybrid Graph + FTS5
+   retrieval automatically. After L2 is explicitly activated, bare search uses
+   full Hybrid: Graph + global FTS5 + L2 semantic candidates. Graph never hides
+   lexical or semantic matches. A stale Graph is ignored while the other active
+   legs continue.
+3. Use `search --mode graph|fts|hybrid|l2` only when diagnosing or explicitly
+   comparing retrieval paths. Hybrid uses L2 only when it is the persisted
+   active mode; `--mode l2` isolates semantic retrieval for diagnostics. If
+   Graph has no entity match, the other active legs still return candidates.
 4. When the user explicitly requests semantic recall, load
    `references/index-design.md`. After the user installs the optional
    dependencies, run `reindex --l2` once to build and activate L2. Later plain
-   `search` commands use the persisted L2 mode; never add `--l2` to each
+   `search` commands automatically add L2 to Hybrid; never add `--l2` to each
    search, install dependencies, download a model, or switch modes on the
-   user's behalf. L2 failures never silently fall back to FTS5.
+   user's behalf. L2 failures never silently fall back to Graph or FTS5.
 5. Always read each relevant Markdown page in full. Snippets, chunks, distances,
    graph edges, and derived SQLite indexes are never authoritative.
 6. Synthesize the answer with inline bundle-relative citations such as
@@ -213,9 +215,9 @@ unless the user explicitly asks; just offer the command.
   `graph.db` exists. Its optional schedule flags print
   agentless, report-only scheduler snippets and never install them; the default
   fallback time is 02:00 local time.
-- `search <query> [--bundle <path>] [--mode graph|fts|hybrid] --json` returns
-  candidates. Graph-enabled FTS5 bundles default to hybrid; bundles without
-  Graph keep the persisted FTS5/L2 behavior.
+- `search <query> [--bundle <path>] [--mode graph|fts|hybrid|l2] --json` returns
+  candidates. Hybrid is Graph + FTS5 by default and adds semantic candidates
+  when L2 is active; explicit modes isolate a retrieval path for diagnostics.
 - `graph ingest <extraction.json> [--bundle <path>]` merges agent-extracted
   entities/relations into `<bundle>/.mneme/graph.db` (schema v3). Use `"-"` as
   the file to read JSON from stdin. Requires an existing graph index; the

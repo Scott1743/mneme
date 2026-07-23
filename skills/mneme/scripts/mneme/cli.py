@@ -281,14 +281,14 @@ def cmd_search(args: argparse.Namespace) -> int:
             mode = "fts5"
         elif requested_mode:
             mode = requested_mode
-        elif indexlib.graph_index_path(bundle).is_file() and persisted_mode != "l2":
+        elif persisted_mode == "l2" or indexlib.graph_index_path(bundle).is_file():
             mode = "hybrid"
         else:
             mode = persisted_mode
     except ValueError as exc:
         print(f"search failed: {exc}", file=sys.stderr)
         return 1
-    if getattr(args, "l2", False) and mode != "l2":
+    if getattr(args, "l2", False) and persisted_mode != "l2":
         print(
             "search --l2 no longer switches modes; run `mneme reindex --l2` "
             "once to build and activate L2.",
@@ -296,6 +296,7 @@ def cmd_search(args: argparse.Namespace) -> int:
         )
         return 1
 
+    include_l2 = mode == "hybrid" and persisted_mode == "l2"
     if mode in {"graph", "hybrid"}:
         from . import graphlib
 
@@ -307,12 +308,13 @@ def cmd_search(args: argparse.Namespace) -> int:
                     file=sys.stderr,
                 )
                 return 1
-            print(
-                f"no graph index at {graph_db}; falling back to FTS5 retrieval.",
-                file=sys.stderr,
-            )
-            mode = "fts5"
-        else:
+            if not include_l2:
+                print(
+                    f"no graph index at {graph_db}; falling back to FTS5 retrieval.",
+                    file=sys.stderr,
+                )
+                mode = "fts5"
+        if mode in {"graph", "hybrid"}:
             try:
                 if mode == "graph" and not graphlib.graph_is_fresh(bundle, graph_db):
                     print(
@@ -323,7 +325,12 @@ def cmd_search(args: argparse.Namespace) -> int:
                 out = (
                     graphlib.search_graph(graph_db, args.query, k=args.limit)
                     if mode == "graph"
-                    else indexlib.search_hybrid(bundle, args.query, k=args.limit)
+                    else indexlib.search_hybrid(
+                        bundle,
+                        args.query,
+                        k=args.limit,
+                        include_l2=include_l2,
+                    )
                 )
             except Exception as exc:
                 print(f"search ({mode}) failed: {exc}", file=sys.stderr)
@@ -836,11 +843,11 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--json", action="store_true")
     search_parser.add_argument(
         "--mode",
-        choices=("graph", "fts", "hybrid"),
+        choices=("graph", "fts", "hybrid", "l2"),
         default=None,
         help=(
-            "override retrieval for this query. Without an override, graph-enabled "
-            "FTS5 bundles use hybrid mode and other bundles keep their persisted mode."
+            "override retrieval for this query. Hybrid fuses Graph + FTS5 and also "
+            "L2 when semantic retrieval is active."
         ),
     )
     search_parser.add_argument(

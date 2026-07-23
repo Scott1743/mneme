@@ -182,6 +182,41 @@ def test_hybrid_unions_global_fts_hits_with_graph_candidates(tmp_path):
     assert out["graph_context"]["fts_candidates"] >= 1
 
 
+def test_hybrid_fuses_active_l2_with_graph_and_fts(tmp_path, monkeypatch):
+    bundle = _bundle(tmp_path)
+    paths = sorted((bundle / "concepts").glob("*.md"))
+    indexlib.reindex_paths(paths, bundle)
+    graphlib.rebuild_graph(bundle)
+    l2_db = indexlib.l2_index_path(bundle)
+    l2_db.touch()
+
+    monkeypatch.setattr(
+        indexlib,
+        "search_bundle",
+        lambda root, query, k, embed_fn: [
+            {
+                "path": "concepts/alpha.md",
+                "title": "Alpha",
+                "text": "semantic shared hit",
+                "distance": 0.42,
+            }
+        ],
+    )
+
+    out = indexlib.search_hybrid(bundle, "shared", k=5, include_l2=True)
+
+    context = out["graph_context"]
+    assert context["active_sources"] == ["graph", "fts5", "l2"]
+    assert context["queried_sources"] == ["graph", "fts5", "l2"]
+    assert context["weights"] == {"graph": 0.75, "fts5": 0.1, "l2": 0.15}
+    assert context["l2_enabled"] is True
+    alpha = next(item for item in out["candidates"] if item["path"] == "concepts/alpha.md")
+    assert alpha["graph_score"] > 0
+    assert alpha["fts_score"] > 0
+    assert alpha["l2_score"] == 1.0
+    assert alpha["distance"] == 0.42
+
+
 def test_hybrid_falls_back_to_global_fts_when_graph_is_stale(tmp_path):
     bundle = _bundle(tmp_path)
     paths = sorted((bundle / "concepts").glob("*.md"))

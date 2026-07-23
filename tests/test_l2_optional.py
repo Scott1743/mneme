@@ -72,14 +72,12 @@ def test_active_l2_search_does_not_require_a_flag(tmp_path, monkeypatch, capsys)
 
     assert cli.main(["search", "question", "--config", str(config), "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
-    assert payload["candidates"] == [
-        {
-            "path": "concepts/a.md",
-            "title": "A",
-            "snippet": "semantic hit",
-            "distance": 0.42,
-        }
-    ]
+    assert payload["candidates"][0]["path"] == "concepts/a.md"
+    assert payload["candidates"][0]["snippet"] == "semantic hit"
+    assert payload["candidates"][0]["distance"] == 0.42
+    assert payload["candidates"][0]["l2_score"] == 1.0
+    assert payload["graph_context"]["active_sources"] == ["l2"]
+    assert payload["graph_context"]["queried_sources"] == ["l2"]
 
 
 def test_legacy_search_l2_flag_cannot_switch_an_fts5_bundle(tmp_path, capsys):
@@ -87,6 +85,40 @@ def test_legacy_search_l2_flag_cannot_switch_an_fts5_bundle(tmp_path, capsys):
 
     assert cli.main(["search", "question", "--l2", "--config", str(config)]) == 1
     assert "no longer switches modes" in capsys.readouterr().err
+
+
+def test_explicit_l2_mode_is_available_for_diagnostics(
+    tmp_path, monkeypatch, capsys
+):
+    bundle, config = _bundle(tmp_path)
+    indexlib.l2_index_path(bundle).parent.mkdir()
+    indexlib.l2_index_path(bundle).touch()
+    monkeypatch.setattr(indexlib, "default_embed_fn", lambda: object())
+    monkeypatch.setattr(
+        indexlib,
+        "search_bundle",
+        lambda root, query, k, embed_fn: [
+            {
+                "path": "concepts/l2.md",
+                "title": "L2",
+                "text": "semantic only",
+                "distance": 0.3,
+            }
+        ],
+    )
+
+    assert cli.main([
+        "search", "question", "--mode", "l2", "--config", str(config), "--json"
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["candidates"] == [
+        {
+            "path": "concepts/l2.md",
+            "title": "L2",
+            "snippet": "semantic only",
+            "distance": 0.3,
+        }
+    ]
 
 
 def test_active_l2_missing_index_does_not_fallback_to_fts5(tmp_path, monkeypatch, capsys):
@@ -158,13 +190,19 @@ def test_upgrade_then_downgrade_routes_bare_search_to_the_active_mode(
     assert cli.main(["reindex", "--l2", "--config", str(config)]) == 0
     capsys.readouterr()
     assert cli.main(["search", "question", "--config", str(config), "--json"]) == 0
-    assert json.loads(capsys.readouterr().out)["candidates"][0]["path"] == "concepts/l2.md"
+    active = json.loads(capsys.readouterr().out)
+    assert {item["path"] for item in active["candidates"]} == {
+        "concepts/l1.md",
+        "concepts/l2.md",
+    }
+    assert active["graph_context"]["active_sources"] == ["fts5", "l2"]
+    assert active["graph_context"]["queried_sources"] == ["fts5", "l2"]
 
     assert cli.main(["reindex", "--fts5", "--config", str(config)]) == 0
     capsys.readouterr()
     assert cli.main(["search", "question", "--config", str(config), "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["candidates"][0]["path"] == "concepts/l1.md"
-    assert calls == ["l2", "fts5"]
+    assert calls == ["fts5", "l2", "fts5"]
     assert l2_db.read_bytes() == b"semantic cache"
 
 

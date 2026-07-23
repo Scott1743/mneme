@@ -361,6 +361,47 @@ def test_search_l2_preserves_page_distance(server, monkeypatch):
     ]
 
 
+def test_search_auto_uses_full_hybrid_when_l2_is_active(tmp_path, monkeypatch):
+    from mneme import indexlib
+    from mneme.config import write_config
+    from mneme.webserver import ServeState, _search_payload
+
+    bundle = tmp_path / "wiki"
+    bundle.mkdir()
+    cache = bundle / ".mneme"
+    cache.mkdir()
+    indexlib.l2_index_path(bundle).touch()
+    indexlib.graph_index_path(bundle).touch()
+    config = tmp_path / "config.toml"
+    write_config(config, {"bundle_path": str(bundle), "active_retrieval_mode": "l2"})
+    state = ServeState(bundle, config, "127.0.0.1", token="test")
+    seen = {}
+
+    def fake_hybrid(root, query, k, include_l2):
+        seen.update(root=root, query=query, k=k, include_l2=include_l2)
+        return {
+            "query": query,
+            "candidates": [
+                {"path": "concepts/a.md", "title": "A", "snippet": "three-way"}
+            ],
+            "graph_context": {
+                "mode": "hybrid",
+                "active_sources": ["graph", "fts5", "l2"],
+                "queried_sources": ["graph", "fts5", "l2"],
+            },
+        }
+
+    monkeypatch.setattr(indexlib, "search_hybrid", fake_hybrid)
+
+    payload = _search_payload(state, "question", 10, "auto")
+
+    assert payload["mode"] == "hybrid"
+    assert payload["candidates"][0]["snippet"] == "three-way"
+    assert payload["retrieval"]["active_sources"] == ["graph", "fts5", "l2"]
+    assert payload["retrieval"]["queried_sources"] == ["graph", "fts5", "l2"]
+    assert seen["include_l2"] is True
+
+
 # ---------------------------------------------------------------------------
 # Dream + graph (read-only)
 # ---------------------------------------------------------------------------

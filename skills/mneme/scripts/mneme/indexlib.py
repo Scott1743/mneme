@@ -681,16 +681,19 @@ def search_hybrid(
     query: str,
     k: int = 10,
     *,
-    alpha: float = 0.4,
-    beta: float = 0.4,
-    gamma: float = 0.2,
+    alpha: float = 0.75,
+    beta: float = 0.10,
+    gamma: float = 0.15,
     depth: int = 2,
+    include_l2: bool = False,
+    embed_fn: EmbedFn | Embedder | None = None,
 ) -> Dict:
-    """Fuse graph reachability with FTS5 candidate ranking.
+    """Fuse page-level Graph, FTS5, and optional L2 candidate ranking.
 
-    Phase 1 deliberately leaves ``gamma`` inactive: entity embeddings are a
-    later opt-in layer. The available graph and FTS weights are renormalized
-    so an absent embedding does not lower every result's score.
+    L2 remains explicitly opt-in. Callers enable its leg only when the
+    persisted retrieval mode is ``l2``; an unavailable active L2 raises rather
+    than silently degrading. Each leg is reduced to one score per page before
+    fusion, and weights are renormalized across legs that returned candidates.
     """
     from . import graphlib
 
@@ -701,45 +704,29 @@ def search_hybrid(
     root = Path(bundle_path)
     graph_db = graphlib.graph_index_path(root)
     fts_db = fts_index_path(root)
-    if not graph_db.is_file():
-        if fts_db.is_file():
-            result = search(query, fts_db, k=k)
-            result["graph_context"] = {"fallback": "fts5", "reason": "graph index missing"}
-            return result
-        return {
-            "query": query,
-            "candidates": [],
-            "graph_context": {"fallback": "l0", "reason": "graph and FTS5 indexes missing"},
-        }
+    l2_db = l2_index_path(root)
+    if include_l2 and not l2_db.is_file():
+        raise IndexNotFoundError(
+            f"no L2 index at {l2_db}; run `mneme reindex --l2` to build and activate it."
+        )
 
-    graph_fresh = graphlib.graph_is_fresh(root, graph_db)
+    graph_available = graph_db.is_file()
+    graph_fresh = graph_available and graphlib.graph_is_fresh(root, graph_db)
     graph_candidates = (
         graphlib.graph_page_candidates(graph_db, query, limit=max(k * 10, 50), depth=depth)
         if graph_fresh else []
     )
-    if not graph_candidates and fts_db.is_file():
-        result = search(query, fts_db, k=k)
-        for rank, candidate in enumerate(result["candidates"]):
-            fts_score = 1.0 / (1.0 + rank)
-            candidate.update(
-                {
-                    "score": round(fts_score, 6),
-                    "graph_score": 0.0,
-                    "fts_score": round(fts_score, 6),
-                    "graph_context": {"distance": None, "matched_entities": []},
-                }
-            )
-        result["graph_context"] = {
-            "mode": "hybrid",
-            "fallback": "fts5",
-            "reason": "no graph entity match" if graph_fresh else "graph index is stale",
-            "graph_candidates": 0,
-            "fts_candidates": len(result["candidates"]),
-            "graph_fresh": graph_fresh,
-            "embedding_weight": gamma,
-            "embedding_enabled": False,
-        }
-        return result
+
+    pool_size = min(max(k * 10, 50), 100)
+    # FTS5 searches globally. Graph is an additional signal, never a hard
+    # candidate filter, so sparse graph coverage cannot hide lexical hits.
+    fts_candidates = (
+        search(query, fts_db, k=pool_size)["candidates"] if fts_db.is_file() else []
+    )
+    l2_hits = (
+        search_bundle(root, query, k=pool_size, embed_fn=embed_fn) if include_l2 else []
+    )
+
     by_path: Dict[str, Dict] = {}
     for item in graph_candidates:
         path = str(item.get("page_path") or item.get("name") or "")
@@ -755,61 +742,160 @@ def search_hybrid(
             "matched_entities": item.get("matched_entities", []),
         }
 
-    # FTS5 searches globally. Graph is an additional signal, never a hard
-    # candidate filter, so sparse graph coverage cannot hide lexical hits.
-    fts_candidates = (
-        search(query, fts_db, k=min(max(k * 10, 50), 100))
-        if fts_db.is_file() else {"candidates": []}
-    )
-    for candidate in fts_candidates["candidates"]:
-        by_path.setdefault(candidate["path"], {
-            "path": candidate["path"],
-            "title": candidate["title"],
-            "snippet": candidate["snippet"],
-            "distance": None,
-            "graph_score": 0.0,
-            "matched_entities": [],
-        })
-    fts_rank = {item["path"]: rank for rank, item in enumerate(fts_candidates["candidates"])}
-    total_weight = alpha + beta
-    if total_weight <= 0:
-        alpha, beta, total_weight = 0.5, 0.5, 1.0
+    for candidate in fts_candidates:
+        by_path.setdefault(
+            candidate["path"],
+            {
+                "path": candidate["path"],
+                "title": candidate["title"],
+                "snippet": candidate["snippet"],
+                "distance": None,
+                "graph_score": 0.0,
+                "matched_entities": [],
+            },
+        )
+
+    for hit in l2_hits:
+        path = str(hit.get("path", ""))
+        if not path:
+            continue
+        by_path.setdefault(
+            path,
+            {
+                "path": path,
+                "title": str(hit.get("title", "")),
+                "snippet": str(hit.get("text", "")),
+                "distance": None,
+                "graph_score": 0.0,
+                "matched_entities": [],
+            },
+        )
+
+    graph_by_path = {
+        str(item.get("page_path") or item.get("name") or ""): item
+        for item in graph_candidates
+        if str(item.get("page_path") or item.get("name") or "")
+    }
+    fts_by_path = {item["path"]: item for item in fts_candidates}
+    l2_by_path = {
+        str(item.get("path", "")): item for item in l2_hits if str(item.get("path", ""))
+    }
+    fts_rank = {item["path"]: rank for rank, item in enumerate(fts_candidates)}
+    l2_rank = {
+        str(item.get("path", "")): rank
+        for rank, item in enumerate(l2_hits)
+        if str(item.get("path", ""))
+    }
+
+    active_weights = {
+        "graph": max(0.0, alpha) if graph_by_path else 0.0,
+        "fts5": max(0.0, beta) if fts_by_path else 0.0,
+        "l2": max(0.0, gamma) if l2_by_path else 0.0,
+    }
+    total_weight = sum(active_weights.values())
+    active_legs = [name for name, weight in active_weights.items() if weight > 0]
+    if by_path and total_weight <= 0:
+        available = [
+            name
+            for name, candidates in (
+                ("graph", graph_by_path),
+                ("fts5", fts_by_path),
+                ("l2", l2_by_path),
+            )
+            if candidates
+        ]
+        active_weights = {name: (1.0 if name in available else 0.0) for name in active_weights}
+        active_legs = available
+        total_weight = float(len(available))
+    normalized_weights = {
+        name: round(weight / total_weight, 6) if total_weight else 0.0
+        for name, weight in active_weights.items()
+    }
 
     merged = []
     for path, item in by_path.items():
         graph_score = item["graph_score"] if item["distance"] is not None else 0.0
         fts_score = 1.0 / (1.0 + fts_rank[path]) if path in fts_rank else 0.0
-        final_score = (alpha * graph_score + beta * fts_score) / total_weight
-        fts_item = next(
-            (candidate for candidate in fts_candidates["candidates"] if candidate["path"] == path),
-            None,
+        l2_score = 1.0 / (1.0 + l2_rank[path]) if path in l2_rank else 0.0
+        final_score = (
+            (
+                active_weights["graph"] * graph_score
+                + active_weights["fts5"] * fts_score
+                + active_weights["l2"] * l2_score
+            )
+            / total_weight
+            if total_weight
+            else 0.0
         )
+        display_item = fts_by_path.get(path) or l2_by_path.get(path) or item
+        l2_item = l2_by_path.get(path)
         candidate = {
             "path": path,
-            "title": (fts_item or item)["title"],
-            "snippet": (fts_item or item)["snippet"],
+            "title": display_item.get("title", ""),
+            "snippet": display_item.get("snippet", display_item.get("text", "")),
             "score": round(final_score, 6),
             "graph_score": round(graph_score, 6),
             "fts_score": round(fts_score, 6),
+            "l2_score": round(l2_score, 6),
             "graph_context": {
                 "distance": item["distance"],
                 "matched_entities": item["matched_entities"],
             },
         }
+        if l2_item is not None and l2_item.get("distance") is not None:
+            candidate["distance"] = float(l2_item["distance"])
         merged.append(candidate)
     merged.sort(key=lambda candidate: (-candidate["score"], candidate["path"]))
+
+    reason = None
+    if not graph_available:
+        reason = "graph index missing"
+    elif not graph_fresh:
+        reason = "graph index is stale"
+    elif not graph_candidates:
+        reason = "no graph entity match"
+    fallback = None
+    if active_legs == ["fts5"]:
+        fallback = "fts5"
+    elif (
+        not active_legs
+        and not include_l2
+        and not graph_available
+        and not fts_db.is_file()
+    ):
+        fallback = "l0"
+
+    queried_sources = []
+    if graph_fresh:
+        queried_sources.append("graph")
+    if fts_db.is_file():
+        queried_sources.append("fts5")
+    if include_l2:
+        queried_sources.append("l2")
+
+    context = {
+        "mode": "hybrid",
+        "depth": depth,
+        "graph_candidates": len(graph_by_path),
+        "fts_candidates": len(fts_by_path),
+        "l2_candidates": len(l2_by_path),
+        "graph_fresh": graph_fresh,
+        "weights": normalized_weights,
+        "active_sources": active_legs,
+        "queried_sources": queried_sources,
+        "embedding_weight": gamma,
+        "embedding_enabled": include_l2,
+        "l2_weight": gamma,
+        "l2_enabled": include_l2,
+    }
+    if reason:
+        context["reason"] = reason
+    if fallback:
+        context["fallback"] = fallback
     return {
         "query": query,
         "candidates": merged[:k],
-        "graph_context": {
-            "mode": "hybrid",
-            "depth": depth,
-            "graph_candidates": len(graph_candidates),
-            "fts_candidates": len(fts_candidates["candidates"]),
-            "graph_fresh": graph_fresh,
-            "embedding_weight": gamma,
-            "embedding_enabled": False,
-        },
+        "graph_context": context,
     }
 
 

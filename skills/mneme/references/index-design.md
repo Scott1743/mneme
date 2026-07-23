@@ -16,9 +16,9 @@ remains authoritative, and each rebuild atomically replaces only its own cache:
 - `<bundle>/.mneme/l2.db` for explicitly activated semantic retrieval.
 
 The persisted FTS5/L2 choice lives in `~/.config/mneme/config.toml` as
-`active_retrieval_mode`. Configurations without that field remain FTS5. When
-Graph exists and L2 is not active, bare search uses hybrid Graph + FTS5.
-Deleting Graph restores the v3-compatible FTS5/L0 path.
+`active_retrieval_mode`. Configurations without that field remain FTS5. Bare
+search uses Graph + FTS5 when Graph exists. Explicitly activating L2 adds its
+semantic candidates to that Hybrid ranking; it does not replace the other legs.
 
 ## Default: FTS5
 
@@ -27,7 +27,7 @@ New and pre-L2 configurations use Python's standard-library SQLite FTS5.
 third-party dependency or model is required. Without that index, search may
 fall back to a local Markdown scan.
 
-## v4 Graph + hybrid retrieval
+## Hybrid retrieval
 
 `mneme reindex --graph` builds `<bundle>/.mneme/graph.db` from valid OKF
 concept pages without changing them. Phase 1 derives:
@@ -38,12 +38,18 @@ concept pages without changing them. Phase 1 derives:
 - graph health counters for the read-only `dream --json` report.
 
 After Graph exists, bare search uses hybrid mode: Graph finds entity-related page
-paths, FTS5 independently searches the whole bundle, and ranking fuses the union
-of both candidate sets. Graph never hard-filters global lexical recall. Each
-Graph rebuild records a Markdown source fingerprint; a stale graph is ignored
-and hybrid falls back to global FTS5 until `reindex --graph` refreshes it.
-`search --mode graph|fts|hybrid` provides an explicit per-query override for
-diagnostics; it does not persist a new mode.
+paths and FTS5 independently searches the whole bundle. When L2 is active, its
+semantic page candidates join the same union. Ranking defaults to 0.75 Graph,
+0.10 FTS5, and 0.15 L2. The weights come from an exhaustive 1% grid evaluated
+with ten repetitions of grouped five-fold outer validation over 59 base cases.
+Against the prior 0.40/0.40/0.20 mix, case-macro MRR improved by 0.027 with a
+paired case-cluster 95% interval of [0.013, 0.041]; all exact source-page titles
+remained first. Weights renormalize across legs that returned candidates. FTS5
+and L2 contribute reciprocal page-rank scores; Graph contributes its normalized
+reachability score. Graph never hard-filters global lexical or semantic recall.
+Each Graph rebuild records a Markdown source fingerprint; a stale graph is
+ignored while the other active legs continue. `search --mode graph|fts|hybrid|l2`
+provides an explicit per-query diagnostic override; it does not persist a mode.
 
 Graph is stdlib-only SQLite and contains no authoritative facts. Approved agent
 extractions are stored as a replay manifest beside `graph.db`, so rebuilding the
@@ -71,9 +77,9 @@ Only when the user requests semantic recall:
    `BAAI/bge-small-zh-v1.5` and persists `active_retrieval_mode = "l2"`; the
    first model download is a user-authorized consequence of that explicit
    command.
-3. Later bare `mneme search` and `mneme reindex` use L2, so an agent cannot
-   accidentally change retrieval by forgetting a per-search flag. Missing or
-   unavailable L2 reports an error and never silently falls back.
+3. Later bare `mneme search` adds L2 to full Hybrid, while bare `mneme reindex`
+   continues rebuilding the persisted L2 mode. Missing or unavailable active
+   L2 reports an error and never silently falls back to Graph or FTS5.
 4. `mneme reindex --fts5` explicitly switches the persisted mode back to FTS5.
    It does not delete `l2.db`; changing modes never overwrites the other cache.
 

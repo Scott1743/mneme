@@ -53,7 +53,7 @@ v4.0：新增可删除的 SQLite Graph 与 Graph + FTS5 hybrid 检索
 v2.0 把用户叙事收成两个动词：
 
 - **`dream`（写侧总入口）** —— 你丢资料进来，agent 读它、写 OKF 概念页、加 `tags`、做互链、更新 `index.md` 与 `log.md`。`mneme dream` 子命令本身是**只读审计**（出报告，不改 wiki）；真正的写盘在 SKILL.md 工作流里、由 agent 用 `Write` / `Edit` 完成。交互式 dream 每次写盘前必须先得到你点头；每天 02:00 的宿主 agent 夜巡只有在用户创建任务时明确选择“受限自动修复”后，才获得健康修复白名单内的持续授权。
-- **`search`（读侧总入口）** —— 你问问题，agent 先读 `index.md`，按 tags / 标题 / 链接 / `grep` 渐进展开；wiki 大的时候按 v4 Graph + FTS5 hybrid 召回。Graph 不存在时回退到 FTS5/L0；显式启用 L2 后继续使用持久化语义模式。`mneme search` 只返回候选与导航上下文；最终答案由 agent 读完整页综合，引用是 bundle 内路径。
+- **`search`（读侧总入口）** —— 你问问题，agent 先读 `index.md`，按 tags / 标题 / 链接 / `grep` 渐进展开；wiki 大的时候按 Graph + FTS5 hybrid 召回，显式启用 L2 后把语义候选加入同一个页面级融合排序。Graph 不可用时其余已激活通道继续工作；`mneme search` 只返回候选与导航上下文，最终答案由 agent 读完整页综合，引用是 bundle 内路径。
 
 `init / lint / reindex / dream / search / convert` 是 agent 在后台调用的确定性 CLI 子命令，不增加用户动词。
 
@@ -106,7 +106,7 @@ okf_version: "0.1"           # 仅 bundle 根 index.md 可带
 - **载体是 agent skill**：遵循 Claude Code skill 格式（`SKILL.md` + YAML frontmatter：`name` / `description` / `allowed-tools` 等，可附 `references/` 支撑文档与 `scripts/` 脚本）。
 - **git-native**：bundle 即仓库/目录，知识像代码一样 diff / branch / review / blame。
 - **严格 OKF 边界**：`sources/*.md` 是带 frontmatter 的 `type: Source` 溯源页；不可变原件放 `raw-sources/`。原件若以 `.md` 结尾，落盘时追加 `.raw`，避免被 OKF §3.1 解释为概念页。校验、Dream、索引与 Web UI 不得对任何业务目录设置 `.md` 豁免。
-- **分层依赖**：OKF 核心、FTS5 与 v4 Graph（`okflib` + `sqlite3` + FTS5）保持 stdlib 零依赖。Graph 由 `reindex --graph` 显式重建，存在时普通 search 使用 hybrid；删除后自动回退 FTS5/L0。L2 仅在用户显式执行一次 `reindex --l2` 时启用，依赖由用户自行安装；成功后模式持久化。skill 不自动执行 `pip install`，激活的 L2 失败时不静默回退。
+- **分层依赖**：OKF 核心、FTS5 与 v4 Graph（`okflib` + `sqlite3` + FTS5）保持 stdlib 零依赖。Graph 由 `reindex --graph` 显式重建，存在时普通 search 使用 hybrid；删除后由其余已激活通道继续召回。L2 仅在用户显式执行一次 `reindex --l2` 时启用，依赖由用户自行安装；成功后模式持久化并加入 Graph + FTS5 融合。skill 不自动执行 `pip install`，激活的 L2 失败时不静默回退。
 - **disposable accelerator**：`graph.db` / `fts.db` / `l2.db` 可删可重建；不是事实来源；删除后 wiki 仍然完整。v4 Phase 1 只从页面、tags 与 Markdown links 派生 Graph，不把结构化事实从 OKF 正文迁出。
 - **按需、无自建常驻服务**：dream / search 走 host-agent 本地工具（Read / Write / Edit / Bash / Grep / Glob），skill 自身只提供 OKF 合规骨架与确定性 CLI（`mneme init / lint / reindex / search / dream / convert`）；每天 02:00 的可选夜巡由宿主 agent 的 recurring-task 能力唤醒，不引入 Mneme daemon，MCP 暂不实现。
 - **dream 默认 preview-only，夜巡修复显式 opt-in**：交互式 dream 写盘前必须先展示报告并等待用户明确点头。首次建库或首次成功 dream 后，skill 可引导用户创建每天 02:00 的宿主 agent 任务，并选择“只报告”或“受限自动修复”；后者的选择只构成对无歧义健康修复白名单的持续授权。夜巡不得改事实正文或 raw source，不得新建知识页、合并、归档、移动、删除，不自动 commit / push / `git add -A`；有歧义、与用户改动重叠或涉及超过 5 个概念页时降级为报告。

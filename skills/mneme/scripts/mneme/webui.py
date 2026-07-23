@@ -634,7 +634,9 @@ async function doSearch(){
     const r = await api('/api/search?q='+encodeURIComponent(q)+'&k=20&mode='+encodeURIComponent(mode));
     let results = r.candidates;
     if(type) results = results.filter(c=>{ const p=PAGEMAP[c.path]; return p && p.type===type; });
-    meta.textContent = 'mode='+r.mode+' · 召回 '+results.length+' 个页面';
+    const sources = r.retrieval && Array.isArray(r.retrieval.queried_sources)
+      ? ' ('+r.retrieval.queried_sources.join(' + ')+')' : '';
+    meta.textContent = 'mode='+r.mode+sources+' · 召回 '+results.length+' 个页面';
     document.getElementById('searchResults').innerHTML = results.map(c=>{
       const p = PAGEMAP[c.path];
       const typeBadge = p && p.type ? ' <span class="badge INFO" style="margin-left:6px">'+esc(p.type)+'</span>' : '';

@@ -9,6 +9,19 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.8.0] - 2026-07-23 - calibrated three-way Hybrid retrieval
+
+### Changed
+
+- Activating L2 now adds semantic page candidates to the existing Hybrid
+  Graph + FTS5 ranking instead of replacing those retrieval paths. Hybrid uses
+  `0.75 / 0.10 / 0.15` Graph, FTS5, and L2 weights, renormalizes across legs
+  with candidates, and reports both queried and score-contributing sources.
+  The ratio was selected from a 4,851-point 1% grid using 10x5 grouped outer
+  validation over 59 base cases. It improved case-macro MRR by `+0.027` versus
+  `0.40 / 0.40 / 0.20`, with a paired case-cluster 95% interval of
+  `[+0.013, +0.041]`, while preserving all seven exact-title Top-1 contracts.
+
 ## [4.7.0] - 2026-07-23 - full-world graph map and curation guidance
 
 ### Added

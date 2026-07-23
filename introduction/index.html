@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mneme · 记忆女神 · v4.7.0</title>
+  <title>Mneme · 记忆女神 · v4.8.0</title>
   <meta name="description" content="本地优先、agent 增量维护的 Markdown 知识库。mneme 记，dream 整理，search 读，serve 看——一座会做梦的 wiki。" />
   <meta name="color-scheme" content="light dark" />
   <meta property="og:title" content="Mneme — agent 维护的本地 Markdown 知识库" />
@@ -553,14 +553,14 @@
          Hero
          ═══════════════════════════════════════════════════ -->
     <header class="hero">
-      <p class="kicker">An agent skill · MIT · v4.7.0</p>
+      <p class="kicker">An agent skill · MIT · v4.8.0</p>
       <h1>Mneme</h1>
       <p class="tagline">让 agent 替你记着点的本地 Markdown 知识库。<br/>白天 <span class="v-dream">mneme</span> 一下它就记住，深夜它自己 <span class="v-dream">dream</span> 整理，你问它 <span class="v-search">search</span> 就答——想自己看，就推开 <span class="v-search">serve</span> 这扇窗。</p>
 
       <a class="install" href="https://www.skills.sh">
         <span class="verb">$</span> npx skills add Scott1743/mneme
       </a>
-      <p class="byline"><a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip">v2.2.0 基础版下载</a> · <a href="https://github.com/Scott1743/mneme/releases/download/v4.7.0/mneme-4.7.0.zip">v4.7.0 发布版下载</a></p>
+      <p class="byline"><a href="https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip">v2.2.0 基础版下载</a> · <a href="https://github.com/Scott1743/mneme/releases/download/v4.8.0/mneme-4.8.0.zip">v4.8.0 发布版下载</a></p>
 
       <p class="byline">— μνήμη · 记忆女神 —</p>
 
@@ -625,7 +625,7 @@
 
       <p><code>mneme serve --open</code> 给这座 wiki 开了一扇窗：浏览器里就是你的知识库——健康度一屏看完，搜索即问即答，页面点着链接逛，诊断列成表。图谱关系可按「基础」「富化」或「合并」切换；完整 Graph 会铺在一张可平移缩放的地图上，默认镜头只看局部，右下角小地图负责全局定位。你也可以适配全图、钻进当前邻域、收起详情或进入全屏。点开节点或关系，就能回到证据与来源页面。</p>
 
-      <p>基础层来自 Markdown 页面、tags 与链接，随时可以重建；富化层只接收你在 dream 预览里批准过的 agent 提取。没有富化时，「发起 dream」会先让 agent 挑最多 5 页生成实体、关系、证据和置信度预览，你批准后才 ingest；面板不会替你编造关系。v4.7 的只读审计还会指出重复或单例 tag、超预算页面与漂移的关系谓词，让 agent 先复用这座 wiki 已有的语言，而不是越整理词越多。「重建索引」会按当前模式刷新全部缓存：启用 L2 时重建 L2、FTS5 与 Graph，否则重建 FTS5 与 Graph；任何 L2 错误都会直接显示。页眉和浏览器标题会直接告诉你当前运行的 Skill 版本；v4.6.2 起，面板与 lint 使用同一套孤儿页判定。</p>
+      <p>基础层来自 Markdown 页面、tags 与链接，随时可以重建；富化层只接收你在 dream 预览里批准过的 agent 提取。没有富化时，「发起 dream」会先让 agent 挑最多 5 页生成实体、关系、证据和置信度预览，你批准后才 ingest；面板不会替你编造关系。只读审计会指出重复或单例 tag、超预算页面与漂移的关系谓词，让 agent 先复用这座 wiki 已有的语言，而不是越整理词越多。v4.8 里，显式启用 L2 后，搜索不再丢掉原有路径，而是把 Graph、FTS5 与 L2 合成完整 Hybrid；本地分组交叉验证选出的默认配比是 <code>0.75 / 0.10 / 0.15</code>，相较旧配比把 case-macro MRR 从 <code>0.792</code> 提升到 <code>0.818</code>，7 个精确标题仍全部 Top-1。「重建索引」会按当前模式刷新全部缓存：启用 L2 时重建 L2、FTS5 与 Graph，否则重建 FTS5 与 Graph；任何 L2 错误都会直接显示。页眉和浏览器标题会直接告诉你当前运行的 Skill 版本；面板与 lint 使用同一套孤儿页判定。</p>
 
       <aside class="gloss">只绑 localhost，只读。</aside>
 
@@ -672,7 +672,7 @@
          ═══════════════════════════════════════════════════ -->
     <footer class="signature">
       <span class="press-mark">μνήμη — Mneme</span>
-      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases">v4.7.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
+      <span><a href="https://github.com/Scott1743/mneme">github.com/Scott1743/mneme</a> &nbsp;·&nbsp; <a href="https://github.com/Scott1743/mneme/releases">v4.8.0</a> &nbsp;·&nbsp; <code>~/.claude/skills/mneme/</code></span>
     </footer>
 
   </main>
