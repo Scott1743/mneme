@@ -9,6 +9,21 @@ for in-flight specs and plans.
 
 ## [Unreleased]
 
+## [4.8.1] - 2026-07-24 - explicit auto search routing
+
+### Added
+
+- `mneme search --mode auto` now explicitly selects the same default routing
+  policy as bare search: Graph + FTS5 for the zero-dependency capability state,
+  with L2 added when semantic retrieval is already active.
+
+### Fixed
+
+- The Skill and retrieval references now distinguish per-query `auto` routing
+  from persisted `active_retrieval_mode = "fts5" | "l2"`. Asking for auto no
+  longer invites an agent to run `reindex --fts5`, change L2 activation, or
+  mistake the absence of a persisted `auto` value for an FTS5 request.
+
 ## [4.8.0] - 2026-07-23 - calibrated three-way Hybrid retrieval
 
 ### Changed

@@ -11,10 +11,11 @@ description: Retrieve candidates, read authoritative pages, and answer with bund
 2. Use the active retrieval path when ranking helps:
    `python3 ~/.claude/skills/mneme/scripts/mneme.py search "<question>" --json -k 10`.
    Treat the question as an argument value, never generated source code. Bare
-   search uses Graph + FTS5 when Graph exists; after explicit L2 activation it
-   adds semantic candidates to the same page-level Hybrid ranking. Build the
-   derived graph with `reindex --graph`; this also refreshes FTS5 and never
-   changes Markdown.
+   search and `--mode auto` use Graph + FTS5 when Graph exists; after explicit
+   L2 activation they add semantic candidates to the same page-level Hybrid
+   ranking. Auto preserves `active_retrieval_mode`: it never maps to FTS5,
+   changes configuration, or runs `reindex`. Build the derived graph with
+   `reindex --graph`; this also refreshes FTS5 and never changes Markdown.
 3. Use `search --mode graph|fts|hybrid|l2` only to diagnose or compare retrieval.
    Graph-only mode requires `graph.db`. Hybrid continues with its other active
    legs when Graph is missing, stale, or has no entity match. Pure L2 mode is a

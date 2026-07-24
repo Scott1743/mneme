@@ -35,7 +35,7 @@ def _read(path: Path) -> str:
 def test_release_downloads_are_present(path: Path) -> None:
     text = _read(path)
     assert "releases/download/v2.2.0/mneme-2.2.0.zip" in text
-    assert "releases/download/v4.8.0/mneme-4.8.0.zip" in text
+    assert "releases/download/v4.8.1/mneme-4.8.1.zip" in text
 
 
 def test_introduction_install_command_present() -> None:
@@ -46,7 +46,7 @@ def test_introduction_install_command_present() -> None:
 
 
 def test_readme_version_badge_matches_release() -> None:
-    assert "version-4.8.0-blue.svg" in _read(README)
+    assert "version-4.8.1-blue.svg" in _read(README)
 
 
 def test_introduction_has_dream_and_search() -> None:
@@ -101,10 +101,19 @@ def test_public_pages_explain_v48_three_way_hybrid() -> None:
     assert "0.75 / 0.10 / 0.15" in intro
 
 
+def test_public_pages_explain_auto_preserves_l2_activation() -> None:
+    readme = _read(README)
+    intro = _read(INTRO)
+    assert "search --mode auto" in readme
+    assert "`auto` 本身不写入配置，也不重建索引" in readme
+    assert "auto</code> 明确定义为自动路由" in intro
+    assert "保留当前 L2 激活状态" in intro
+
+
 def test_introduction_states_current_release() -> None:
     text = _read(INTRO)
-    assert "<title>Mneme · 记忆女神 · v4.8.0</title>" in text
-    assert "v4.8.0" in text
+    assert "<title>Mneme · 记忆女神 · v4.8.1</title>" in text
+    assert "v4.8.1" in text
     assert "Mneme 2.1" not in text
     assert "两个动词" not in text
     assert "其余都是细节" not in text

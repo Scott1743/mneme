@@ -15,6 +15,7 @@ WORKFLOW_DREAM = SKILL_DIR / "references" / "workflow-dream.md"
 WORKFLOW_NIGHTLY = SKILL_DIR / "references" / "workflow-nightly-dream.md"
 WORKFLOW_SEARCH = SKILL_DIR / "references" / "workflow-search.md"
 TAG_GRAPH_CURATION = SKILL_DIR / "references" / "tag-graph-curation.md"
+INDEX_DESIGN = SKILL_DIR / "references" / "index-design.md"
 
 
 def _text(path: Path) -> str:
@@ -88,6 +89,20 @@ def test_l2_is_explicit_and_does_not_change_authority():
     assert "user explicitly requests semantic recall" in skill
     assert "never silently fall back" in workflow
     assert "bundle is authoritative" in workflow
+
+
+def test_auto_search_is_query_routing_not_a_persisted_mode():
+    skill = _text(SKILL_MD)
+    workflow = _text(WORKFLOW_SEARCH)
+    design = _text(INDEX_DESIGN)
+    normalized_workflow = " ".join(workflow.split())
+    normalized_design = " ".join(design.split())
+    assert "Auto is not a persisted retrieval mode" in skill
+    assert "must not run `reindex`" in skill
+    assert "must not" in skill and "map itself to FTS5" in skill
+    assert "Bare search and `--mode auto`" in normalized_workflow
+    assert "`auto` is never stored there" in normalized_design
+    assert "Choosing auto never runs `reindex`" in normalized_design
 
 
 def test_skill_has_no_fake_embed_fallback():

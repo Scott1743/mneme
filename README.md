@@ -7,7 +7,7 @@
 *把知识编译一次，让每一次提问都从已经整理好的地方继续向前。*
 
 [![MIT License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-4.8.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.8.1-blue.svg)](CHANGELOG.md)
 [![Skills.sh](https://img.shields.io/badge/skills.sh-available-2ea44f.svg)](https://www.skills.sh/?q=mneme)
 
 </div>
@@ -51,7 +51,7 @@
 
 ### search：沿知识图谱寻找答案
 
-Agent 从 `index.md` 开始，按标题、tags、链接和本地文本匹配逐层展开。wiki 变大后，默认 Hybrid 使用 Graph + FTS5；显式启用 L2 后，语义候选加入同一个三路排序。最终综合始终读取完整 Markdown 页面。
+Agent 从 `index.md` 开始，按标题、tags、链接和本地文本匹配逐层展开。`auto`（普通 `search` 或 `--mode auto`）会保留当前能力状态：默认使用 Graph + FTS5，显式启用 L2 后把语义候选加入同一个三路排序。最终综合始终读取完整 Markdown 页面。
 
 ### 本地优先
 
@@ -76,7 +76,7 @@ npx skills add Scott1743/mneme
 ### 方式二：下载 Skill zip
 
 - 零依赖基础版：[mneme-2.2.0.zip](https://github.com/Scott1743/mneme/releases/download/v2.2.0/mneme-2.2.0.zip)
-- 最新版：[mneme-4.8.0.zip](https://github.com/Scott1743/mneme/releases/download/v4.8.0/mneme-4.8.0.zip)
+- 最新版：[mneme-4.8.1.zip](https://github.com/Scott1743/mneme/releases/download/v4.8.1/mneme-4.8.1.zip)
 
 解压到 Agent 的 skills 目录即可。Mneme 不提供 wheel 或全包 `pip install`，唯一交付物就是一个普通 Skill zip。
 
@@ -164,12 +164,13 @@ mneme search "X"
 
 ### Hybrid：Graph + FTS5 + 可选 L2
 
-`reindex --graph` 从现有 OKF 页面、tags 和 Markdown links 原子重建 `<bundle>/.mneme/graph.db`，并刷新 FTS5。Graph 只是派生导航缓存，不修改 Markdown，也不接管事实。普通 `search` 自动使用 Graph + FTS5 hybrid；显式激活 L2 后，语义候选也加入同一个页面级融合排序。Graph 没有实体命中、已过期或不存在时，其余已激活通道继续工作。
+`reindex --graph` 从现有 OKF 页面、tags 和 Markdown links 原子重建 `<bundle>/.mneme/graph.db`，并刷新 FTS5。Graph 只是派生导航缓存，不修改 Markdown，也不接管事实。普通 `search` 与 `search --mode auto` 使用同一自动路由：保留当前 `fts5/l2` 能力状态，自动使用 Graph + FTS5，并在 L2 已激活时加入语义候选。`auto` 本身不写入配置，也不重建索引。Graph 没有实体命中、已过期或不存在时，其余已激活通道继续工作。
 
 三路 Hybrid 默认按 **Graph 0.75 / FTS5 0.10 / L2 0.15** 融合；某一路没有候选时，其余权重自动归一化。该比例来自本地 59 组基础用例、4,851 个 1% 网格配比、10 次重复的 5 折分组外层验证和 10,000 次聚类 bootstrap。相较原先的 `0.40 / 0.40 / 0.20`，case-macro MRR 从 `0.792` 提升到 `0.818`（差值 `+0.027`，95% CI `[+0.013, +0.041]`），并保持 7 个精确标题查询全部 Top-1。实验材料见 [`reports/experiments/hybrid-weight-nested-cv-report.md`](reports/experiments/hybrid-weight-nested-cv-report.md)。
 
 ```bash
 mneme reindex --graph
+mneme search "OKF 和 FTS5 的关系" --mode auto
 mneme search "OKF 和 FTS5 的关系" --mode hybrid
 mneme search "OKF" --mode graph
 ```
@@ -180,7 +181,7 @@ mneme search "OKF" --mode graph
 
 ### L2：语义召回（可选）
 
-v3.3.0 起可在用户自行安装 `sqlite-vec` 与 `FastEmbed` 后，通过一次 `reindex --l2` 显式启用。模式会持久化到配置中，之后普通 `search` 自动使用 L2 + Graph + FTS5，普通 `reindex` 自动沿用 L2；切回零依赖检索使用 `reindex --fts5`。Mneme 不会自动安装依赖，激活的 L2 失败时也不会静默回退。Web 面板的「重建索引」会按当前模式一次完成全部缓存：FTS5 模式重建 FTS5 + Graph，L2 模式严格重建 L2 + FTS5 + Graph。
+v3.3.0 起可在用户自行安装 `sqlite-vec` 与 `FastEmbed` 后，通过一次 `reindex --l2` 显式启用。`active_retrieval_mode = "l2"` 表示 L2 能力已激活，不是只运行 L2，也不是查询路由名称；之后 auto/普通 `search` 自动使用 L2 + Graph + FTS5，普通 `reindex` 自动沿用 L2。切回零依赖能力状态使用 `reindex --fts5`。Mneme 不会自动安装依赖，激活的 L2 失败时也不会静默回退。Web 面板的「重建索引」会按当前能力状态一次完成全部缓存：FTS5 状态重建 FTS5 + Graph，L2 状态严格重建 L2 + FTS5 + Graph。
 
 ### 外部资料转换（可选）
 

@@ -277,14 +277,18 @@ def cmd_search(args: argparse.Namespace) -> int:
 
         persisted_mode = retrieval_mode(config_path)
         requested_mode = getattr(args, "mode", None)
-        if requested_mode == "fts":
+        if requested_mode in {None, "auto"}:
+            if (
+                persisted_mode == "l2"
+                or indexlib.graph_index_path(bundle).is_file()
+            ):
+                mode = "hybrid"
+            else:
+                mode = persisted_mode
+        elif requested_mode == "fts":
             mode = "fts5"
-        elif requested_mode:
-            mode = requested_mode
-        elif persisted_mode == "l2" or indexlib.graph_index_path(bundle).is_file():
-            mode = "hybrid"
         else:
-            mode = persisted_mode
+            mode = requested_mode
     except ValueError as exc:
         print(f"search failed: {exc}", file=sys.stderr)
         return 1
@@ -843,11 +847,12 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--json", action="store_true")
     search_parser.add_argument(
         "--mode",
-        choices=("graph", "fts", "hybrid", "l2"),
+        choices=("auto", "graph", "fts", "hybrid", "l2"),
         default=None,
         help=(
-            "override retrieval for this query. Hybrid fuses Graph + FTS5 and also "
-            "L2 when semantic retrieval is active."
+            "select retrieval for this query. Auto preserves the persisted L2 "
+            "activation state and uses the default available Hybrid legs; explicit "
+            "Graph, FTS, Hybrid, and L2 modes are diagnostic overrides."
         ),
     )
     search_parser.add_argument(

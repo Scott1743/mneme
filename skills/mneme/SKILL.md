@@ -1,7 +1,7 @@
 ---
 name: mneme
-version: 4.8.0
-description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including a disposable SQLite knowledge graph, agent-extracted graph enrichment via graph ingest, hybrid Graph + FTS5 + explicitly activated L2 retrieval, and optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), initialize a wiki, rebuild graph navigation, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v4 keeps Markdown authoritative, derives graph.db from pages/tags/links, keeps FTS5 zero-dependency, and adds semantic candidates to hybrid only after explicit L2 activation."
+version: 4.8.1
+description: "Maintain and search a local, agent-curated OKF v0.1 Markdown wiki, including auto search routing across a disposable SQLite knowledge graph, FTS5, and explicitly activated L2 retrieval; agent-extracted graph enrichment via graph ingest; and optional nightly 02:00 agent health tasks in report-only or guarded auto-repair mode. Use when the user wants to dream (capture or curate knowledge), search (recall and synthesize it), select auto/automatic search, initialize a wiki, rebuild graph navigation, or schedule wiki health maintenance. Triggers: 'mneme', 'my wiki', 'remember this', 'dream about X', 'search my wiki', 'auto search', 'automatic search', '自动搜索', 'nightly wiki health', '查 wiki', '搜索知识库', '梦', '记住这个'. v4 keeps Markdown authoritative, derives graph.db from pages/tags/links, keeps FTS5 zero-dependency, and adds semantic candidates to Hybrid only after explicit L2 activation."
 allowed-tools:
   - Read
   - Write
@@ -149,6 +149,13 @@ an agentless, report-only scheduler-snippet fallback and cannot perform repair.
 `search` is the read-side host-agent workflow. The CLI returns navigation
 candidates only; the agent produces the answer.
 
+Treat `auto`, `auto search`, `automatic search`, and `自动搜索` as the default
+per-query routing policy, equivalent to bare `mneme search` or explicit
+`search --mode auto`. Auto is not a persisted retrieval mode: it preserves the
+current `active_retrieval_mode` capability state and must not run `reindex`,
+change that setting, or map itself to FTS5. With FTS5 active it uses a fresh
+Graph plus FTS5; with L2 active it adds L2 to those Hybrid legs.
+
 1. Read the root `index.md` first and expand through titles, tags, links, and
    local text matches.
 2. When ranked candidates are useful, run:
@@ -215,9 +222,11 @@ unless the user explicitly asks; just offer the command.
   `graph.db` exists. Its optional schedule flags print
   agentless, report-only scheduler snippets and never install them; the default
   fallback time is 02:00 local time.
-- `search <query> [--bundle <path>] [--mode graph|fts|hybrid|l2] --json` returns
-  candidates. Hybrid is Graph + FTS5 by default and adds semantic candidates
-  when L2 is active; explicit modes isolate a retrieval path for diagnostics.
+- `search <query> [--bundle <path>] [--mode auto|graph|fts|hybrid|l2] --json`
+  returns candidates. Auto is equivalent to bare search and preserves the
+  persisted FTS5/L2 capability state. Hybrid is Graph + FTS5 by default and
+  adds semantic candidates when L2 is active; the other explicit modes isolate
+  a retrieval path for diagnostics.
 - `graph ingest <extraction.json> [--bundle <path>]` merges agent-extracted
   entities/relations into `<bundle>/.mneme/graph.db` (schema v3). Use `"-"` as
   the file to read JSON from stdin. Requires an existing graph index; the

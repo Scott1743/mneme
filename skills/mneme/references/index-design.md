@@ -15,10 +15,27 @@ remains authoritative, and each rebuild atomically replaces only its own cache:
   enrichment when `graph.db` is rebuilt;
 - `<bundle>/.mneme/l2.db` for explicitly activated semantic retrieval.
 
-The persisted FTS5/L2 choice lives in `~/.config/mneme/config.toml` as
-`active_retrieval_mode`. Configurations without that field remain FTS5. Bare
-search uses Graph + FTS5 when Graph exists. Explicitly activating L2 adds its
-semantic candidates to that Hybrid ranking; it does not replace the other legs.
+The persisted FTS5/L2 capability choice lives in
+`~/.config/mneme/config.toml` as `active_retrieval_mode`. Configurations without
+that field remain FTS5. This setting is separate from per-query routing: `auto`
+is never stored there. Bare search and `search --mode auto` use Graph + FTS5
+when Graph exists. Explicitly activating L2 adds its semantic candidates to
+that Hybrid ranking; it does not replace the other legs.
+
+## Auto query routing
+
+Auto is the user-facing name for default query routing, not an index activation
+state. It is expressed by omitting `--mode`, by passing `--mode auto`, or by
+selecting `mode: auto` in the Web console. All three forms preserve
+`active_retrieval_mode` and select the same available legs:
+
+- persisted `fts5`: fresh Graph + FTS5, or FTS5/L0 when Graph is unavailable;
+- persisted `l2`: fresh Graph + FTS5 + L2, with remaining active legs continuing
+  when Graph is unavailable or stale.
+
+Choosing auto never runs `reindex`, switches L2 activation, or maps auto to
+FTS5. `reindex --l2` and `reindex --fts5` remain the only CLI operations that
+intentionally change the persisted capability state.
 
 ## Default: FTS5
 
@@ -48,8 +65,9 @@ remained first. Weights renormalize across legs that returned candidates. FTS5
 and L2 contribute reciprocal page-rank scores; Graph contributes its normalized
 reachability score. Graph never hard-filters global lexical or semantic recall.
 Each Graph rebuild records a Markdown source fingerprint; a stale graph is
-ignored while the other active legs continue. `search --mode graph|fts|hybrid|l2`
-provides an explicit per-query diagnostic override; it does not persist a mode.
+ignored while the other active legs continue. `search --mode auto` explicitly
+requests default routing; `search --mode graph|fts|hybrid|l2` provides per-query
+diagnostic overrides. None of these query flags persists a mode.
 
 Graph is stdlib-only SQLite and contains no authoritative facts. Approved agent
 extractions are stored as a replay manifest beside `graph.db`, so rebuilding the

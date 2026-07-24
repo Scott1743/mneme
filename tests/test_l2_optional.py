@@ -1,4 +1,4 @@
-"""Persistent optional L2 retrieval contract for Mneme 3.3.
+"""Persistent optional L2 retrieval and auto-routing contract for Mneme.
 
 These tests use injected embedders and do not require the optional packages,
 so the mode-selection contract remains covered by the default offline suite.
@@ -78,6 +78,75 @@ def test_active_l2_search_does_not_require_a_flag(tmp_path, monkeypatch, capsys)
     assert payload["candidates"][0]["l2_score"] == 1.0
     assert payload["graph_context"]["active_sources"] == ["l2"]
     assert payload["graph_context"]["queried_sources"] == ["l2"]
+
+
+def test_explicit_auto_matches_bare_search_and_preserves_l2_mode(
+    tmp_path, monkeypatch, capsys
+):
+    bundle, config = _bundle(tmp_path)
+    write_config(config, {"bundle_path": str(bundle), "active_retrieval_mode": "l2"})
+    indexlib.l2_index_path(bundle).parent.mkdir()
+    indexlib.l2_index_path(bundle).touch()
+    indexlib.fts_index_path(bundle).touch()
+    calls: list[bool] = []
+
+    def fake_hybrid(root, query, *, k, include_l2):
+        calls.append(include_l2)
+        return {
+            "query": query,
+            "candidates": [],
+            "graph_context": {
+                "mode": "hybrid",
+                "active_sources": ["fts5", "l2"],
+                "queried_sources": ["fts5", "l2"],
+            },
+        }
+
+    monkeypatch.setattr(indexlib, "search_hybrid", fake_hybrid)
+
+    assert cli.main(["search", "question", "--config", str(config), "--json"]) == 0
+    bare = json.loads(capsys.readouterr().out)
+    assert cli.main([
+        "search", "question", "--mode", "auto", "--config", str(config), "--json"
+    ]) == 0
+    explicit_auto = json.loads(capsys.readouterr().out)
+
+    assert explicit_auto == bare
+    assert calls == [True, True]
+    assert retrieval_mode(config) == "l2"
+
+
+def test_auto_uses_graph_fts_hybrid_without_activating_l2(
+    tmp_path, monkeypatch, capsys
+):
+    bundle, config = _bundle(tmp_path)
+    graph_db = indexlib.graph_index_path(bundle)
+    graph_db.parent.mkdir()
+    graph_db.touch()
+    calls: list[bool] = []
+
+    def fake_hybrid(root, query, *, k, include_l2):
+        calls.append(include_l2)
+        return {
+            "query": query,
+            "candidates": [],
+            "graph_context": {
+                "mode": "hybrid",
+                "active_sources": ["graph", "fts5"],
+                "queried_sources": ["graph", "fts5"],
+            },
+        }
+
+    monkeypatch.setattr(indexlib, "search_hybrid", fake_hybrid)
+
+    assert cli.main([
+        "search", "question", "--mode", "auto", "--config", str(config), "--json"
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["graph_context"]["active_sources"] == ["graph", "fts5"]
+    assert calls == [False]
+    assert retrieval_mode(config) == "fts5"
 
 
 def test_legacy_search_l2_flag_cannot_switch_an_fts5_bundle(tmp_path, capsys):
